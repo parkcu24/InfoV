@@ -16,6 +16,7 @@ function HomePage() {
         <div style={styles.center}>
           <span className="navItem" style={styles.navItem} onClick={() => navigate('/agents')}>요원</span>
           <span className="navItem" style={styles.navItem} onClick={() => navigate('/maps')}>맵 로테이션</span>
+          <span className="navItem" style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span>
           <span className="navItem" style={styles.navItem} onClick={() => navigate('/rank')}>랭킹</span>
           <span className="navItem" style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
         </div>

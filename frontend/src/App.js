@@ -6,6 +6,8 @@ import MapRotationPage from './MapRotationPage';
 import MapDetailPage from './MapDetailPage';
 import AgentsPage from './AgentsPage';
 import AgentDetailPage from './AgentDetailPage';
+import SkinPage from './SkinsPage';
+import SkinDetailPage from './SkinDetailPage';
 import RankPage from './RankPage';
 import EsportsPage from './EsportsPage';
 
@@ -17,6 +19,8 @@ function App() {
       <Route path="/agents/:agentName" element={<AgentDetailPage />} />
       <Route path="/maps" element={<MapRotationPage />} />
       <Route path="/maps/:mapName" element={<MapDetailPage />} />
+      <Route path="/skins/" element={<SkinPage />} />
+      <Route path="/skins/:skinId" element={<SkinDetailPage />} />
       <Route path="/rank" element={<RankPage />} />
       <Route path="/esports" element={<EsportsPage />} />
     </Routes>

@@ -33,7 +33,8 @@ function MapRotationPage() {
         <span style={styles.logo} onClick={() => navigate('/')}>INFOV</span>
         <div style={styles.navItems}>
           <span style={styles.navItem} onClick={() => navigate('/agents')}>요원</span>
-          <span style={{ ...styles.navItem, fontWeight: 'bold', fontSize: '20px' }} onClick={() => navigate('/maps')}>맵 로테이션</span>
+          <span style={{ ...styles.navItem, fontWeight: 'bold', fontSize: '20px' }}>맵 로테이션</span>
+          <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span> {/* 새로 추가 */}
           <span style={styles.navItem} onClick={() => navigate('/rank')}>랭킹</span>
           <span style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
         </div>
