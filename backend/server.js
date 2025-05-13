@@ -14,12 +14,13 @@ const rankingsRouter = require('./routes/rankings');
 const actsRouter = require('./routes/acts');
 const rotationRouter = require('./routes/rotation');
 
-// ✅ 정규표현식으로 Vercel Preview 도메인 허용 (info-xxxx.vercel.app)
+// ✅ CORS 설정
 const corsOptions = {
   origin: (origin, callback) => {
     const allowedOrigins = [
       'http://localhost:3000',
-      /^https:\/\/info-[\w-]+-parkcu24s-projects\.vercel\.app$/,
+      'https://infov.vercel.app', // ✅ production 도메인 허용
+      /^https:\/\/info-[\w-]+-parkcu24s-projects\.vercel\.app$/ // ✅ preview 도메인 허용
     ];
 
     if (!origin || allowedOrigins.some(o =>
