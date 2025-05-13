@@ -1,0 +1,1394 @@
+{
+  "글리치팝": {
+    "edition": "PE",
+    "coverImage": "/skins/glitchpop.jpg",
+    "skins": [
+      {
+        "uuid": "glitchpop-frenzy-uuid",
+        "weapon": "프렌지",
+        "displayName": "글리치팝 프렌지",
+        "displayIcon": "/skins/glitchpop_frenzy.jpg"
+      },
+      {
+        "uuid": "glitchpop-judge-uuid",
+        "weapon": "저지",
+        "displayName": "글리치팝 저지",
+        "displayIcon": "/skins/glitchpop_judge.jpg"
+      },
+      {
+        "uuid": "glitchpop-bulldog-uuid",
+        "weapon": "불독",
+        "displayName": "글리치팝 불독",
+        "displayIcon": "/skins/glitchpop_bulldog.jpg"
+      },
+      {
+        "uuid": "glitchpop-odin-uuid",
+        "weapon": "오딘",
+        "displayName": "글리치팝 오딘",
+        "displayIcon": "/skins/glitchpop_odin.jpg"
+      },
+      {
+        "uuid": "glitchpop-melee-uuid",
+        "weapon": "근접무기",
+        "displayName": "글리치팝 단검",
+        "displayIcon": "/skins/glitchpop_melee.jpg"
+      }
+    ]
+  },
+  "프라임": {
+    "edition": "PE",
+    "coverImage": "/skins/prime.jpg",
+    "skins": [
+      {
+        "uuid": "prime-밴달-uuid",
+        "weapon": "밴달",
+        "displayName": "Prime 밴달",
+        "displayIcon": "/skins/prime_밴달.jpg"
+      },
+      {
+        "uuid": "prime-스펙터-uuid",
+        "weapon": "스펙터",
+        "displayName": "Prime 스펙터",
+        "displayIcon": "/skins/prime_스펙터.jpg"
+      },
+      {
+        "uuid": "prime-셔프-uuid",
+        "weapon": "셔프",
+        "displayName": "Prime 셔프",
+        "displayIcon": "/skins/prime_셔프.jpg"
+      },
+      {
+        "uuid": "prime-오퍼레이터-uuid",
+        "weapon": "오퍼레이터",
+        "displayName": "Prime 오퍼레이터",
+        "displayIcon": "/skins/prime_오퍼레이터.jpg"
+      },
+      {
+        "uuid": "prime-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Prime 근접무기",
+        "displayIcon": "/skins/prime_근접무기.jpg"
+      }
+    ]
+  },
+  "소버린": {
+    "edition": "PE",
+    "coverImage": "/skins/sovereign.jpg",
+    "skins": [
+      {
+        "uuid": "sovereign-가디언-uuid",
+        "weapon": "가디언",
+        "displayName": "Sovereign 가디언",
+        "displayIcon": "/skins/sovereign_가디언.jpg"
+      },
+      {
+        "uuid": "sovereign-셔프-uuid",
+        "weapon": "셔프",
+        "displayName": "Sovereign 셔프",
+        "displayIcon": "/skins/sovereign_셔프.jpg"
+      },
+      {
+        "uuid": "sovereign-스펙터-uuid",
+        "weapon": "스펙터",
+        "displayName": "Sovereign 스펙터",
+        "displayIcon": "/skins/sovereign_스펙터.jpg"
+      },
+      {
+        "uuid": "sovereign-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Sovereign 근접무기",
+        "displayIcon": "/skins/sovereign_근접무기.jpg"
+      }
+    ]
+  },
+  "엘더플레임": {
+    "edition": "UE",
+    "coverImage": "/skins/elderflame.jpg",
+    "skins": [
+      {
+        "uuid": "elderflame-밴달-uuid",
+        "weapon": "밴달",
+        "displayName": "Elderflame 밴달",
+        "displayIcon": "/skins/elderflame_밴달.jpg"
+      },
+      {
+        "uuid": "elderflame-오퍼레이터-uuid",
+        "weapon": "오퍼레이터",
+        "displayName": "Elderflame 오퍼레이터",
+        "displayIcon": "/skins/elderflame_오퍼레이터.jpg"
+      },
+      {
+        "uuid": "elderflame-저지-uuid",
+        "weapon": "저지",
+        "displayName": "Elderflame 저지",
+        "displayIcon": "/skins/elderflame_저지.jpg"
+      },
+      {
+        "uuid": "elderflame-프렌지-uuid",
+        "weapon": "프렌지",
+        "displayName": "Elderflame 프렌지",
+        "displayIcon": "/skins/elderflame_프렌지.jpg"
+      },
+      {
+        "uuid": "elderflame-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Elderflame 근접무기",
+        "displayIcon": "/skins/elderflame_근접무기.jpg"
+      }
+    ]
+  },
+  "도꺠비": {
+    "edition": "PE",
+    "coverImage": "/skins/oni.jpg",
+    "skins": [
+      {
+        "uuid": "oni-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "Oni 팬텀",
+        "displayIcon": "/skins/oni_팬텀.jpg"
+      },
+      {
+        "uuid": "oni-셔프-uuid",
+        "weapon": "셔프",
+        "displayName": "Oni 셔프",
+        "displayIcon": "/skins/oni_셔프.jpg"
+      },
+      {
+        "uuid": "oni-버키-uuid",
+        "weapon": "버키",
+        "displayName": "Oni 버키",
+        "displayIcon": "/skins/oni_버키.jpg"
+      },
+      {
+        "uuid": "oni-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Oni 근접무기",
+        "displayIcon": "/skins/oni_근접무기.jpg"
+      }
+    ]
+  },
+  "아이온": {
+    "edition": "PE",
+    "coverImage": "/skins/ion.jpg",
+    "skins": [
+      {
+        "uuid": "ion-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "Ion 팬텀",
+        "displayIcon": "/skins/ion_팬텀.jpg"
+      },
+      {
+        "uuid": "ion-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Ion 셰리프",
+        "displayIcon": "/skins/ion_셰리프.jpg"
+      },
+      {
+        "uuid": "ion-오퍼레이터-uuid",
+        "weapon": "오퍼레이터",
+        "displayName": "Ion 오퍼레이터",
+        "displayIcon": "/skins/ion_오퍼레이터.jpg"
+      },
+      {
+        "uuid": "ion-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Ion 근접무기",
+        "displayIcon": "/skins/ion_근접무기.jpg"
+      }
+    ]
+  },
+  "프리즘 II": {
+    "edition": "SE",
+    "coverImage": "/skins/prismii.jpg",
+    "skins": [
+      {
+        "uuid": "prismii-오딘-uuid",
+        "weapon": "오딘",
+        "displayName": "Prism II 오딘",
+        "displayIcon": "/skins/prismii_오딘.jpg"
+      },
+      {
+        "uuid": "prismii-셔프-uuid",
+        "weapon": "셔프",
+        "displayName": "Prism II 셔프",
+        "displayIcon": "/skins/prismii_셔프.jpg"
+      },
+      {
+        "uuid": "prismii-스펙터-uuid",
+        "weapon": "스펙터",
+        "displayName": "Prism II 스펙터",
+        "displayIcon": "/skins/prismii_스펙터.jpg"
+      },
+      {
+        "uuid": "prismii-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Prism II 근접무기",
+        "displayIcon": "/skins/prismii_근접무기.jpg"
+      }
+    ]
+  },
+  "호라이즌": {
+    "edition": "SE",
+    "coverImage": "/skins/horizon.jpg",
+    "skins": [
+      {
+        "uuid": "horizon-스팅어-uuid",
+        "weapon": "스팅어",
+        "displayName": "Horizon 스팅어",
+        "displayIcon": "/skins/horizon_스팅어.jpg"
+      },
+      {
+        "uuid": "horizon-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Horizon 셰리프",
+        "displayIcon": "/skins/horizon_셰리프.jpg"
+      },
+      {
+        "uuid": "horizon-버키-uuid",
+        "weapon": "버키",
+        "displayName": "Horizon 버키",
+        "displayIcon": "/skins/horizon_버키.jpg"
+      },
+      {
+        "uuid": "horizon-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Horizon 근접무기",
+        "displayIcon": "/skins/horizon_근접무기.jpg"
+      }
+    ]
+  },
+  "Valorant Go! Vol. 1": {
+    "edition": "DE",
+    "coverImage": "/skins/valorantgovol.1.jpg",
+    "skins": [
+      {
+        "uuid": "valorantgo!vol.1-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "Valorant Go! Vol. 1 팬텀",
+        "displayIcon": "/skins/valorantgo!vol.1_팬텀.jpg"
+      },
+      {
+        "uuid": "valorantgo!vol.1-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Valorant Go! Vol. 1 셰리프",
+        "displayIcon": "/skins/valorantgo!vol.1_셰리프.jpg"
+      },
+      {
+        "uuid": "valorantgo!vol.1-오퍼레이터-uuid",
+        "weapon": "오퍼레이터",
+        "displayName": "Valorant Go! Vol. 1 오퍼레이터",
+        "displayIcon": "/skins/valorantgo!vol.1_오퍼레이터.jpg"
+      },
+      {
+        "uuid": "valorantgo!vol.1-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Valorant Go! Vol. 1 근접무기",
+        "displayIcon": "/skins/valorantgo!vol.1_근접무기.jpg"
+      }
+    ]
+  },
+  "프라임 2.0": {
+    "edition": "PE",
+    "coverImage": "/skins/prime2.0.jpg",
+    "skins": [
+      {
+        "uuid": "prime2.0-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "Prime 2.0 팬텀",
+        "displayIcon": "/skins/prime2.0_팬텀.jpg"
+      },
+      {
+        "uuid": "prime2.0-프렌지-uuid",
+        "weapon": "프렌지",
+        "displayName": "Prime 2.0 프렌지",
+        "displayIcon": "/skins/prime2.0_프렌지.jpg"
+      },
+      {
+        "uuid": "prime2.0-오딘-uuid",
+        "weapon": "오딘",
+        "displayName": "Prime 2.0 오딘",
+        "displayIcon": "/skins/prime2.0_오딘.jpg"
+      },
+      {
+        "uuid": "prime2.0-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Prime 2.0 근접무기",
+        "displayIcon": "/skins/prime2.0_근접무기.jpg"
+      }
+    ]
+  },
+  "암시장": {
+    "edition": "SE",
+    "coverImage": "/skins/infantry.jpg",
+    "skins": [
+      {
+        "uuid": "infantry-가디언-uuid",
+        "weapon": "가디언",
+        "displayName": "Infantry 가디언",
+        "displayIcon": "/skins/infantry_가디언.jpg"
+      },
+      {
+        "uuid": "infantry-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Infantry 셰리프",
+        "displayIcon": "/skins/infantry_셰리프.jpg"
+      },
+      {
+        "uuid": "infantry-오퍼레이터-uuid",
+        "weapon": "오퍼레이터",
+        "displayName": "Infantry 오퍼레이터",
+        "displayIcon": "/skins/infantry_오퍼레이터.jpg"
+      },
+      {
+        "uuid": "infantry-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Infantry 근접무기",
+        "displayIcon": "/skins/infantry_근접무기.jpg"
+      }
+    ]
+  },
+  "메이지펑크": {
+    "edition": "PE",
+    "coverImage": "/skins/magepunk.jpg",
+    "skins": [
+      {
+        "uuid": "magepunk-스펙터-uuid",
+        "weapon": "스펙터",
+        "displayName": "Magepunk 스펙터",
+        "displayIcon": "/skins/magepunk_스펙터.jpg"
+      },
+      {
+        "uuid": "magepunk-고스트-uuid",
+        "weapon": "고스트",
+        "displayName": "Magepunk 고스트",
+        "displayIcon": "/skins/magepunk_고스트.jpg"
+      },
+      {
+        "uuid": "magepunk-마샬-uuid",
+        "weapon": "마샬",
+        "displayName": "Magepunk 마샬",
+        "displayIcon": "/skins/magepunk_마샬.jpg"
+      },
+      {
+        "uuid": "magepunk-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Magepunk 근접무기",
+        "displayIcon": "/skins/magepunk_근접무기.jpg"
+      }
+    ]
+  },
+  "실바누스": {
+    "edition": "DE",
+    "coverImage": "/skins/silvanus.jpg",
+    "skins": [
+      {
+        "uuid": "silvanus-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "Silvanus 팬텀",
+        "displayIcon": "/skins/silvanus_팬텀.jpg"
+      },
+      {
+        "uuid": "silvanus-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Silvanus 셰리프",
+        "displayIcon": "/skins/silvanus_셰리프.jpg"
+      },
+      {
+        "uuid": "silvanus-스팅어-uuid",
+        "weapon": "스팅어",
+        "displayName": "Silvanus 스팅어",
+        "displayIcon": "/skins/silvanus_스팅어.jpg"
+      },
+      {
+        "uuid": "silvanus-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Silvanus 근접무기",
+        "displayIcon": "/skins/silvanus_근접무기.jpg"
+      }
+    ]
+  },
+  "포세이큰": {
+    "edition": "PE",
+    "coverImage": "/skins/forsaken.jpg",
+    "skins": [
+      {
+        "uuid": "forsaken-밴달-uuid",
+        "weapon": "밴달",
+        "displayName": "Forsaken 밴달",
+        "displayIcon": "/skins/forsaken_밴달.jpg"
+      },
+      {
+        "uuid": "forsaken-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Forsaken 셰리프",
+        "displayIcon": "/skins/forsaken_셰리프.jpg"
+      },
+      {
+        "uuid": "forsaken-스펙터-uuid",
+        "weapon": "스펙터",
+        "displayName": "Forsaken 스펙터",
+        "displayIcon": "/skins/forsaken_스펙터.jpg"
+      },
+      {
+        "uuid": "forsaken-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Forsaken 근접무기",
+        "displayIcon": "/skins/forsaken_근접무기.jpg"
+      }
+    ]
+  },
+  "미니마": {
+    "edition": "DE",
+    "coverImage": "/skins/minima.jpg",
+    "skins": [
+      {
+        "uuid": "minima-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "Minima 팬텀",
+        "displayIcon": "/skins/minima_팬텀.jpg"
+      },
+      {
+        "uuid": "minima-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Minima 셰리프",
+        "displayIcon": "/skins/minima_셰리프.jpg"
+      },
+      {
+        "uuid": "minima-스펙터-uuid",
+        "weapon": "스펙터",
+        "displayName": "Minima 스펙터",
+        "displayIcon": "/skins/minima_스펙터.jpg"
+      },
+      {
+        "uuid": "minima-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Minima 근접무기",
+        "displayIcon": "/skins/minima_근접무기.jpg"
+      }
+    ]
+  },
+  "결속된 세계": {
+    "edition": "PE",
+    "coverImage": "/skins/tetheredrealms.jpg",
+    "skins": [
+      {
+        "uuid": "tetheredrealms-밴달-uuid",
+        "weapon": "밴달",
+        "displayName": "Tethered Realms 밴달",
+        "displayIcon": "/skins/tetheredrealms_밴달.jpg"
+      },
+      {
+        "uuid": "tetheredrealms-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Tethered Realms 셰리프",
+        "displayIcon": "/skins/tetheredrealms_셰리프.jpg"
+      },
+      {
+        "uuid": "tetheredrealms-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Tethered Realms 근접무기",
+        "displayIcon": "/skins/tetheredrealms_근접무기.jpg"
+      }
+    ]
+  },
+  "오리진": {
+    "edition": "PE",
+    "coverImage": "/skins/origin.jpg",
+    "skins": [
+      {
+        "uuid": "origin-밴달-uuid",
+        "weapon": "밴달",
+        "displayName": "Origin 밴달",
+        "displayIcon": "/skins/origin_밴달.jpg"
+      },
+      {
+        "uuid": "origin-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Origin 셰리프",
+        "displayIcon": "/skins/origin_셰리프.jpg"
+      },
+      {
+        "uuid": "origin-오퍼레이터-uuid",
+        "weapon": "오퍼레이터",
+        "displayName": "Origin 오퍼레이터",
+        "displayIcon": "/skins/origin_오퍼레이터.jpg"
+      },
+      {
+        "uuid": "origin-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Origin 근접무기",
+        "displayIcon": "/skins/origin_근접무기.jpg"
+      }
+    ]
+  },
+  "대몰락": {
+    "edition": "PE",
+    "coverImage": "/skins/ruination.jpg",
+    "skins": [
+      {
+        "uuid": "ruination-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "Ruination 팬텀",
+        "displayIcon": "/skins/ruination_팬텀.jpg"
+      },
+      {
+        "uuid": "ruination-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Ruination 셰리프",
+        "displayIcon": "/skins/ruination_셰리프.jpg"
+      },
+      {
+        "uuid": "ruination-가디언-uuid",
+        "weapon": "가디언",
+        "displayName": "Ruination 가디언",
+        "displayIcon": "/skins/ruination_가디언.jpg"
+      },
+      {
+        "uuid": "ruination-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Ruination 근접무기",
+        "displayIcon": "/skins/ruination_근접무기.jpg"
+      }
+    ]
+  },
+  "Sentinels of Light": {
+    "edition": "PE",
+    "coverImage": "/skins/sentinelsoflight.jpg",
+    "skins": [
+      {
+        "uuid": "sentinelsoflight-밴달-uuid",
+        "weapon": "밴달",
+        "displayName": "Sentinels of Light 밴달",
+        "displayIcon": "/skins/sentinelsoflight_밴달.jpg"
+      },
+      {
+        "uuid": "sentinelsoflight-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Sentinels of Light 셰리프",
+        "displayIcon": "/skins/sentinelsoflight_셰리프.jpg"
+      },
+      {
+        "uuid": "sentinelsoflight-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Sentinels of Light 근접무기",
+        "displayIcon": "/skins/sentinelsoflight_근접무기.jpg"
+      }
+    ]
+  },
+  "Spectrum": {
+    "edition": "UE",
+    "coverImage": "/skins/spectrum.jpg",
+    "skins": [
+      {
+        "uuid": "spectrum-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "Spectrum 팬텀",
+        "displayIcon": "/skins/spectrum_팬텀.jpg"
+      },
+      {
+        "uuid": "spectrum-가디언-uuid",
+        "weapon": "가디언",
+        "displayName": "Spectrum 가디언",
+        "displayIcon": "/skins/spectrum_가디언.jpg"
+      },
+      {
+        "uuid": "spectrum-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Spectrum 근접무기",
+        "displayIcon": "/skins/spectrum_근접무기.jpg"
+      }
+    ]
+  },
+  "RGX 11z Pro": {
+    "edition": "PE",
+    "coverImage": "/skins/rgx11zpro.jpg",
+    "skins": [
+      {
+        "uuid": "rgx11zpro-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "RGX 11z Pro 팬텀",
+        "displayIcon": "/skins/rgx11zpro_팬텀.jpg"
+      },
+      {
+        "uuid": "rgx11zpro-프렌지-uuid",
+        "weapon": "프렌지",
+        "displayName": "RGX 11z Pro 프렌지",
+        "displayIcon": "/skins/rgx11zpro_프렌지.jpg"
+      },
+      {
+        "uuid": "rgx11zpro-스팅어-uuid",
+        "weapon": "스팅어",
+        "displayName": "RGX 11z Pro 스팅어",
+        "displayIcon": "/skins/rgx11zpro_스팅어.jpg"
+      },
+      {
+        "uuid": "rgx11zpro-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "RGX 11z Pro 근접무기",
+        "displayIcon": "/skins/rgx11zpro_근접무기.jpg"
+      }
+    ]
+  },
+  "Champions 2021": {
+    "edition": "UE",
+    "coverImage": "/skins/champions2021.jpg",
+    "skins": [
+      {
+        "uuid": "champions2021-밴달-uuid",
+        "weapon": "밴달",
+        "displayName": "Champions 2021 밴달",
+        "displayIcon": "/skins/champions2021_밴달.jpg"
+      },
+      {
+        "uuid": "champions2021-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Champions 2021 근접무기",
+        "displayIcon": "/skins/champions2021_근접무기.jpg"
+      }
+    ]
+  },
+  "Protocol 781-A": {
+    "edition": "UE",
+    "coverImage": "/skins/protocol781-a.jpg",
+    "skins": [
+      {
+        "uuid": "protocol781-a-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "Protocol 781-A 팬텀",
+        "displayIcon": "/skins/protocol781-a_팬텀.jpg"
+      },
+      {
+        "uuid": "protocol781-a-셔프-uuid",
+        "weapon": "셔프",
+        "displayName": "Protocol 781-A 셔프",
+        "displayIcon": "/skins/protocol781-a_셔프.jpg"
+      },
+      {
+        "uuid": "protocol781-a-스펙터-uuid",
+        "weapon": "스펙터",
+        "displayName": "Protocol 781-A 스펙터",
+        "displayIcon": "/skins/protocol781-a_스펙터.jpg"
+      },
+      {
+        "uuid": "protocol781-a-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Protocol 781-A 근접무기",
+        "displayIcon": "/skins/protocol781-a_근접무기.jpg"
+      }
+    ]
+  },
+  "Tigris": {
+    "edition": "DE",
+    "coverImage": "/skins/tigris.jpg",
+    "skins": [
+      {
+        "uuid": "tigris-오퍼레이터-uuid",
+        "weapon": "오퍼레이터",
+        "displayName": "Tigris 오퍼레이터",
+        "displayIcon": "/skins/tigris_오퍼레이터.jpg"
+      },
+      {
+        "uuid": "tigris-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Tigris 셰리프",
+        "displayIcon": "/skins/tigris_셰리프.jpg"
+      },
+      {
+        "uuid": "tigris-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Tigris 근접무기",
+        "displayIcon": "/skins/tigris_근접무기.jpg"
+      }
+    ]
+  },
+  "Undercity": {
+    "edition": "PE",
+    "coverImage": "/skins/undercity.jpg",
+    "skins": [
+      {
+        "uuid": "undercity-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "Undercity 팬텀",
+        "displayIcon": "/skins/undercity_팬텀.jpg"
+      },
+      {
+        "uuid": "undercity-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Undercity 셰리프",
+        "displayIcon": "/skins/undercity_셰리프.jpg"
+      },
+      {
+        "uuid": "undercity-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Undercity 근접무기",
+        "displayIcon": "/skins/undercity_근접무기.jpg"
+      }
+    ]
+  },
+  "Gaia's Vengeance": {
+    "edition": "PE",
+    "coverImage": "/skins/gaia'svengeance.jpg",
+    "skins": [
+      {
+        "uuid": "gaia'svengeance-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "Gaia's Vengeance 팬텀",
+        "displayIcon": "/skins/gaia'svengeance_팬텀.jpg"
+      },
+      {
+        "uuid": "gaia'svengeance-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Gaia's Vengeance 셰리프",
+        "displayIcon": "/skins/gaia'svengeance_셰리프.jpg"
+      },
+      {
+        "uuid": "gaia'svengeance-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Gaia's Vengeance 근접무기",
+        "displayIcon": "/skins/gaia'svengeance_근접무기.jpg"
+      }
+    ]
+  },
+  "RGX 11z Pro 2.0": {
+    "edition": "PE",
+    "coverImage": "/skins/rgx11zpro2.0.jpg",
+    "skins": [
+      {
+        "uuid": "rgx11zpro2.0-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "RGX 11z Pro 2.0 팬텀",
+        "displayIcon": "/skins/rgx11zpro2.0_팬텀.jpg"
+      },
+      {
+        "uuid": "rgx11zpro2.0-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "RGX 11z Pro 2.0 셰리프",
+        "displayIcon": "/skins/rgx11zpro2.0_셰리프.jpg"
+      },
+      {
+        "uuid": "rgx11zpro2.0-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "RGX 11z Pro 2.0 근접무기",
+        "displayIcon": "/skins/rgx11zpro2.0_근접무기.jpg"
+      }
+    ]
+  },
+  "Prelude to Chaos": {
+    "edition": "UE",
+    "coverImage": "/skins/preludetochaos.jpg",
+    "skins": [
+      {
+        "uuid": "preludetochaos-밴달-uuid",
+        "weapon": "밴달",
+        "displayName": "Prelude to Chaos 밴달",
+        "displayIcon": "/skins/preludetochaos_밴달.jpg"
+      },
+      {
+        "uuid": "preludetochaos-스펙터-uuid",
+        "weapon": "스펙터",
+        "displayName": "Prelude to Chaos 스펙터",
+        "displayIcon": "/skins/preludetochaos_스펙터.jpg"
+      },
+      {
+        "uuid": "preludetochaos-쇼티-uuid",
+        "weapon": "쇼티",
+        "displayName": "Prelude to Chaos 쇼티",
+        "displayIcon": "/skins/preludetochaos_쇼티.jpg"
+      },
+      {
+        "uuid": "preludetochaos-오퍼레이터-uuid",
+        "weapon": "오퍼레이터",
+        "displayName": "Prelude to Chaos 오퍼레이터",
+        "displayIcon": "/skins/preludetochaos_오퍼레이터.jpg"
+      },
+      {
+        "uuid": "preludetochaos-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Prelude to Chaos 근접무기",
+        "displayIcon": "/skins/preludetochaos_근접무기.jpg"
+      }
+    ]
+  },
+  "Champions 2022": {
+    "edition": "XE",
+    "coverImage": "/skins/champions2022.jpg",
+    "skins": [
+      {
+        "uuid": "champions2022-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "Champions 2022 팬텀",
+        "displayIcon": "/skins/champions2022_팬텀.jpg"
+      },
+      {
+        "uuid": "champions2022-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Champions 2022 근접무기",
+        "displayIcon": "/skins/champions2022_근접무기.jpg"
+      }
+    ]
+  },
+  "Crimsonbeast": {
+    "edition": "PE",
+    "coverImage": "/skins/crimsonbeast.jpg",
+    "skins": [
+      {
+        "uuid": "crimsonbeast-밴달-uuid",
+        "weapon": "밴달",
+        "displayName": "Crimsonbeast 밴달",
+        "displayIcon": "/skins/crimsonbeast_밴달.jpg"
+      },
+      {
+        "uuid": "crimsonbeast-마샬-uuid",
+        "weapon": "마샬",
+        "displayName": "Crimsonbeast 마샬",
+        "displayIcon": "/skins/crimsonbeast_마샬.jpg"
+      },
+      {
+        "uuid": "crimsonbeast-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Crimsonbeast 셰리프",
+        "displayIcon": "/skins/crimsonbeast_셰리프.jpg"
+      },
+      {
+        "uuid": "crimsonbeast-저지-uuid",
+        "weapon": "저지",
+        "displayName": "Crimsonbeast 저지",
+        "displayIcon": "/skins/crimsonbeast_저지.jpg"
+      },
+      {
+        "uuid": "crimsonbeast-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Crimsonbeast 근접무기",
+        "displayIcon": "/skins/crimsonbeast_근접무기.jpg"
+      }
+    ]
+  },
+  "Ion 2.0": {
+    "edition": "PE",
+    "coverImage": "/skins/ion2.0.jpg",
+    "skins": [
+      {
+        "uuid": "ion2.0-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "Ion 2.0 팬텀",
+        "displayIcon": "/skins/ion2.0_팬텀.jpg"
+      },
+      {
+        "uuid": "ion2.0-스펙터-uuid",
+        "weapon": "스펙터",
+        "displayName": "Ion 2.0 스펙터",
+        "displayIcon": "/skins/ion2.0_스펙터.jpg"
+      },
+      {
+        "uuid": "ion2.0-아레스-uuid",
+        "weapon": "아레스",
+        "displayName": "Ion 2.0 아레스",
+        "displayIcon": "/skins/ion2.0_아레스.jpg"
+      },
+      {
+        "uuid": "ion2.0-프렌지-uuid",
+        "weapon": "프렌지",
+        "displayName": "Ion 2.0 프렌지",
+        "displayIcon": "/skins/ion2.0_프렌지.jpg"
+      },
+      {
+        "uuid": "ion2.0-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Ion 2.0 근접무기",
+        "displayIcon": "/skins/ion2.0_근접무기.jpg"
+      }
+    ]
+  },
+  "Soulstrife": {
+    "edition": "DE",
+    "coverImage": "/skins/soulstrife.jpg",
+    "skins": [
+      {
+        "uuid": "soulstrife-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "Soulstrife 팬텀",
+        "displayIcon": "/skins/soulstrife_팬텀.jpg"
+      },
+      {
+        "uuid": "soulstrife-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Soulstrife 셰리프",
+        "displayIcon": "/skins/soulstrife_셰리프.jpg"
+      },
+      {
+        "uuid": "soulstrife-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Soulstrife 근접무기",
+        "displayIcon": "/skins/soulstrife_근접무기.jpg"
+      }
+    ]
+  },
+  "Cryostasis": {
+    "edition": "PE",
+    "coverImage": "/skins/cryostasis.jpg",
+    "skins": [
+      {
+        "uuid": "cryostasis-밴달-uuid",
+        "weapon": "밴달",
+        "displayName": "Cryostasis 밴달",
+        "displayIcon": "/skins/cryostasis_밴달.jpg"
+      },
+      {
+        "uuid": "cryostasis-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Cryostasis 셰리프",
+        "displayIcon": "/skins/cryostasis_셰리프.jpg"
+      },
+      {
+        "uuid": "cryostasis-오퍼레이터-uuid",
+        "weapon": "오퍼레이터",
+        "displayName": "Cryostasis 오퍼레이터",
+        "displayIcon": "/skins/cryostasis_오퍼레이터.jpg"
+      },
+      {
+        "uuid": "cryostasis-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Cryostasis 근접무기",
+        "displayIcon": "/skins/cryostasis_근접무기.jpg"
+      }
+    ]
+  },
+  "Araxys": {
+    "edition": "XE",
+    "coverImage": "/skins/araxys.jpg",
+    "skins": [
+      {
+        "uuid": "araxys-밴달-uuid",
+        "weapon": "밴달",
+        "displayName": "Araxys 밴달",
+        "displayIcon": "/skins/araxys_밴달.jpg"
+      },
+      {
+        "uuid": "araxys-불독-uuid",
+        "weapon": "불독",
+        "displayName": "Araxys 불독",
+        "displayIcon": "/skins/araxys_불독.jpg"
+      },
+      {
+        "uuid": "araxys-오퍼레이터-uuid",
+        "weapon": "오퍼레이터",
+        "displayName": "Araxys 오퍼레이터",
+        "displayIcon": "/skins/araxys_오퍼레이터.jpg"
+      },
+      {
+        "uuid": "araxys-쇼티-uuid",
+        "weapon": "쇼티",
+        "displayName": "Araxys 쇼티",
+        "displayIcon": "/skins/araxys_쇼티.jpg"
+      },
+      {
+        "uuid": "araxys-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Araxys 근접무기",
+        "displayIcon": "/skins/araxys_근접무기.jpg"
+      }
+    ]
+  },
+  "Radiant Entertainment System": {
+    "edition": "UE",
+    "coverImage": "/skins/radiantentertainmentsystem.jpg",
+    "skins": [
+      {
+        "uuid": "radiantentertainmentsystem-고스트-uuid",
+        "weapon": "고스트",
+        "displayName": "Radiant Entertainment System 고스트",
+        "displayIcon": "/skins/radiantentertainmentsystem_고스트.jpg"
+      },
+      {
+        "uuid": "radiantentertainmentsystem-오퍼레이터-uuid",
+        "weapon": "오퍼레이터",
+        "displayName": "Radiant Entertainment System 오퍼레이터",
+        "displayIcon": "/skins/radiantentertainmentsystem_오퍼레이터.jpg"
+      },
+      {
+        "uuid": "radiantentertainmentsystem-불독-uuid",
+        "weapon": "불독",
+        "displayName": "Radiant Entertainment System 불독",
+        "displayIcon": "/skins/radiantentertainmentsystem_불독.jpg"
+      },
+      {
+        "uuid": "radiantentertainmentsystem-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "Radiant Entertainment System 팬텀",
+        "displayIcon": "/skins/radiantentertainmentsystem_팬텀.jpg"
+      },
+      {
+        "uuid": "radiantentertainmentsystem-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Radiant Entertainment System 근접무기",
+        "displayIcon": "/skins/radiantentertainmentsystem_근접무기.jpg"
+      }
+    ]
+  },
+  "NO LIMITS": {
+    "edition": "PE",
+    "coverImage": "/skins/nolimits.jpg",
+    "skins": [
+      {
+        "uuid": "nolimits-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "NO LIMITS 팬텀",
+        "displayIcon": "/skins/nolimits_팬텀.jpg"
+      },
+      {
+        "uuid": "nolimits-불독-uuid",
+        "weapon": "불독",
+        "displayName": "NO LIMITS 불독",
+        "displayIcon": "/skins/nolimits_불독.jpg"
+      },
+      {
+        "uuid": "nolimits-스팅어-uuid",
+        "weapon": "스팅어",
+        "displayName": "NO LIMITS 스팅어",
+        "displayIcon": "/skins/nolimits_스팅어.jpg"
+      },
+      {
+        "uuid": "nolimits-클래식-uuid",
+        "weapon": "클래식",
+        "displayName": "NO LIMITS 클래식",
+        "displayIcon": "/skins/nolimits_클래식.jpg"
+      },
+      {
+        "uuid": "nolimits-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "NO LIMITS 근접무기",
+        "displayIcon": "/skins/nolimits_근접무기.jpg"
+      }
+    ]
+  },
+  "Neo Frontier": {
+    "edition": "XE",
+    "coverImage": "/skins/neofrontier.jpg",
+    "skins": [
+      {
+        "uuid": "neofrontier-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "Neo Frontier 팬텀",
+        "displayIcon": "/skins/neofrontier_팬텀.jpg"
+      },
+      {
+        "uuid": "neofrontier-마샬-uuid",
+        "weapon": "마샬",
+        "displayName": "Neo Frontier 마샬",
+        "displayIcon": "/skins/neofrontier_마샬.jpg"
+      },
+      {
+        "uuid": "neofrontier-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Neo Frontier 셰리프",
+        "displayIcon": "/skins/neofrontier_셰리프.jpg"
+      },
+      {
+        "uuid": "neofrontier-오딘-uuid",
+        "weapon": "오딘",
+        "displayName": "Neo Frontier 오딘",
+        "displayIcon": "/skins/neofrontier_오딘.jpg"
+      },
+      {
+        "uuid": "neofrontier-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Neo Frontier 근접무기",
+        "displayIcon": "/skins/neofrontier_근접무기.jpg"
+      }
+    ]
+  },
+  "Valiant Hero": {
+    "edition": "PE",
+    "coverImage": "/skins/valianthero.jpg",
+    "skins": [
+      {
+        "uuid": "valianthero-밴달-uuid",
+        "weapon": "밴달",
+        "displayName": "Valiant Hero 밴달",
+        "displayIcon": "/skins/valianthero_밴달.jpg"
+      },
+      {
+        "uuid": "valianthero-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Valiant Hero 셰리프",
+        "displayIcon": "/skins/valianthero_셰리프.jpg"
+      },
+      {
+        "uuid": "valianthero-스펙터-uuid",
+        "weapon": "스펙터",
+        "displayName": "Valiant Hero 스펙터",
+        "displayIcon": "/skins/valianthero_스펙터.jpg"
+      },
+      {
+        "uuid": "valianthero-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Valiant Hero 근접무기",
+        "displayIcon": "/skins/valianthero_근접무기.jpg"
+      }
+    ]
+  },
+  "Overdrive": {
+    "edition": "XE",
+    "coverImage": "/skins/overdrive.jpg",
+    "skins": [
+      {
+        "uuid": "overdrive-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Overdrive 셰리프",
+        "displayIcon": "/skins/overdrive_셰리프.jpg"
+      },
+      {
+        "uuid": "overdrive-밴달-uuid",
+        "weapon": "밴달",
+        "displayName": "Overdrive 밴달",
+        "displayIcon": "/skins/overdrive_밴달.jpg"
+      },
+      {
+        "uuid": "overdrive-스팅어-uuid",
+        "weapon": "스팅어",
+        "displayName": "Overdrive 스팅어",
+        "displayIcon": "/skins/overdrive_스팅어.jpg"
+      },
+      {
+        "uuid": "overdrive-버키-uuid",
+        "weapon": "버키",
+        "displayName": "Overdrive 버키",
+        "displayIcon": "/skins/overdrive_버키.jpg"
+      },
+      {
+        "uuid": "overdrive-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Overdrive 근접무기",
+        "displayIcon": "/skins/overdrive_근접무기.jpg"
+      }
+    ]
+  },
+  "Champions 2023": {
+    "edition": "UE",
+    "coverImage": "/skins/champions2023.jpg",
+    "skins": [
+      {
+        "uuid": "champions2023-밴달-uuid",
+        "weapon": "밴달",
+        "displayName": "Champions 2023 밴달",
+        "displayIcon": "/skins/champions2023_밴달.jpg"
+      },
+      {
+        "uuid": "champions2023-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Champions 2023 근접무기",
+        "displayIcon": "/skins/champions2023_근접무기.jpg"
+      }
+    ]
+  },
+  "Kuronami": {
+    "edition": "PE",
+    "coverImage": "/skins/kuronami.jpg",
+    "skins": [
+      {
+        "uuid": "kuronami-밴달-uuid",
+        "weapon": "밴달",
+        "displayName": "Kuronami 밴달",
+        "displayIcon": "/skins/kuronami_밴달.jpg"
+      },
+      {
+        "uuid": "kuronami-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Kuronami 셰리프",
+        "displayIcon": "/skins/kuronami_셰리프.jpg"
+      },
+      {
+        "uuid": "kuronami-스펙터-uuid",
+        "weapon": "스펙터",
+        "displayName": "Kuronami 스펙터",
+        "displayIcon": "/skins/kuronami_스펙터.jpg"
+      },
+      {
+        "uuid": "kuronami-마샬-uuid",
+        "weapon": "마샬",
+        "displayName": "Kuronami 마샬",
+        "displayIcon": "/skins/kuronami_마샬.jpg"
+      },
+      {
+        "uuid": "kuronami-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Kuronami 근접무기",
+        "displayIcon": "/skins/kuronami_근접무기.jpg"
+      }
+    ]
+  },
+  "Emberclad": {
+    "edition": "DE",
+    "coverImage": "/skins/emberclad.jpg",
+    "skins": [
+      {
+        "uuid": "emberclad-밴달-uuid",
+        "weapon": "밴달",
+        "displayName": "Emberclad 밴달",
+        "displayIcon": "/skins/emberclad_밴달.jpg"
+      },
+      {
+        "uuid": "emberclad-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Emberclad 셰리프",
+        "displayIcon": "/skins/emberclad_셰리프.jpg"
+      },
+      {
+        "uuid": "emberclad-스펙터-uuid",
+        "weapon": "스펙터",
+        "displayName": "Emberclad 스펙터",
+        "displayIcon": "/skins/emberclad_스펙터.jpg"
+      },
+      {
+        "uuid": "emberclad-마샬-uuid",
+        "weapon": "마샬",
+        "displayName": "Emberclad 마샬",
+        "displayIcon": "/skins/emberclad_마샬.jpg"
+      },
+      {
+        "uuid": "emberclad-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Emberclad 근접무기",
+        "displayIcon": "/skins/emberclad_근접무기.jpg"
+      }
+    ]
+  },
+  "XERØFANG": {
+    "edition": "PE",
+    "coverImage": "/skins/xerofang.jpg",
+    "skins": [
+      {
+        "uuid": "xerøfang-밴달-uuid",
+        "weapon": "밴달",
+        "displayName": "XERØFANG 밴달",
+        "displayIcon": "/skins/xerøfang_밴달.jpg"
+      },
+      {
+        "uuid": "xerøfang-고스트-uuid",
+        "weapon": "고스트",
+        "displayName": "XERØFANG 고스트",
+        "displayIcon": "/skins/xerøfang_고스트.jpg"
+      },
+      {
+        "uuid": "xerøfang-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "XERØFANG 근접무기",
+        "displayIcon": "/skins/xerøfang_근접무기.jpg"
+      }
+    ]
+  },
+  "Evori Dreamwings": {
+    "edition": "UE",
+    "coverImage": "/skins/evoridreamwings.jpg",
+    "skins": [
+      {
+        "uuid": "evoridreamwings-클래식-uuid",
+        "weapon": "클래식",
+        "displayName": "Evori Dreamwings 클래식",
+        "displayIcon": "/skins/evoridreamwings_클래식.jpg"
+      },
+      {
+        "uuid": "evoridreamwings-스펙터-uuid",
+        "weapon": "스펙터",
+        "displayName": "Evori Dreamwings 스펙터",
+        "displayIcon": "/skins/evoridreamwings_스펙터.jpg"
+      },
+      {
+        "uuid": "evoridreamwings-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "Evori Dreamwings 팬텀",
+        "displayIcon": "/skins/evoridreamwings_팬텀.jpg"
+      },
+      {
+        "uuid": "evoridreamwings-오퍼레이터-uuid",
+        "weapon": "오퍼레이터",
+        "displayName": "Evori Dreamwings 오퍼레이터",
+        "displayIcon": "/skins/evoridreamwings_오퍼레이터.jpg"
+      },
+      {
+        "uuid": "evoridreamwings-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Evori Dreamwings 근접무기",
+        "displayIcon": "/skins/evoridreamwings_근접무기.jpg"
+      }
+    ]
+  },
+  "Champions 2024": {
+    "edition": "PE",
+    "coverImage": "/skins/champions2024.jpg",
+    "skins": [
+      {
+        "uuid": "champions2024-팬텀-uuid",
+        "weapon": "팬텀",
+        "displayName": "Champions 2024 팬텀",
+        "displayIcon": "/skins/champions2024_팬텀.jpg"
+      },
+      {
+        "uuid": "champions2024-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Champions 2024 근접무기",
+        "displayIcon": "/skins/champions2024_근접무기.jpg"
+      }
+    ]
+  },
+  "Valorant x Gundam": {
+    "edition": "PE",
+    "coverImage": "/skins/orion.jpg",
+    "skins": [
+      {
+        "uuid": "orion-밴달-uuid",
+        "weapon": "밴달",
+        "displayName": "orion 밴달",
+        "displayIcon": "/skins/orion_밴달.jpg"
+      },
+      {
+        "uuid": "orion-가디언-uuid",
+        "weapon": "가디언",
+        "displayName": "orion 가디언",
+        "displayIcon": "/skins/orion_가디언.jpg"
+      },
+      {
+        "uuid": "orion-오퍼레이터-uuid",
+        "weapon": "오퍼레이터",
+        "displayName": "orion 오퍼레이터",
+        "displayIcon": "/skins/orion_오퍼레이터.jpg"
+      },
+      {
+        "uuid": "orion-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "orion 근접무기",
+        "displayIcon": "/skins/orion_근접무기.jpg"
+      }
+    ]
+  },
+  "Sovereign 2.0": {
+    "edition": "PE",
+    "coverImage": "/skins/sovereign2.0.jpg",
+    "skins": [
+      {
+        "uuid": "sovereign2.0-밴달-uuid",
+        "weapon": "밴달",
+        "displayName": "Sovereign 2.0 밴달",
+        "displayIcon": "/skins/sovereign2.0_밴달.jpg"
+      },
+      {
+        "uuid": "sovereign2.0-셰리프-uuid",
+        "weapon": "셰리프",
+        "displayName": "Sovereign 2.0 셰리프",
+        "displayIcon": "/skins/sovereign2.0_셰리프.jpg"
+      },
+      {
+        "uuid": "sovereign2.0-스펙터-uuid",
+        "weapon": "스펙터",
+        "displayName": "Sovereign 2.0 스펙터",
+        "displayIcon": "/skins/sovereign2.0_스펙터.jpg"
+      },
+      {
+        "uuid": "sovereign2.0-근접무기-uuid",
+        "weapon": "근접무기",
+        "displayName": "Sovereign 2.0 근접무기",
+        "displayIcon": "/skins/sovereign2.0_근접무기.jpg"
+      }
+    ]
+  }
+}
