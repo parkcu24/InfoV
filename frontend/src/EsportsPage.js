@@ -1,5 +1,5 @@
 // EsportsPage.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
@@ -17,6 +17,7 @@ function EsportsPage() {
   const [selectedLeagues, setSelectedLeagues] = useState(leagues);
   const [scheduleData, setScheduleData] = useState([]);
   const [revealedMatches, setRevealedMatches] = useState({});
+  const scrollRef = useRef(null);
 
   useEffect(() => {
     axios
@@ -45,17 +46,34 @@ function EsportsPage() {
     setRevealedMatches(prev => ({ ...prev, [idx]: !prev[idx] }));
   };
 
-  const filteredSchedule = scheduleData
-    .filter(
-      (match) =>
-        match['경기종류'] &&
-        selectedLeagues.includes(match['경기종류'].toUpperCase())
-    )
-    .sort((a, b) => {
-      const dateA = new Date(`${a['날짜']} ${a['시간']}`);
-      const dateB = new Date(`${b['날짜']} ${b['시간']}`);
-      return dateA - dateB;
+  const filteredSchedule = useMemo(() => {
+    return scheduleData
+      .filter(
+        (match) =>
+          match['경기종류'] &&
+          selectedLeagues.includes(match['경기종류'].toUpperCase())
+      )
+      .sort((a, b) => {
+        const dateA = new Date(`${a['날짜']} ${a['시간']}`);
+        const dateB = new Date(`${b['날짜']} ${b['시간']}`);
+        return dateB - dateA; // 미래 → 과거 순
+      });
+  }, [scheduleData, selectedLeagues]);
+
+  useEffect(() => {
+    const today = new Date();
+    const futureMatchIndex = filteredSchedule.findIndex((match) => {
+      const matchTime = new Date(`${match['날짜']} ${match['시간']}`);
+      return matchTime >= today;
     });
+
+    if (futureMatchIndex !== -1 && scrollRef.current) {
+      const matchElement = scrollRef.current.querySelector(`[data-index="${futureMatchIndex}"]`);
+      if (matchElement) {
+        matchElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  }, [filteredSchedule]);
 
   let lastDate = '';
 
@@ -66,7 +84,7 @@ function EsportsPage() {
         <div style={styles.navItems}>
           <span style={styles.navItem} onClick={() => navigate('/agents')}>요원</span>
           <span style={styles.navItem} onClick={() => navigate('/maps')}>맵 로테이션</span>
-          <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span> {/* 새로 추가 */}
+          <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span>
           <span style={styles.navItem} onClick={() => navigate('/rank')}>랭킹</span>
           <span style={{ ...styles.navItem, fontWeight: 'bold', fontSize: '20px' }}>E-Sports</span>
         </div>
@@ -94,14 +112,14 @@ function EsportsPage() {
           ))}
         </div>
 
-        <div style={styles.matchCards}>
+        <div style={styles.matchCards} ref={scrollRef}>
           {filteredSchedule.map((match, idx) => {
             const isNewDay = match['날짜'] !== lastDate;
             lastDate = match['날짜'];
             return (
               <React.Fragment key={idx}>
                 {isNewDay && <hr style={styles.dateDivider} />}
-                <div style={styles.card}>
+                <div style={styles.card} data-index={idx}>
                   <div style={styles.resultButtonContainer}>
                     {match['결과'] && !revealedMatches[idx] ? (
                       <button style={styles.resultButton} onClick={() => toggleResult(idx)}>결과 보기</button>

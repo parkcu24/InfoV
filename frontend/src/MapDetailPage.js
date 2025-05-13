@@ -1,11 +1,36 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
+// 한글 맵 이름 → 영문 이미지 파일명
+const mapImageMap = {
+  어센트: "ascent",
+  헤이븐: "haven",
+  바인드: "bind",
+};
+
+// 한글 요원 이름 → 영문 이미지 파일명
+const agentImageMap = {
+  브림스톤: "brimstone",
+  제트: "jett",
+  사이퍼: "cypher",
+  스카이: "skye",
+  세이지: "sage",
+  오멘: "omen",
+  레이나: "reyna",
+  페이드: "fade",
+  킬조이: "killjoy",
+  브리치: "breach",
+  소바: "sova",
+  게코: "geko",
+  바이퍼: "viper",
+  레이즈: "raze",
+  요루: "yoru"
+};
+
 function MapDetailPage() {
   const { mapName } = useParams();
   const navigate = useNavigate();
 
-  // 맵별 요원 조합 및 순위
   const agentCombosByMap = {
     어센트: [
       ['브림스톤', '제트', '사이퍼', '스카이', '세이지'],
@@ -36,9 +61,9 @@ function MapDetailPage() {
       <nav style={styles.navbar}>
         <span style={styles.logo} onClick={() => navigate('/')}>INFOV</span>
         <div style={styles.navItems}>
-          <span style={{ ...styles.navItem, fontWeight: 'bold', fontSize: '20px' }}>요원</span>
-          <span style={styles.navItem} onClick={() => navigate('/maps')}>맵 로테이션</span>
-          <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span> {/* 새로 추가 */}
+          <span style={styles.navItem} onClick={() => navigate('/agents')}>요원</span>
+          <span style={{ ...styles.navItem, fontWeight: 'bold', fontSize: '20px' }}>맵 로테이션</span>
+          <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span>
           <span style={styles.navItem} onClick={() => navigate('/rank')}>랭킹</span>
           <span style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
         </div>
@@ -49,12 +74,12 @@ function MapDetailPage() {
         <div style={styles.leftColumn}>
           <h1 style={styles.mapTitle}>{mapName}</h1>
           <img
-            src={`/maps/${mapName}.jpg`}
+            src={`/maps/${mapImageMap[mapName]}.jpg`}
             alt={mapName}
             style={styles.mapImage}
           />
           <img
-            src={`/maps/${mapName}-brief.png`}
+            src={`/maps/${mapImageMap[mapName]}-brief.png`}
             alt={`${mapName} 브리핑`}
             style={styles.mapBrief}
           />
@@ -68,7 +93,7 @@ function MapDetailPage() {
               {combo.map((agent) => (
                 <img
                   key={agent}
-                  src={`/agents/${agent}.png`}
+                  src={`/agents/${agentImageMap[agent]}.png`}
                   alt={agent}
                   title={agent}
                   style={styles.agentImageSmall}
@@ -82,7 +107,7 @@ function MapDetailPage() {
             {agentRanks.map((agent, index) => (
               <div key={agent} style={styles.rankItem}>
                 <img
-                  src={`/agents/${agent}.png`}
+                  src={`/agents/${agentImageMap[agent]}.png`}
                   alt={agent}
                   title={agent}
                   style={styles.agentImageSmall}
@@ -97,6 +122,7 @@ function MapDetailPage() {
   );
 }
 
+// styles는 기존 그대로 유지 (변경 없음)
 const styles = {
   pageWrapper: {
     backgroundColor: '#f5f5f5',

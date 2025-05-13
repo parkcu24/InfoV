@@ -1,21 +1,60 @@
-// SkinPage.js
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import ClipLoader from 'react-spinners/ClipLoader';
 
-const dummySkins = [
-  { id: 1, name: '약탈자1.0', image: '/skins/Reaver1.jpg', rating: 4.5 },
-  { id: 2, name: '아이온1.0', image: '/skins/Aion1.jpg', rating: 4.2 },
-  { id: 3, name: '프라임1.0', image: '/skins/Prime1.jpg', rating: 4.2 },
-  { id: 4, name: '도깨비1.0', image: '/skins/Oni1.jpg', rating: 4.2 },
-  { id: 5, name: 'RGX1.0', image: '/skins/RGX1.jpg', rating: 4.2 },
-  { id: 6, name: '챔피언스2021', image: '/skins/Champions2021.jpg', rating: 4.2 },
-  { id: 7, name: '챔피언스2022', image: '/skins/Champions2022.jpg', rating: 4.2 },
-  { id: 8, name: '챔피언스2023', image: '/skins/Champions2023.jpg', rating: 4.2 },
-  { id: 9, name: '챔피언스2024', image: '/skins/Champions2024.jpg', rating: 4.2 },
+const editions = [
+  { icon: '/icons/SE.png', name: '875 VP', short: 'SE' },
+  { icon: '/icons/DE.png', name: '1,275 VP', short: 'DE' },
+  { icon: '/icons/PE.png', name: '1,775 VP', short: 'PE' },
+  { icon: '/icons/UE.png', name: '9,900 VP~', short: 'UE' },
+  { icon: '/icons/XE.png', name: '8,600 VP~', short: 'XE' },
 ];
 
 function SkinPage() {
   const navigate = useNavigate();
+  const [skinSets, setSkinSets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filterType, setFilterType] = useState('edition');
+  const [selectedEditions, setSelectedEditions] = useState(editions.map(e => e.short));
+
+  useEffect(() => {
+    axios.get('/data/skins.json')
+      .then(res => {
+        const raw = res.data;
+        const parsed = [];
+
+        Object.entries(raw).forEach(([setName, details]) => {
+          if (details.skins && details.skins.length > 0) {
+            parsed.push({
+              setName,
+              edition: details.edition,
+              coverImage: details.coverImage,
+            });
+          }
+        });
+
+        setSkinSets(parsed);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('❌ Error fetching skin sets:', err);
+        setLoading(false);
+      });
+  }, []);
+
+  const filteredSkinSets = skinSets.filter(skin => {
+    return selectedEditions.includes(skin.edition);
+  });
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '80px' }}>
+        <ClipLoader size={50} color="#007bff" />
+        <p style={{ marginTop: 10, color: '#555' }}>스킨 데이터를 불러오는 중입니다...</p>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.pageWrapper}>
@@ -24,25 +63,43 @@ function SkinPage() {
         <div style={styles.navItems}>
           <span style={styles.navItem} onClick={() => navigate('/agents')}>요원</span>
           <span style={styles.navItem} onClick={() => navigate('/maps')}>맵 로테이션</span>
-          <span style={{ ...styles.navItem, fontWeight: 'bold', fontSize: '20px' }}>스킨</span>
+          <span style={{ ...styles.navItem, fontWeight: 'bold' }}>스킨</span>
           <span style={styles.navItem} onClick={() => navigate('/rank')}>랭킹</span>
           <span style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
         </div>
       </nav>
 
-      <div style={styles.skinGrid}>
-        {dummySkins.map(skin => (
+      <div style={styles.filterTypeBar}>
+        {editions.map(({ icon, short, name }) => (
           <button
-            key={skin.id}
-            style={styles.skinCard}
-            onClick={() => navigate(`/skins/${skin.id}`)}
+            key={short}
+            style={{
+              ...styles.editionButton,
+              borderColor: selectedEditions.includes(short) ? '#4A90E2' : '#ddd',
+            }}
+            onClick={() =>
+              setSelectedEditions(prev =>
+                prev.includes(short) ? prev.filter(e => e !== short) : [...prev, short]
+              )
+            }
           >
-            <img src={skin.image} alt={skin.name} style={styles.skinImage} />
-            <div style={styles.skinInfo}>
-              <div style={styles.skinName}>{skin.name}</div>
-              <div style={styles.skinRating}>⭐ {skin.rating.toFixed(1)}</div>
-            </div>
+            <img src={icon} alt={name} style={styles.editionIcon} />
+            <span>{name}</span>
           </button>
+        ))}
+      </div>
+
+      <div style={styles.grid}>
+        {filteredSkinSets.map((set, idx) => (
+          <div key={idx} style={styles.card} onClick={() => navigate(`/skins/${set.setName}`)}>
+            <img
+              src={set.coverImage}
+              alt={set.setName}
+              style={styles.image}
+              onError={(e) => e.target.src = '/default-skin.png'}
+            />
+            <div style={styles.label}>{set.setName}</div>
+          </div>
         ))}
       </div>
     </div>
@@ -50,71 +107,35 @@ function SkinPage() {
 }
 
 const styles = {
-  pageWrapper: {
-    backgroundColor: '#f9f9f9',
-    minHeight: '100vh',
-  },
+  pageWrapper: { backgroundColor: '#f9f9f9', minHeight: '100vh' },
   navbar: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '40px',
-    padding: '20px 40px',
-    backgroundColor: '#fff',
-    borderBottom: '1px solid #ddd',
-    position: 'relative',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '40px',
+    padding: '20px 40px', backgroundColor: '#fff', borderBottom: '1px solid #ddd', position: 'relative'
   },
-  logo: {
-    position: 'absolute',
-    left: '40px',
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#000',
-    cursor: 'pointer',
+  logo: { position: 'absolute', left: '40px', fontSize: '24px', fontWeight: 'bold', cursor: 'pointer' },
+  navItems: { display: 'flex', gap: '30px' },
+  navItem: { fontSize: '18px', cursor: 'pointer', color: '#333' },
+  filterTypeBar: {
+    display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap',
+    marginTop: '20px', marginBottom: '20px'
   },
-  navItems: {
-    display: 'flex',
-    gap: '30px',
+  editionButton: {
+    display: 'flex', alignItems: 'center', gap: '6px',
+    border: '2px solid #ddd', background: '#fff',
+    borderRadius: '8px', cursor: 'pointer', padding: '4px 8px',
+    fontSize: '12px'
   },
-  navItem: {
-    fontSize: '18px',
-    color: '#333',
-    cursor: 'pointer',
+  editionIcon: { width: '20px', height: '20px' },
+  grid: {
+    display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+    gap: '24px', padding: '40px'
   },
-  skinGrid: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: '24px',
-    padding: '40px',
+  card: {
+    backgroundColor: '#fff', borderRadius: '12px', overflow: 'hidden',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.1)', textAlign: 'center', cursor: 'pointer'
   },
-  skinCard: {
-    backgroundColor: '#fff',
-    border: 'none',
-    borderRadius: '12px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-    overflow: 'hidden',
-    width: '240px',
-    cursor: 'pointer',
-    textAlign: 'center',
-  },
-  skinImage: {
-    width: '100%',
-    height: '140px',
-    objectFit: 'cover',
-  },
-  skinInfo: {
-    padding: '12px',
-  },
-  skinName: {
-    fontSize: '16px',
-    fontWeight: 'bold',
-    marginBottom: '4px',
-  },
-  skinRating: {
-    color: '#888',
-    fontSize: '14px',
-  },
+  image: { width: '100%', height: '140px', objectFit: 'cover' },
+  label: { padding: '12px', fontWeight: 'bold', fontSize: '16px' }
 };
 
 export default SkinPage;

@@ -1,30 +1,41 @@
-// MapRotationPage.js
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
-const modes = [
-  '경쟁전',
-  '일반전',
-  '데스매치',
-  '팀데스매치',
-  '신속플레이',
-  '스파이크돌격',
-  '에스컬레이션'
-];
-
-const mapData = {
-  경쟁전: ['어센트', '로터스', '헤이븐', '펄', '프랙처', '스플릿', '아이스박스', '바인드'],
-  일반전: ['어센트', '로터스', '헤이븐', '펄', '프랙처', '스플릿', '아이스박스', '바인드', '선셋', '브리즈'],
-  데스매치: ['어센트', '로터스', '헤이븐', '펄', '프랙처', '스플릿', '아이스박스', '바인드'],
-  팀데스매치: ['어센트', '로터스', '헤이븐', '펄', '프랙처', '스플릿', '아이스박스', '바인드', '선셋', '브리즈'],
-  신속플레이: ['어센트', '로터스', '헤이븐', '펄', '프랙처', '스플릿', '아이스박스', '바인드', '선셋', '브리즈'],
-  스파이크돌격: ['어센트', '로터스', '헤이븐', '펄', '프랙처', '스플릿', '아이스박스', '바인드', '선셋', '브리즈'],
-  에스컬레이션: ['어센트', '로터스', '헤이븐', '펄', '프랙처', '스플릿', '아이스박스', '바인드', '선셋', '브리즈'],
+const mapImageMap = {
+  어센트: "ascent",
+  로터스: "lotus",
+  헤이븐: "haven",
+  펄: "pearl",
+  프랙처: "fracture",
+  스플릿: "split",
+  아이스박스: "icebox",
+  바인드: "bind",
+  선셋: "sunset",
+  브리즈: "breeze"
 };
 
 function MapRotationPage() {
   const navigate = useNavigate();
   const [selectedMode, setSelectedMode] = useState('경쟁전');
+  const [seasonTitle, setSeasonTitle] = useState('');
+  const [rotationByMode, setRotationByMode] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    axios.get('/api/rotation')
+      .then(res => {
+        setSeasonTitle(res.data.seasonTitle);
+        setRotationByMode(res.data.rotationByMode);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('맵 로테이션 불러오기 실패:', err);
+        setLoading(false);
+      });
+  }, []);
+
+  const maps = rotationByMode[selectedMode] || [];
 
   return (
     <div style={styles.pageWrapper}>
@@ -34,7 +45,7 @@ function MapRotationPage() {
         <div style={styles.navItems}>
           <span style={styles.navItem} onClick={() => navigate('/agents')}>요원</span>
           <span style={{ ...styles.navItem, fontWeight: 'bold', fontSize: '20px' }}>맵 로테이션</span>
-          <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span> {/* 새로 추가 */}
+          <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span>
           <span style={styles.navItem} onClick={() => navigate('/rank')}>랭킹</span>
           <span style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
         </div>
@@ -42,11 +53,11 @@ function MapRotationPage() {
 
       {/* 본문 */}
       <div style={styles.content}>
-        <h1 style={styles.seasonTitle}>2025시즌 액트 2</h1>
+        <h1 style={styles.seasonTitle}>{seasonTitle || '시즌 정보 불러오는 중...'}</h1>
 
         {/* 모드 선택 버튼 */}
         <div style={styles.modeContainer}>
-          {modes.map((mode) => (
+          {Object.keys(rotationByMode).map((mode) => (
             <span
               key={mode}
               onClick={() => setSelectedMode(mode)}
@@ -62,26 +73,37 @@ function MapRotationPage() {
         </div>
 
         {/* 맵 리스트 */}
-        <div style={styles.mapGrid}>
-          {mapData[selectedMode]?.map((map) => (
-            <div
-              key={map}
-              style={styles.mapCard}
-              onClick={() => navigate(`/maps/${map}`)}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'scale(1.05)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-              }}
-            >
-              <img src={`/maps/${map}.jpg`} alt={map} style={styles.mapImage} />
-              <div style={styles.mapName}>{map}</div>
-            </div>
-          ))}
-        </div>
+        {loading ? (
+          <p>맵 로테이션 정보를 불러오는 중입니다...</p>
+        ) : (
+          <div style={styles.mapGrid}>
+            {maps.map((map) => (
+              <div
+                key={map}
+                style={styles.mapCard}
+                onClick={() => navigate(`/maps/${map}`)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.05)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                }}
+              >
+                <img
+                  src={`/maps/${mapImageMap[map] || 'unknown'}.jpg`}
+                  alt={map}
+                  style={styles.mapImage}
+                  onError={(e) => {
+                    e.currentTarget.src = '/maps/unknown.jpg'; // 기본 이미지 fallback
+                  }}
+                />
+                <div style={styles.mapName}>{map}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

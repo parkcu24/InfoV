@@ -1,0 +1,31 @@
+{
+    "아이온": {
+      "edition": "PE",
+      "skins": [
+        {
+          "uuid": "abcd-1234-5678",
+          "weapon": "팬텀",
+          "displayName": "아이온 팬텀",
+          "displayIcon": "/skins/아이온.jpg"
+        },
+        {
+          "uuid": "abcd-5678-9999",
+          "weapon": "버키",
+          "displayName": "아이온 버키",
+          "displayIcon": "/skins/아이온.jpg"
+        }
+      ]
+    },
+    "빛의 감시자": {
+      "edition": "XE",
+      "skins": [
+        {
+          "uuid": "efgh-1111",
+          "weapon": "셰리프",
+          "displayName": "빛의 감시자 셰리프",
+          "displayIcon": "/skins/빛의 감시자.jpg"
+        }
+      ]
+    }
+  }
+  

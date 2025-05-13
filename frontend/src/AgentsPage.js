@@ -1,6 +1,40 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
+// 한글 이름 → 영문 이미지 파일명 매핑
+const agentImageMap = {
+  네온: "neon",
+  레이나: "reyna",
+  레이즈: "raze",
+  아이소: "iso",
+  요루: "yoru",
+  웨이레이: "wayray", // 이름 확인 완료
+  제트: "jett",
+  피닉스: "phoenix",
+
+  게코: "geko",
+  브리치: "breach",
+  소바: "sova",
+  스카이: "skye",
+  케이오: "kayo",
+  테호: "tejo",
+  페이드: "fade",
+
+  데드록: "deadlock",
+  바이스: "vyse",
+  사이퍼: "cypher",
+  세이지: "sage",
+  체임버: "chamber",
+  킬조이: "killjoy",
+
+  바이퍼: "viper",
+  브림스톤: "brimstone",
+  아스트라: "astra",
+  오멘: "omen",
+  클로브: "clove",
+  하버: "haver"
+};
+
 const agentData = {
   "타격대": ["네온", "레이나", "레이즈", "아이소", "요루", "웨이레이", "제트", "피닉스"],
   "척후대": ["게코", "브리치", "소바", "스카이", "케이오", "테호", "페이드"],
@@ -19,7 +53,7 @@ function AgentsPage() {
         <div style={styles.navItems}>
           <span style={{ ...styles.navItem, fontWeight: 'bold', fontSize: '20px' }}>요원</span>
           <span style={styles.navItem} onClick={() => navigate('/maps')}>맵 로테이션</span>
-          <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span> {/* 새로 추가 */}
+          <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span>
           <span style={styles.navItem} onClick={() => navigate('/rank')}>랭킹</span>
           <span style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
         </div>
@@ -41,7 +75,7 @@ function AgentsPage() {
                     onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                   >
                     <img
-                      src={`/agents/${name}.png`}
+                      src={`${process.env.PUBLIC_URL}/agents/${agentImageMap[name]}.png`}
                       alt={name}
                       style={styles.image}
                     />
@@ -53,7 +87,7 @@ function AgentsPage() {
           ))}
         </div>
 
-        {/* 오른쪽: 랭킹 구조 */}
+        {/* 오른쪽: 요원 랭킹 */}
         <div style={styles.rightColumn}>
           <h2 style={styles.rankingTitle}>요원 랭킹</h2>
           <div style={styles.rankingBox}>
