@@ -5,8 +5,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-
-const PORT = 5050;  // 포트 먼저 선언
+const PORT = 5050;
 
 console.log(`👉 서버가 ${PORT} 포트에서 곧 실행될 예정`);
 
@@ -15,18 +14,28 @@ const rankingsRouter = require('./routes/rankings');
 const actsRouter = require('./routes/acts');
 const rotationRouter = require('./routes/rotation');
 
-// 🔧 CORS 설정: 로컬 + Vercel 주소 허용
+// ✅ 정규표현식으로 Vercel Preview 도메인 허용 (info-xxxx.vercel.app)
 const corsOptions = {
-  origin: [
-    'http://localhost:3000',
-    'https://info-1pff0vemd-parkcu24s-projects.vercel.app' // ✅ Vercel 도메인
-  ],
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      'http://localhost:3000',
+      /^https:\/\/info-[\w-]+-parkcu24s-projects\.vercel\.app$/,
+    ];
+
+    if (!origin || allowedOrigins.some(o =>
+      typeof o === 'string' ? o === origin : o.test(origin)
+    )) {
+      callback(null, true);
+    } else {
+      console.warn('❌ CORS 차단:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST'],
   credentials: true,
 };
-app.use(cors(corsOptions));
 
-// JSON 요청 파싱
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // 🔗 라우터 연결
@@ -34,7 +43,7 @@ app.use('/api/rankings', rankingsRouter);
 app.use('/api/acts', actsRouter);
 app.use('/api/rotation', rotationRouter);
 
-// 서버 시작
+// 🟢 서버 시작
 app.listen(PORT, () => {
   console.log(`✅✅✅ Server running on http://localhost:${PORT}`);
 });
