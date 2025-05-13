@@ -13,13 +13,22 @@ function RankPage() {
   const [startRank, setStartRank] = useState(1);
   const [endRank, setEndRank] = useState(50);
 
+  // ✅ Render에 배포한 백엔드 주소
+  const API_BASE_URL = 'https://infov.onrender.com';
+
   useEffect(() => {
-    axios.get('/api/acts')
+    axios.get(`${API_BASE_URL}/api/acts`)
       .then(response => {
+        if (!response.data || !Array.isArray(response.data.acts)) {
+          console.error('API 응답이 올바르지 않음:', response.data);
+          return;
+        }
+
         const episodes = {};
         response.data.acts.forEach(act => {
           if (act.type === 'episode') episodes[act.id] = act.name;
         });
+
         const fullActs = response.data.acts
           .filter(act => act.type === 'act')
           .map(act => ({
@@ -27,15 +36,20 @@ function RankPage() {
             name: `${episodes[act.parentId] || ''} ${act.name}`,
             isActive: act.isActive,
           }));
+
         const startIndex = fullActs.findIndex(act => act.name === 'EPISODE 2 ACT I');
         const lastActiveIndex = fullActs.reduce((acc, act, idx) => act.isActive ? idx : acc, -1);
         const slicedActs = fullActs.slice(startIndex, lastActiveIndex + 1);
+
         setActs(slicedActs);
         if (slicedActs.length > 0) {
           setSelectedActId(slicedActs[slicedActs.length - 1].id);
         }
       })
-      .catch(err => console.error('액트 가져오기 실패:', err));
+      .catch(err => {
+        console.error('액트 가져오기 실패:', err);
+        setActs([]);
+      });
   }, []);
 
   const fetchRanking = () => {
@@ -55,9 +69,8 @@ function RankPage() {
 
     setIsLoading(true);
 
-    // ✅ server는 'kr', 'asia', 'na', 'eu' 중 하나 그대로 사용
     axios
-      .get(`/api/rankings?actId=${selectedActId}&server=${server}&start=${start}&size=${size}`)
+      .get(`${API_BASE_URL}/api/rankings?actId=${selectedActId}&server=${server}&start=${start}&size=${size}`)
       .then(res => {
         setRankings(res.data.players || []);
         setIsLoading(false);
