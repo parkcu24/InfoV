@@ -1,59 +1,43 @@
-import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
-// 한글 맵 이름 → 영문 이미지 파일명
 const mapImageMap = {
   어센트: "ascent",
+  로터스: "lotus",
   헤이븐: "haven",
+  펄: "pearl",
+  프랙처: "fracture",
+  스플릿: "split",
+  아이스박스: "icebox",
   바인드: "bind",
+  선셋: "sunset",
+  브리즈: "breeze"
 };
 
-// 한글 요원 이름 → 영문 이미지 파일명
-const agentImageMap = {
-  브림스톤: "brimstone",
-  제트: "jett",
-  사이퍼: "cypher",
-  스카이: "skye",
-  세이지: "sage",
-  오멘: "omen",
-  레이나: "reyna",
-  페이드: "fade",
-  킬조이: "killjoy",
-  브리치: "breach",
-  소바: "sova",
-  게코: "geko",
-  바이퍼: "viper",
-  레이즈: "raze",
-  요루: "yoru"
-};
-
-function MapDetailPage() {
-  const { mapName } = useParams();
+function MapRotationPage() {
   const navigate = useNavigate();
+  const [selectedMode, setSelectedMode] = useState('경쟁전');
+  const [seasonTitle, setSeasonTitle] = useState('');
+  const [rotationByMode, setRotationByMode] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const agentCombosByMap = {
-    어센트: [
-      ['브림스톤', '제트', '사이퍼', '스카이', '세이지'],
-      ['오멘', '레이나', '페이드', '킬조이', '브리치']
-    ],
-    헤이븐: [
-      ['오멘', '소바', '사이퍼', '제트', '브리치'],
-      ['브림스톤', '스카이', '세이지', '게코', '바이퍼']
-    ],
-    바인드: [
-      ['바이퍼', '요루', '레이즈', '스카이', '브림스톤'],
-      ['오멘', '세이지', '소바', '브리치', '사이퍼']
-    ],
-  };
+  useEffect(() => {
+    axios.get('/api/rotation')
+      .then(res => {
+        setSeasonTitle(res.data.seasonTitle);
+        setRotationByMode(res.data.rotationByMode);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('맵 로테이션 불러오기 실패:', err);
+        setErrorMsg('맵 데이터를 불러오는 데 실패했습니다.');
+        setLoading(false);
+      });
+  }, []);
 
-  const agentRanksByMap = {
-    어센트: ['제트', '사이퍼', '브림스톤', '세이지', '스카이'],
-    헤이븐: ['소바', '오멘', '제트', '사이퍼', '브리치'],
-    바인드: ['레이즈', '바이퍼', '브림스톤', '스카이', '요루'],
-  };
-
-  const agentCombos = agentCombosByMap[mapName] || [];
-  const agentRanks = agentRanksByMap[mapName] || [];
+  const maps = rotationByMode?.[selectedMode] || [];
 
   return (
     <div style={styles.pageWrapper}>
@@ -69,65 +53,72 @@ function MapDetailPage() {
         </div>
       </nav>
 
-      <div style={styles.contentWrapper}>
-        {/* 좌측 - 맵 정보 */}
-        <div style={styles.leftColumn}>
-          <h1 style={styles.mapTitle}>{mapName}</h1>
-          <img
-            src={`/maps/${mapImageMap[mapName]}.jpg`}
-            alt={mapName}
-            style={styles.mapImage}
-          />
-          <img
-            src={`/maps/${mapImageMap[mapName]}-brief.png`}
-            alt={`${mapName} 브리핑`}
-            style={styles.mapBrief}
-          />
-        </div>
+      {/* 본문 */}
+      <div style={styles.content}>
+        <h1 style={styles.seasonTitle}>
+          {loading ? '시즌 정보 불러오는 중...' : seasonTitle || '시즌 정보 없음'}
+        </h1>
 
-        {/* 우측 - 요원 정보 */}
-        <div style={styles.rightColumn}>
-          <h2 style={styles.sectionTitle}>추천 요원 조합</h2>
-          {agentCombos.map((combo, idx) => (
-            <div key={idx} style={styles.comboRow}>
-              {combo.map((agent) => (
-                <img
-                  key={agent}
-                  src={`/agents/${agentImageMap[agent]}.png`}
-                  alt={agent}
-                  title={agent}
-                  style={styles.agentImageSmall}
-                />
-              ))}
-            </div>
-          ))}
+        {/* 모드 선택 버튼 */}
+        {!loading && rotationByMode && (
+          <div style={styles.modeContainer}>
+            {Object.keys(rotationByMode).map((mode) => (
+              <span
+                key={mode}
+                onClick={() => setSelectedMode(mode)}
+                style={{
+                  ...styles.modeItem,
+                  fontWeight: selectedMode === mode ? 'bold' : 'normal',
+                  textDecoration: selectedMode === mode ? 'underline' : 'none'
+                }}
+              >
+                {mode}
+              </span>
+            ))}
+          </div>
+        )}
 
-          <h2 style={styles.sectionTitle}>요원 순위</h2>
-          <div style={styles.rankListImages}>
-            {agentRanks.map((agent, index) => (
-              <div key={agent} style={styles.rankItem}>
+        {/* 맵 리스트 */}
+        {loading ? (
+          <p>맵 로테이션 정보를 불러오는 중입니다...</p>
+        ) : errorMsg ? (
+          <p style={{ color: 'red' }}>{errorMsg}</p>
+        ) : (
+          <div style={styles.mapGrid}>
+            {maps.map((map) => (
+              <div
+                key={map}
+                style={styles.mapCard}
+                onClick={() => navigate(`/maps/${map}`)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.05)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                }}
+              >
                 <img
-                  src={`/agents/${agentImageMap[agent]}.png`}
-                  alt={agent}
-                  title={agent}
-                  style={styles.agentImageSmall}
+                  src={`/maps/${mapImageMap[map] || 'unknown'}.jpg`}
+                  alt={map}
+                  style={styles.mapImage}
+                  onError={(e) => {
+                    e.currentTarget.src = '/maps/unknown.jpg';
+                  }}
                 />
-                <span style={styles.agentName}>{`${index + 1}위: ${agent}`}</span>
+                <div style={styles.mapName}>{map}</div>
               </div>
             ))}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
 }
 
-// styles는 기존 그대로 유지 (변경 없음)
 const styles = {
-  pageWrapper: {
-    backgroundColor: '#f5f5f5',
-    minHeight: '100vh',
-  },
+  pageWrapper: { backgroundColor: '#f5f5f5', minHeight: '100vh' },
   navbar: {
     display: 'flex',
     alignItems: 'center',
@@ -146,86 +137,40 @@ const styles = {
     color: '#000',
     cursor: 'pointer',
   },
-  navItems: {
-    display: 'flex',
-    gap: '30px',
+  navItems: { display: 'flex', gap: '30px' },
+  navItem: { fontSize: '18px', color: '#333', cursor: 'pointer' },
+  content: { padding: '100px 40px 40px 40px' },
+  seasonTitle: { fontSize: '28px', fontWeight: 'bold', marginBottom: '30px' },
+  modeContainer: {
+    display: 'flex', gap: '20px', marginBottom: '30px', flexWrap: 'wrap'
   },
-  navItem: {
-    fontSize: '18px',
-    color: '#333',
-    cursor: 'pointer',
-  },
-  contentWrapper: {
+  modeItem: { fontSize: '16px', color: '#222', cursor: 'pointer' },
+  mapGrid: {
     display: 'flex',
-    padding: '100px 40px 40px 40px',
-    gap: '40px',
     flexWrap: 'wrap',
-  },
-  leftColumn: {
-    flex: 2,
-    display: 'flex',
-    flexDirection: 'column',
     gap: '20px',
   },
-  mapTitle: {
-    fontSize: '32px',
-    fontWeight: 'bold',
-    marginBottom: '10px',
-    textAlign: 'left',
+  mapCard: {
+    backgroundColor: '#fff',
+    padding: '10px',
+    borderRadius: '10px',
+    width: '180px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    textAlign: 'center',
+    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+    cursor: 'pointer',
   },
   mapImage: {
-    width: '100%',
-    maxWidth: '600px',
-    borderRadius: '12px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-  },
-  mapBrief: {
-    width: '100%',
-    maxWidth: '600px',
-    borderRadius: '12px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-  },
-  rightColumn: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: '20px',
-    borderRadius: '10px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-    minWidth: '300px',
-  },
-  sectionTitle: {
-    fontSize: '20px',
-    fontWeight: 'bold',
-    marginBottom: '10px',
-    color: '#222',
-  },
-  comboRow: {
-    display: 'flex',
-    gap: '8px',
-    marginBottom: '15px',
-  },
-  rankListImages: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-  },
-  rankItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-  },
-  agentImageSmall: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '6px',
+    width: '180px',
+    height: '150px',
     objectFit: 'cover',
-    boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+    borderRadius: '8px',
   },
-  agentName: {
+  mapName: {
+    marginTop: '10px',
     fontSize: '16px',
-    fontWeight: '500',
-    color: '#333',
+    fontWeight: 'bold',
   },
 };
 
-export default MapDetailPage;
+export default MapRotationPage;
