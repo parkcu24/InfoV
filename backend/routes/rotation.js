@@ -30,12 +30,22 @@ router.get('/', async (req, res) => {
     });
 
     const acts = response.data.acts;
+
+    console.log('🧩 전체 act 목록:', acts);
+
     const activeAct = acts.find(act => act.isActive && act.type === 'act');
     const activeEpisode = acts.find(ep => ep.id === activeAct?.parentId);
 
-    const seasonTitle = activeEpisode && activeAct
-      ? `${activeEpisode.name} ${activeAct.name}`
-      : '시즌 정보 없음';
+    console.log('✅ activeAct:', activeAct);
+    console.log('✅ activeEpisode:', activeEpisode);
+
+    let seasonTitle = '시즌 정보 없음';
+
+    if (activeAct && activeEpisode) {
+      seasonTitle = `${activeEpisode.name} ${activeAct.name}`;
+    } else if (activeAct) {
+      seasonTitle = `${activeAct.name} (에피소드 정보 없음)`;
+    }
 
     res.json({
       seasonTitle,
