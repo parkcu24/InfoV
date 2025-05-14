@@ -19,8 +19,9 @@ function MapRotationPage() {
   const navigate = useNavigate();
   const [selectedMode, setSelectedMode] = useState('경쟁전');
   const [seasonTitle, setSeasonTitle] = useState('');
-  const [rotationByMode, setRotationByMode] = useState({});
+  const [rotationByMode, setRotationByMode] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     axios.get('/api/rotation')
@@ -31,11 +32,12 @@ function MapRotationPage() {
       })
       .catch(err => {
         console.error('맵 로테이션 불러오기 실패:', err);
+        setErrorMsg('맵 데이터를 불러오는 데 실패했습니다.');
         setLoading(false);
       });
   }, []);
 
-  const maps = rotationByMode[selectedMode] || [];
+  const maps = rotationByMode?.[selectedMode] || [];
 
   return (
     <div style={styles.pageWrapper}>
@@ -53,28 +55,34 @@ function MapRotationPage() {
 
       {/* 본문 */}
       <div style={styles.content}>
-        <h1 style={styles.seasonTitle}>{seasonTitle || '시즌 정보 불러오는 중...'}</h1>
+        <h1 style={styles.seasonTitle}>
+          {loading ? '시즌 정보 불러오는 중...' : seasonTitle || '시즌 정보 없음'}
+        </h1>
 
         {/* 모드 선택 버튼 */}
-        <div style={styles.modeContainer}>
-          {Object.keys(rotationByMode).map((mode) => (
-            <span
-              key={mode}
-              onClick={() => setSelectedMode(mode)}
-              style={{
-                ...styles.modeItem,
-                fontWeight: selectedMode === mode ? 'bold' : 'normal',
-                textDecoration: selectedMode === mode ? 'underline' : 'none'
-              }}
-            >
-              {mode}
-            </span>
-          ))}
-        </div>
+        {!loading && rotationByMode && (
+          <div style={styles.modeContainer}>
+            {Object.keys(rotationByMode).map((mode) => (
+              <span
+                key={mode}
+                onClick={() => setSelectedMode(mode)}
+                style={{
+                  ...styles.modeItem,
+                  fontWeight: selectedMode === mode ? 'bold' : 'normal',
+                  textDecoration: selectedMode === mode ? 'underline' : 'none'
+                }}
+              >
+                {mode}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* 맵 리스트 */}
         {loading ? (
           <p>맵 로테이션 정보를 불러오는 중입니다...</p>
+        ) : errorMsg ? (
+          <p style={{ color: 'red' }}>{errorMsg}</p>
         ) : (
           <div style={styles.mapGrid}>
             {maps.map((map) => (
@@ -96,7 +104,7 @@ function MapRotationPage() {
                   alt={map}
                   style={styles.mapImage}
                   onError={(e) => {
-                    e.currentTarget.src = '/maps/unknown.jpg'; // 기본 이미지 fallback
+                    e.currentTarget.src = '/maps/unknown.jpg';
                   }}
                 />
                 <div style={styles.mapName}>{map}</div>
@@ -110,10 +118,7 @@ function MapRotationPage() {
 }
 
 const styles = {
-  pageWrapper: {
-    backgroundColor: '#f5f5f5',
-    minHeight: '100vh',
-  },
+  pageWrapper: { backgroundColor: '#f5f5f5', minHeight: '100vh' },
   navbar: {
     display: 'flex',
     alignItems: 'center',
@@ -132,34 +137,14 @@ const styles = {
     color: '#000',
     cursor: 'pointer',
   },
-  navItems: {
-    display: 'flex',
-    gap: '30px',
-  },
-  navItem: {
-    fontSize: '18px',
-    color: '#333',
-    cursor: 'pointer',
-  },
-  content: {
-    padding: '100px 40px 40px 40px',
-  },
-  seasonTitle: {
-    fontSize: '28px',
-    fontWeight: 'bold',
-    marginBottom: '30px',
-  },
+  navItems: { display: 'flex', gap: '30px' },
+  navItem: { fontSize: '18px', color: '#333', cursor: 'pointer' },
+  content: { padding: '100px 40px 40px 40px' },
+  seasonTitle: { fontSize: '28px', fontWeight: 'bold', marginBottom: '30px' },
   modeContainer: {
-    display: 'flex',
-    gap: '20px',
-    marginBottom: '30px',
-    flexWrap: 'wrap',
+    display: 'flex', gap: '20px', marginBottom: '30px', flexWrap: 'wrap'
   },
-  modeItem: {
-    fontSize: '16px',
-    color: '#222',
-    cursor: 'pointer',
-  },
+  modeItem: { fontSize: '16px', color: '#222', cursor: 'pointer' },
   mapGrid: {
     display: 'flex',
     flexWrap: 'wrap',
