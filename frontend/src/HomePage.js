@@ -22,6 +22,7 @@ function HomePage() {
 
   return (
     <div style={styles.container}>
+      {/* 상단 네비게이션 */}
       <nav style={styles.navbar}>
         <div style={styles.left}>
           <img
@@ -54,6 +55,7 @@ function HomePage() {
         </div>
       </nav>
 
+      {/* 메인 콘텐츠 */}
       <div style={styles.main}>
         <img src="/InfoV_logo.png" alt="Main INFOV Logo" style={styles.mainLogo} />
 
@@ -78,6 +80,17 @@ function HomePage() {
           </button>
         </div>
       </div>
+
+      {/* 하단 개인정보 처리방침 & 이용약관 링크 */}
+      <div style={styles.footer}>
+        <span onClick={() => navigate('/privacy')} style={styles.footerLink}>
+          개인정보 처리방침
+        </span>
+        <span style={styles.footerDivider}>|</span>
+        <span onClick={() => navigate('/terms')} style={styles.footerLink}>
+          서비스 이용약관
+        </span>
+      </div>
     </div>
   );
 }
@@ -100,8 +113,8 @@ const styles = {
     top: 0,
     width: '100%',
     zIndex: 1000,
-    height: '72px', // ⬅️ 기존보다 살짝 줄임
-    overflow: 'visible', // ✅ 로고가 튀어나와도 보이게
+    height: '72px',
+    overflow: 'visible',
   },
   left: {
     flex: '1 1 auto',
@@ -125,8 +138,8 @@ const styles = {
     paddingRight: '50px',
   },
   logoImage: {
-    height: '200px', // ✅ 로고를 약 2.5배 키움
-    marginTop: '-8px', // ⬅️ 살짝만 내려서 상단바 중앙 정렬 느낌
+    height: '200px',
+    marginTop: '-8px',
     cursor: 'pointer',
   },
   navItem: {
@@ -156,11 +169,11 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    paddingTop: '120px', // ✅ 여백 유지
+    paddingTop: '120px',
   },
   mainLogo: {
     width: '400px',
-    marginBottom: '-100px', // ✅ 여백 축소
+    marginBottom: '-100px',
   },
   searchSection: {
     display: 'flex',
@@ -198,6 +211,24 @@ const styles = {
     border: 'none',
     borderRadius: '5px',
     cursor: 'pointer',
+  },
+  footer: {
+    marginTop: '120px',
+    padding: '20px',
+    textAlign: 'center',
+    borderTop: '1px solid #333',
+    color: '#888',
+    fontSize: '14px',
+  },
+  footerLink: {
+    cursor: 'pointer',
+    textDecoration: 'underline',
+    color: '#aaa',
+    margin: '0 8px',
+  },
+  footerDivider: {
+    color: '#555',
+    margin: '0 4px',
   },
 };
 
