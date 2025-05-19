@@ -12,17 +12,14 @@ function RankPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [startRank, setStartRank] = useState(1);
   const [endRank, setEndRank] = useState(50);
+  const [riotId, setRiotId] = useState('');
 
-  // ✅ Render에 배포한 백엔드 주소
   const API_BASE_URL = 'https://infov.onrender.com';
 
   useEffect(() => {
     axios.get(`${API_BASE_URL}/api/acts`)
       .then(response => {
-        if (!response.data || !Array.isArray(response.data.acts)) {
-          console.error('API 응답이 올바르지 않음:', response.data);
-          return;
-        }
+        if (!response.data || !Array.isArray(response.data.acts)) return;
 
         const episodes = {};
         response.data.acts.forEach(act => {
@@ -46,10 +43,7 @@ function RankPage() {
           setSelectedActId(slicedActs[slicedActs.length - 1].id);
         }
       })
-      .catch(err => {
-        console.error('액트 가져오기 실패:', err);
-        setActs([]);
-      });
+      .catch(err => console.error('액트 가져오기 실패:', err));
   }, []);
 
   const fetchRanking = () => {
@@ -59,7 +53,7 @@ function RankPage() {
     const size = endRank - startRank + 1;
 
     if (size > 200) {
-      alert('❗ 한 번에 최대 200명까지 조회할 수 있습니다.\n예: 1~200, 201~400');
+      alert('❗ 한 번에 최대 200명까지 조회할 수 있습니다.');
       return;
     }
     if (start < 0 || size < 1 || endRank > 1000 || start >= 1000) {
@@ -68,29 +62,52 @@ function RankPage() {
     }
 
     setIsLoading(true);
-
-    axios
-      .get(`${API_BASE_URL}/api/rankings?actId=${selectedActId}&server=${server}&start=${start}&size=${size}`)
+    axios.get(`${API_BASE_URL}/api/rankings?actId=${selectedActId}&server=${server}&start=${start}&size=${size}`)
       .then(res => {
         setRankings(res.data.players || []);
         setIsLoading(false);
       })
-      .catch(err => {
-        console.error('랭킹 가져오기 실패:', err);
-        setIsLoading(false);
-      });
+      .catch(() => setIsLoading(false));
+  };
+
+  const handleSearch = () => {
+    const [gameName, tagLine] = riotId.split('#');
+    if (!gameName || !tagLine) {
+      alert('아이디 형식을 확인해주세요. 예: CU24#KR');
+      return;
+    }
+    navigate(`/search-result?name=${encodeURIComponent(gameName)}&tag=${encodeURIComponent(tagLine)}`);
   };
 
   return (
     <div style={styles.pageWrapper}>
       <nav style={styles.navbar}>
-        <span style={styles.logo} onClick={() => navigate('/')}>INFOV</span>
-        <div style={styles.navItems}>
+        <div style={styles.left}>
+          <img
+            src="/InfoV_logo.png"
+            alt="INFOV Logo"
+            style={styles.logoImage}
+            onClick={() => navigate('/')}
+          />
+        </div>
+
+        <div style={styles.center}>
           <span style={styles.navItem} onClick={() => navigate('/agents')}>요원</span>
           <span style={styles.navItem} onClick={() => navigate('/maps')}>맵 로테이션</span>
           <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span>
           <span style={{ ...styles.navItem, fontWeight: 'bold', fontSize: '20px' }}>랭킹</span>
           <span style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
+        </div>
+
+        <div style={styles.right}>
+          <input
+            type="text"
+            placeholder="예: CU24#KR"
+            value={riotId}
+            onChange={(e) => setRiotId(e.target.value)}
+            style={styles.topSearchInput}
+          />
+          <button style={styles.searchButton} onClick={handleSearch}>검색</button>
         </div>
       </nav>
 
@@ -99,7 +116,7 @@ function RankPage() {
           Who is the <span style={styles.highlight}>Best</span> VALORANT Player?
         </h1>
 
-        <div style={{ ...styles.selectRow, flexWrap: 'wrap' }}>
+        <div style={styles.selectRow}>
           <select value={server} onChange={e => setServer(e.target.value)} style={styles.select}>
             <option value="kr">한국</option>
             <option value="asia">아시아</option>
@@ -117,9 +134,7 @@ function RankPage() {
             type="number"
             value={startRank}
             onChange={e => setStartRank(Number(e.target.value))}
-            min="1"
-            max="1000"
-            placeholder="시작 순위"
+            min="1" max="1000" placeholder="시작 순위"
             style={styles.input}
           />
 
@@ -127,9 +142,7 @@ function RankPage() {
             type="number"
             value={endRank}
             onChange={e => setEndRank(Number(e.target.value))}
-            min={startRank}
-            max="1000"
-            placeholder="끝 순위"
+            min={startRank} max="1000" placeholder="끝 순위"
             style={styles.input}
           />
 
@@ -142,8 +155,8 @@ function RankPage() {
 
         {isLoading ? (
           <div style={{ marginTop: 60 }}>
-            <ClipLoader size={50} color="#007bff" />
-            <p style={{ marginTop: 10, color: '#555' }}>랭킹 데이터를 불러오는 중입니다...</p>
+            <ClipLoader size={50} color="#fff" />
+            <p style={{ marginTop: 10, color: '#aaa' }}>랭킹 데이터를 불러오는 중입니다...</p>
           </div>
         ) : (
           <div style={styles.rankList}>
@@ -170,56 +183,153 @@ function RankPage() {
 }
 
 const styles = {
-  pageWrapper: { backgroundColor: '#f5f5f5', minHeight: '100vh' },
+  pageWrapper: {
+    backgroundColor: '#121212',
+    minHeight: '100vh',
+    color: '#fff',
+    fontFamily: 'Black Han Sans, sans-serif',
+  },
   navbar: {
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '40px',
-    padding: '20px 40px', backgroundColor: '#ffffff', borderBottom: '1px solid #ddd', position: 'relative'
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '20px 40px',
+    backgroundColor: '#1E1E1E',
+    borderBottom: '1px solid #333',
+    position: 'fixed',
+    top: 0,
+    width: '100%',
+    zIndex: 1000,
+    height: '72px',
+    overflow: 'visible',
   },
-  logo: {
-    position: 'absolute', left: '40px', fontSize: '24px', fontWeight: 'bold', color: '#000', cursor: 'pointer'
+  left: {
+    flex: '1 1 auto',
+    display: 'flex',
+    alignItems: 'center',
   },
-  navItems: { display: 'flex', gap: '30px' },
-  navItem: { fontSize: '18px', color: '#333', cursor: 'pointer' },
-  content: { paddingTop: '80px', textAlign: 'center' },
+  center: {
+    flex: '1 1 auto',
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '30px',
+    flexWrap: 'wrap',
+  },
+  right: {
+    flex: 1.5,
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: '8px',
+    flexWrap: 'wrap',
+    paddingRight: '50px',
+  },
+  logoImage: {
+    height: '200px',
+    marginTop: '-8px',
+    cursor: 'pointer',
+  },
+  navItem: {
+    fontSize: '18px',
+    color: '#DDD',
+    cursor: 'pointer',
+  },
+  topSearchInput: {
+    height: '34px',
+    fontSize: '14px',
+    padding: '0 10px',
+    borderRadius: '6px',
+    border: '1px solid #555',
+    backgroundColor: '#1e1e1e',
+    color: '#fff',
+  },
+  searchButton: {
+    padding: '6px 12px',
+    fontSize: '14px',
+    backgroundColor: '#E63946',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+  },
+  content: {
+    paddingTop: '140px',
+    textAlign: 'center',
+  },
   heroTitle: {
     fontSize: '32px',
     fontWeight: 'bold',
     marginBottom: '30px',
-    color: '#111'
+    color: '#fff',
   },
   highlight: {
-    color: '#e63946'
+    color: '#E63946',
   },
   selectRow: {
-    display: 'flex', justifyContent: 'center', gap: '20px', marginBottom: '10px', flexWrap: 'wrap'
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '20px',
+    marginBottom: '10px',
+    flexWrap: 'wrap',
   },
   select: {
-    padding: '10px', fontSize: '16px', borderRadius: '5px', border: '1px solid #ccc'
+    padding: '10px',
+    fontSize: '16px',
+    borderRadius: '5px',
+    border: '1px solid #555',
+    backgroundColor: '#1e1e1e',
+    color: '#fff',
   },
   input: {
-    width: '120px', padding: '10px', fontSize: '16px', borderRadius: '5px', border: '1px solid #ccc'
+    width: '120px',
+    padding: '10px',
+    fontSize: '16px',
+    borderRadius: '5px',
+    border: '1px solid #555',
+    backgroundColor: '#1e1e1e',
+    color: '#fff',
   },
   searchBtn: {
-    padding: '10px 20px', backgroundColor: '#007bff', color: '#fff', border: 'none',
-    borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold'
+    padding: '10px 20px',
+    backgroundColor: '#007bff',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
   },
   noticeText: {
-    fontSize: '12px', color: '#888', marginTop: '-5px', marginBottom: '15px'
+    fontSize: '12px',
+    color: '#aaa',
+    marginTop: '-5px',
+    marginBottom: '15px',
   },
-  rankList: { maxWidth: '900px', margin: '0 auto', textAlign: 'left' },
+  rankList: {
+    maxWidth: '900px',
+    margin: '0 auto',
+    textAlign: 'left',
+  },
   rankItem: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '10px 20px', borderBottom: '1px solid #ddd',
-    backgroundColor: '#fff', marginBottom: '5px', borderRadius: '5px'
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '10px 20px',
+    borderBottom: '1px solid #333',
+    backgroundColor: '#1e1e1e',
+    marginBottom: '5px',
+    borderRadius: '5px',
   },
   rankNumber: { fontWeight: 'bold', width: '60px' },
   playerName: { flexGrow: 1 },
   tierBox: {
-    display: 'flex', alignItems: 'center', justifyContent: 'center', width: '50px'
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '50px',
   },
   tierImage: { width: '30px', height: '30px', objectFit: 'contain' },
-  rankRating: { width: '100px', textAlign: 'right', color: '#007bff' },
-  wins: { width: '80px', textAlign: 'right', color: '#28a745' }
+  rankRating: { width: '100px', textAlign: 'right', color: '#4af' },
+  wins: { width: '80px', textAlign: 'right', color: '#4f4' },
 };
 
 export default RankPage;

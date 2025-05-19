@@ -17,14 +17,14 @@ function SkinPage() {
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState('edition');
   const [selectedEditions, setSelectedEditions] = useState(editions.map(e => e.short));
+  const [riotId, setRiotId] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     axios.get('/data/skins.json')
       .then(res => {
-        const raw = res.data;
         const parsed = [];
-
-        Object.entries(raw).forEach(([setName, details]) => {
+        Object.entries(res.data).forEach(([setName, details]) => {
           if (details.skins && details.skins.length > 0) {
             parsed.push({
               setName,
@@ -33,7 +33,6 @@ function SkinPage() {
             });
           }
         });
-
         setSkinSets(parsed);
         setLoading(false);
       })
@@ -43,9 +42,20 @@ function SkinPage() {
       });
   }, []);
 
-  const filteredSkinSets = skinSets.filter(skin => {
-    return selectedEditions.includes(skin.edition);
-  });
+  const handleSearch = () => {
+    const [gameName, tagLine] = riotId.split('#');
+    if (!gameName || !tagLine) {
+      alert('아이디 형식을 확인해주세요. 예: CU24#KR');
+      return;
+    }
+    setIsLoading(true);
+    navigate(`/search-result?name=${encodeURIComponent(gameName)}&tag=${encodeURIComponent(tagLine)}`);
+    setIsLoading(false);
+  };
+
+  const filteredSkinSets = skinSets.filter(skin =>
+    selectedEditions.includes(skin.edition)
+  );
 
   if (loading) {
     return (
@@ -59,13 +69,34 @@ function SkinPage() {
   return (
     <div style={styles.pageWrapper}>
       <nav style={styles.navbar}>
-        <span style={styles.logo} onClick={() => navigate('/')}>INFOV</span>
-        <div style={styles.navItems}>
+        <div style={styles.left}>
+          <img
+            src="/InfoV_logo.png"
+            alt="INFOV Logo"
+            style={styles.logoImage}
+            onClick={() => navigate('/')}
+          />
+        </div>
+
+        <div style={styles.center}>
           <span style={styles.navItem} onClick={() => navigate('/agents')}>요원</span>
           <span style={styles.navItem} onClick={() => navigate('/maps')}>맵 로테이션</span>
           <span style={{ ...styles.navItem, fontWeight: 'bold' }}>스킨</span>
           <span style={styles.navItem} onClick={() => navigate('/rank')}>랭킹</span>
           <span style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
+        </div>
+
+        <div style={styles.right}>
+          <input
+            type="text"
+            placeholder="예: CU24#KR"
+            value={riotId}
+            onChange={(e) => setRiotId(e.target.value)}
+            style={styles.topSearchInput}
+          />
+          <button style={styles.searchButton} onClick={handleSearch} disabled={isLoading}>
+            {isLoading ? '검색 중...' : '검색'}
+          </button>
         </div>
       </nav>
 
@@ -75,7 +106,7 @@ function SkinPage() {
             key={short}
             style={{
               ...styles.editionButton,
-              borderColor: selectedEditions.includes(short) ? '#4A90E2' : '#ddd',
+              borderColor: selectedEditions.includes(short) ? '#4A90E2' : '#555',
             }}
             onClick={() =>
               setSelectedEditions(prev =>
@@ -107,35 +138,125 @@ function SkinPage() {
 }
 
 const styles = {
-  pageWrapper: { backgroundColor: '#f9f9f9', minHeight: '100vh' },
-  navbar: {
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '40px',
-    padding: '20px 40px', backgroundColor: '#fff', borderBottom: '1px solid #ddd', position: 'relative'
+  pageWrapper: {
+    backgroundColor: '#121212',
+    minHeight: '100vh',
+    color: '#fff',
+    fontFamily: 'Black Han Sans, sans-serif',
+    paddingTop: '72px', // ✅ navbar 높이만큼 확보
   },
-  logo: { position: 'absolute', left: '40px', fontSize: '24px', fontWeight: 'bold', cursor: 'pointer' },
-  navItems: { display: 'flex', gap: '30px' },
-  navItem: { fontSize: '18px', cursor: 'pointer', color: '#333' },
+  navbar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '20px 40px',
+    backgroundColor: '#1E1E1E',
+    borderBottom: '1px solid #333',
+    position: 'fixed',
+    top: 0,
+    width: '100%',
+    zIndex: 1000,
+    height: '72px',
+    overflow: 'visible',
+  },
+  left: {
+    flex: '1 1 auto',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  center: {
+    flex: '1 1 auto',
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '30px',
+    flexWrap: 'wrap',
+  },
+  right: {
+    flex: 1.5,
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: '8px',
+    flexWrap: 'wrap',
+    paddingRight: '50px',
+  },
+  logoImage: {
+    height: '200px',
+    marginTop: '-8px',
+    cursor: 'pointer',
+  },
+  navItem: {
+    fontSize: '18px',
+    color: '#DDD',
+    cursor: 'pointer',
+  },
+  topSearchInput: {
+    height: '34px',
+    fontSize: '14px',
+    padding: '0 10px',
+    borderRadius: '6px',
+    border: '1px solid #555',
+    backgroundColor: '#1e1e1e',
+    color: '#fff',
+  },
+  searchButton: {
+    padding: '6px 12px',
+    fontSize: '14px',
+    backgroundColor: '#E63946',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+  },
   filterTypeBar: {
-    display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap',
-    marginTop: '20px', marginBottom: '20px'
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '12px',
+    flexWrap: 'wrap',
+    marginTop: '60px', // ✅ 기존 40px → 60px (살짝만 띄움)
+    marginBottom: '20px',
   },
   editionButton: {
-    display: 'flex', alignItems: 'center', gap: '6px',
-    border: '2px solid #ddd', background: '#fff',
-    borderRadius: '8px', cursor: 'pointer', padding: '4px 8px',
-    fontSize: '12px'
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    border: '2px solid #555',
+    background: '#1e1e1e',
+    color: '#fff',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    padding: '4px 8px',
+    fontSize: '12px',
   },
-  editionIcon: { width: '20px', height: '20px' },
+  editionIcon: {
+    width: '20px',
+    height: '20px',
+  },
   grid: {
-    display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-    gap: '24px', padding: '40px'
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+    gap: '24px',
+    padding: '40px',
   },
   card: {
-    backgroundColor: '#fff', borderRadius: '12px', overflow: 'hidden',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.1)', textAlign: 'center', cursor: 'pointer'
+    backgroundColor: '#1e1e1e',
+    borderRadius: '12px',
+    overflow: 'hidden',
+    boxShadow: '0 2px 10px rgba(255,255,255,0.05)',
+    textAlign: 'center',
+    cursor: 'pointer',
   },
-  image: { width: '100%', height: '140px', objectFit: 'cover' },
-  label: { padding: '12px', fontWeight: 'bold', fontSize: '16px' }
+  image: {
+    width: '100%',
+    height: '140px',
+    objectFit: 'cover',
+  },
+  label: {
+    padding: '12px',
+    fontWeight: 'bold',
+    fontSize: '16px',
+    color: '#fff',
+  },
 };
 
 export default SkinPage;

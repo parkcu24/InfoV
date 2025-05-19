@@ -1,38 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-// 한글 이름 → 영문 이미지 파일명 매핑
 const agentImageMap = {
-  네온: "neon",
-  레이나: "reyna",
-  레이즈: "raze",
-  아이소: "iso",
-  요루: "yoru",
-  웨이레이: "wayray", // 이름 확인 완료
-  제트: "jett",
-  피닉스: "phoenix",
-
-  게코: "geko",
-  브리치: "breach",
-  소바: "sova",
-  스카이: "skye",
-  케이오: "kayo",
-  테호: "tejo",
-  페이드: "fade",
-
-  데드록: "deadlock",
-  바이스: "vyse",
-  사이퍼: "cypher",
-  세이지: "sage",
-  체임버: "chamber",
-  킬조이: "killjoy",
-
-  바이퍼: "viper",
-  브림스톤: "brimstone",
-  아스트라: "astra",
-  오멘: "omen",
-  클로브: "clove",
-  하버: "haver"
+  네온: "neon", 레이나: "reyna", 레이즈: "raze", 아이소: "iso", 요루: "yoru", 웨이레이: "wayray",
+  제트: "jett", 피닉스: "phoenix", 게코: "geko", 브리치: "breach", 소바: "sova", 스카이: "skye",
+  케이오: "kayo", 테호: "tejo", 페이드: "fade", 데드록: "deadlock", 바이스: "vyse", 사이퍼: "cypher",
+  세이지: "sage", 체임버: "chamber", 킬조이: "killjoy", 바이퍼: "viper", 브림스톤: "brimstone",
+  아스트라: "astra", 오멘: "omen", 클로브: "clove", 하버: "haver"
 };
 
 const agentData = {
@@ -44,23 +18,56 @@ const agentData = {
 
 function AgentsPage() {
   const navigate = useNavigate();
+  const [riotId, setRiotId] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSearch = () => {
+    const [gameName, tagLine] = riotId.split('#');
+    if (!gameName || !tagLine) {
+      alert('아이디 형식을 확인해주세요. 예: CU24#KR');
+      return;
+    }
+
+    setIsLoading(true);
+    navigate(`/search-result?name=${encodeURIComponent(gameName)}&tag=${encodeURIComponent(tagLine)}`);
+    setIsLoading(false);
+  };
 
   return (
     <div style={styles.pageWrapper}>
-      {/* 상단 메뉴바 */}
       <nav style={styles.navbar}>
-        <span style={styles.logo} onClick={() => navigate('/')}>INFOV</span>
-        <div style={styles.navItems}>
+        <div style={styles.left}>
+          <img
+            src="/InfoV_logo.png"
+            alt="INFOV Logo"
+            style={styles.logoImage}
+            onClick={() => navigate('/')}
+          />
+        </div>
+
+        <div style={styles.center}>
           <span style={{ ...styles.navItem, fontWeight: 'bold', fontSize: '20px' }}>요원</span>
           <span style={styles.navItem} onClick={() => navigate('/maps')}>맵 로테이션</span>
           <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span>
           <span style={styles.navItem} onClick={() => navigate('/rank')}>랭킹</span>
           <span style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
         </div>
+
+        <div style={styles.right}>
+          <input
+            type="text"
+            placeholder="예: CU24#KR"
+            value={riotId}
+            onChange={(e) => setRiotId(e.target.value)}
+            style={styles.topSearchInput}
+          />
+          <button style={styles.searchButton} onClick={handleSearch} disabled={isLoading}>
+            {isLoading ? '검색 중...' : '검색'}
+          </button>
+        </div>
       </nav>
 
       <div style={styles.pageContent}>
-        {/* 왼쪽: 요원 목록 */}
         <div style={styles.leftColumn}>
           {Object.entries(agentData).map(([role, agents]) => (
             <div key={role}>
@@ -87,7 +94,6 @@ function AgentsPage() {
           ))}
         </div>
 
-        {/* 오른쪽: 요원 랭킹 */}
         <div style={styles.rightColumn}>
           <h2 style={styles.rankingTitle}>요원 랭킹</h2>
           <div style={styles.rankingBox}>
@@ -101,34 +107,72 @@ function AgentsPage() {
 
 const styles = {
   pageWrapper: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#121212',
     minHeight: '100vh',
+    color: '#fff',
+    fontFamily: 'Black Han Sans, sans-serif',
   },
   navbar: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: '40px',
+    justifyContent: 'space-between',
     padding: '20px 40px',
-    backgroundColor: '#ffffff',
-    borderBottom: '1px solid #ddd',
-    position: 'relative',
+    backgroundColor: '#1E1E1E',
+    borderBottom: '1px solid #333',
+    position: 'sticky',
+    top: 0,
+    width: '100%',
+    zIndex: 1000,
+    height: '72px',
+    overflow: 'visible',
   },
-  logo: {
-    position: 'absolute',
-    left: '40px',
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#000',
-    cursor: 'pointer',
-  },
-  navItems: {
+  left: {
+    flex: '1 1 auto',
     display: 'flex',
+    alignItems: 'center',
+  },
+  center: {
+    flex: '1 1 auto',
+    display: 'flex',
+    justifyContent: 'center',
     gap: '30px',
+    flexWrap: 'wrap',
+  },
+  right: {
+    flex: 1.5,
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: '8px',
+    flexWrap: 'wrap',
+    paddingRight: '50px',
+  },
+  logoImage: {
+    height: '200px',
+    marginTop: '-8px',
+    cursor: 'pointer',
   },
   navItem: {
     fontSize: '18px',
-    color: '#333',
+    color: '#DDD',
+    cursor: 'pointer',
+  },
+  topSearchInput: {
+    height: '34px',
+    fontSize: '14px',
+    padding: '0 10px',
+    borderRadius: '6px',
+    border: '1px solid #555',
+    backgroundColor: '#1e1e1e',
+    color: '#fff',
+  },
+  searchButton: {
+    padding: '6px 12px',
+    fontSize: '14px',
+    backgroundColor: '#E63946',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '6px',
     cursor: 'pointer',
   },
   pageContent: {
@@ -141,10 +185,10 @@ const styles = {
   },
   rightColumn: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#1e1e1e',
     padding: '20px',
     borderRadius: '10px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
     height: 'fit-content',
     position: 'sticky',
     top: '20px',
@@ -152,7 +196,7 @@ const styles = {
   roleTitle: {
     fontSize: '24px',
     margin: '30px 0 15px',
-    color: '#222',
+    color: '#E63946',
     fontWeight: 'bold',
   },
   grid: {
@@ -161,11 +205,11 @@ const styles = {
     gap: '20px',
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1e1e1e',
     borderRadius: '10px',
     padding: '6px',
     width: '90px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    boxShadow: '0 2px 10px rgba(255,255,255,0.05)',
     textAlign: 'center',
     transition: 'transform 0.2s ease-in-out',
     cursor: 'pointer',
@@ -180,16 +224,17 @@ const styles = {
     marginTop: '6px',
     fontSize: '16px',
     fontWeight: 'bold',
+    color: '#fff',
   },
   rankingTitle: {
     fontSize: '20px',
     marginBottom: '20px',
-    color: '#222',
+    color: '#E63946',
     fontWeight: 'bold',
   },
   rankingBox: {
     fontSize: '16px',
-    color: '#555',
+    color: '#ccc',
     lineHeight: '1.6',
   },
 };

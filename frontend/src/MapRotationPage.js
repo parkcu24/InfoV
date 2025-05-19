@@ -22,6 +22,8 @@ function MapRotationPage() {
   const [rotationByMode, setRotationByMode] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
+  const [riotId, setRiotId] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     axios.get('/api/rotation')
@@ -37,29 +39,58 @@ function MapRotationPage() {
       });
   }, []);
 
+  const handleSearch = () => {
+    const [gameName, tagLine] = riotId.split('#');
+    if (!gameName || !tagLine) {
+      alert('아이디 형식을 확인해주세요. 예: CU24#KR');
+      return;
+    }
+    setIsLoading(true);
+    navigate(`/search-result?name=${encodeURIComponent(gameName)}&tag=${encodeURIComponent(tagLine)}`);
+    setIsLoading(false);
+  };
+
   const maps = rotationByMode?.[selectedMode] || [];
 
   return (
     <div style={styles.pageWrapper}>
-      {/* 상단 메뉴바 */}
       <nav style={styles.navbar}>
-        <span style={styles.logo} onClick={() => navigate('/')}>INFOV</span>
-        <div style={styles.navItems}>
+        <div style={styles.left}>
+          <img
+            src="/InfoV_logo.png"
+            alt="INFOV Logo"
+            style={styles.logoImage}
+            onClick={() => navigate('/')}
+          />
+        </div>
+
+        <div style={styles.center}>
           <span style={styles.navItem} onClick={() => navigate('/agents')}>요원</span>
           <span style={{ ...styles.navItem, fontWeight: 'bold', fontSize: '20px' }}>맵 로테이션</span>
           <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span>
           <span style={styles.navItem} onClick={() => navigate('/rank')}>랭킹</span>
           <span style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
         </div>
+
+        <div style={styles.right}>
+          <input
+            type="text"
+            placeholder="예: CU24#KR"
+            value={riotId}
+            onChange={(e) => setRiotId(e.target.value)}
+            style={styles.topSearchInput}
+          />
+          <button style={styles.searchButton} onClick={handleSearch} disabled={isLoading}>
+            {isLoading ? '검색 중...' : '검색'}
+          </button>
+        </div>
       </nav>
 
-      {/* 본문 */}
       <div style={styles.content}>
         <h1 style={styles.seasonTitle}>
           {loading ? '시즌 정보 불러오는 중...' : seasonTitle || '시즌 정보 없음'}
         </h1>
 
-        {/* 모드 선택 버튼 */}
         {!loading && rotationByMode && (
           <div style={styles.modeContainer}>
             {Object.keys(rotationByMode).map((mode) => (
@@ -78,7 +109,6 @@ function MapRotationPage() {
           </div>
         )}
 
-        {/* 맵 리스트 */}
         {loading ? (
           <p>맵 로테이션 정보를 불러오는 중입니다...</p>
         ) : errorMsg ? (
@@ -118,40 +148,102 @@ function MapRotationPage() {
 }
 
 const styles = {
-  pageWrapper: { backgroundColor: '#f5f5f5', minHeight: '100vh' },
+  pageWrapper: {
+    backgroundColor: '#121212',
+    minHeight: '100vh',
+    color: '#fff',
+    fontFamily: 'Black Han Sans, sans-serif',
+    paddingTop: '72px',
+  },
   navbar: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: '40px',
+    justifyContent: 'space-between',
     padding: '20px 40px',
-    backgroundColor: '#ffffff',
-    borderBottom: '1px solid #ddd',
-    position: 'relative',
+    backgroundColor: '#1E1E1E',
+    borderBottom: '1px solid #333',
+    position: 'fixed',
+    top: 0,
+    width: '100%',
+    zIndex: 1000,
+    height: '72px',
+    overflow: 'visible',
   },
-  logo: {
-    position: 'absolute',
-    left: '40px',
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#000',
+  left: {
+    flex: '1 1 auto',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  center: {
+    flex: '1 1 auto',
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '30px',
+    flexWrap: 'wrap',
+  },
+  right: {
+    flex: 1.5,
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: '8px',
+    flexWrap: 'wrap',
+    paddingRight: '50px',
+  },
+  logoImage: {
+    height: '200px',
+    marginTop: '-8px',
     cursor: 'pointer',
   },
-  navItems: { display: 'flex', gap: '30px' },
-  navItem: { fontSize: '18px', color: '#333', cursor: 'pointer' },
-  content: { padding: '100px 40px 40px 40px' },
-  seasonTitle: { fontSize: '28px', fontWeight: 'bold', marginBottom: '30px' },
-  modeContainer: {
-    display: 'flex', gap: '20px', marginBottom: '30px', flexWrap: 'wrap'
+  navItem: {
+    fontSize: '18px',
+    color: '#DDD',
+    cursor: 'pointer',
   },
-  modeItem: { fontSize: '16px', color: '#222', cursor: 'pointer' },
+  topSearchInput: {
+    height: '34px',
+    fontSize: '14px',
+    padding: '0 10px',
+    borderRadius: '6px',
+    border: '1px solid #555',
+    backgroundColor: '#1e1e1e',
+    color: '#fff',
+  },
+  searchButton: {
+    padding: '6px 12px',
+    fontSize: '14px',
+    backgroundColor: '#E63946',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+  },
+  content: {
+    padding: '40px',
+  },
+  seasonTitle: {
+    fontSize: '28px',
+    fontWeight: 'bold',
+    marginBottom: '30px',
+  },
+  modeContainer: {
+    display: 'flex',
+    gap: '20px',
+    marginBottom: '30px',
+    flexWrap: 'wrap',
+  },
+  modeItem: {
+    fontSize: '16px',
+    color: '#ccc',
+    cursor: 'pointer',
+  },
   mapGrid: {
     display: 'flex',
     flexWrap: 'wrap',
     gap: '20px',
   },
   mapCard: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1e1e1e',
     padding: '10px',
     borderRadius: '10px',
     width: '180px',
@@ -170,6 +262,7 @@ const styles = {
     marginTop: '10px',
     fontSize: '16px',
     fontWeight: 'bold',
+    color: '#fff',
   },
 };
 

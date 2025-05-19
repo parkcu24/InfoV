@@ -1,4 +1,3 @@
-// EsportsPage.js
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -17,6 +16,8 @@ function EsportsPage() {
   const [selectedLeagues, setSelectedLeagues] = useState(leagues);
   const [scheduleData, setScheduleData] = useState([]);
   const [revealedMatches, setRevealedMatches] = useState({});
+  const [riotId, setRiotId] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -29,6 +30,17 @@ function EsportsPage() {
         console.error('Error fetching schedule:', error);
       });
   }, []);
+
+  const handleSearch = () => {
+    const [gameName, tagLine] = riotId.split('#');
+    if (!gameName || !tagLine) {
+      alert('아이디 형식을 확인해주세요. 예: CU24#KR');
+      return;
+    }
+    setIsLoading(true);
+    navigate(`/search-result?name=${encodeURIComponent(gameName)}&tag=${encodeURIComponent(tagLine)}`);
+    setIsLoading(false);
+  };
 
   const toggleLeague = (league) => {
     setSelectedLeagues((prev) =>
@@ -56,7 +68,7 @@ function EsportsPage() {
       .sort((a, b) => {
         const dateA = new Date(`${a['날짜']} ${a['시간']}`);
         const dateB = new Date(`${b['날짜']} ${b['시간']}`);
-        return dateB - dateA; // 미래 → 과거 순
+        return dateB - dateA;
       });
   }, [scheduleData, selectedLeagues]);
 
@@ -80,20 +92,42 @@ function EsportsPage() {
   return (
     <div style={styles.pageWrapper}>
       <nav style={styles.navbar}>
-        <span style={styles.logo} onClick={() => navigate('/')}>INFOV</span>
-        <div style={styles.navItems}>
+        <div style={styles.left}>
+          <img
+            src="/InfoV_logo.png"
+            alt="INFOV Logo"
+            style={styles.logoImage}
+            onClick={() => navigate('/')}
+          />
+        </div>
+
+        <div style={styles.center}>
           <span style={styles.navItem} onClick={() => navigate('/agents')}>요원</span>
           <span style={styles.navItem} onClick={() => navigate('/maps')}>맵 로테이션</span>
           <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span>
           <span style={styles.navItem} onClick={() => navigate('/rank')}>랭킹</span>
           <span style={{ ...styles.navItem, fontWeight: 'bold', fontSize: '20px' }}>E-Sports</span>
         </div>
+
+        <div style={styles.right}>
+          <input
+            type="text"
+            placeholder="예: CU24#KR"
+            value={riotId}
+            onChange={(e) => setRiotId(e.target.value)}
+            style={styles.topSearchInput}
+          />
+          <button style={styles.searchButton} onClick={handleSearch} disabled={isLoading}>
+            {isLoading ? '검색 중...' : '검색'}
+          </button>
+        </div>
       </nav>
+
       <div style={styles.content}>
         <div style={styles.leagueButtons}>
           <div onClick={toggleAll} style={{
             ...styles.leagueSelector,
-            borderColor: selectedLeagues.length === leagues.length ? '#4A90E2' : '#ddd',
+            borderColor: selectedLeagues.length === leagues.length ? '#4A90E2' : '#555',
             boxShadow: selectedLeagues.length === leagues.length ? '0 0 0 2px #4A90E2' : 'none',
             justifyContent: 'center'
           }}>
@@ -103,7 +137,7 @@ function EsportsPage() {
           {leagues.map((league) => (
             <div key={league} onClick={() => toggleLeague(league)} style={{
               ...styles.leagueSelector,
-              borderColor: selectedLeagues.includes(league) ? '#4A90E2' : '#ddd',
+              borderColor: selectedLeagues.includes(league) ? '#4A90E2' : '#555',
               boxShadow: selectedLeagues.includes(league) ? '0 0 0 2px #4A90E2' : 'none',
             }}>
               <img src={leagueImages[league]} alt={league} style={styles.leagueButtonImage} />
@@ -154,63 +188,193 @@ function EsportsPage() {
 }
 
 const styles = {
-  pageWrapper: { backgroundColor: '#f5f5f5', minHeight: '100vh' },
-  navbar: {
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '40px',
-    padding: '20px 40px', backgroundColor: '#ffffff', borderBottom: '1px solid #ddd',
-    position: 'relative'
+  pageWrapper: {
+    backgroundColor: '#121212',
+    minHeight: '100vh',
+    color: '#fff',
+    fontFamily: 'Black Han Sans, sans-serif',
+    paddingTop: '72px',
   },
-  logo: { position: 'absolute', left: '40px', fontSize: '24px', fontWeight: 'bold', color: '#000', cursor: 'pointer' },
-  navItems: { display: 'flex', gap: '30px' },
-  navItem: { fontSize: '18px', color: '#333', cursor: 'pointer' },
-  content: { paddingTop: '120px', textAlign: 'center' },
+  navbar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '20px 40px',
+    backgroundColor: '#1E1E1E',
+    borderBottom: '1px solid #333',
+    position: 'fixed',
+    top: 0,
+    width: '100%',
+    zIndex: 1000,
+    height: '72px',
+    overflow: 'visible',
+  },
+  left: {
+    flex: '1 1 auto',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  center: {
+    flex: '1 1 auto',
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '30px',
+    flexWrap: 'wrap',
+  },
+  right: {
+    flex: 1.5,
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: '8px',
+    flexWrap: 'wrap',
+    paddingRight: '50px',
+  },
+  logoImage: {
+    height: '200px',
+    marginTop: '-8px',
+    cursor: 'pointer',
+  },
+  navItem: {
+    fontSize: '18px',
+    color: '#DDD',
+    cursor: 'pointer',
+  },
+  topSearchInput: {
+    height: '34px',
+    fontSize: '14px',
+    padding: '0 10px',
+    borderRadius: '6px',
+    border: '1px solid #555',
+    backgroundColor: '#1e1e1e',
+    color: '#fff',
+  },
+  searchButton: {
+    padding: '6px 12px',
+    fontSize: '14px',
+    backgroundColor: '#E63946',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+  },
+  content: { paddingTop: '40px', textAlign: 'center' },
   leagueButtons: {
-    display: 'flex', justifyContent: 'center', gap: '20px',
-    marginBottom: '30px', flexWrap: 'wrap'
+    marginTop: '30px', // ✅ 추가
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '20px',
+    marginBottom: '30px',
+    flexWrap: 'wrap',
   },
   leagueSelector: {
-    display: 'flex', flexDirection: 'column', alignItems: 'center',
-    padding: '6px', border: '2px solid #ddd', borderRadius: '10px',
-    width: '140px', height: '140px', cursor: 'pointer',
-    transition: '0.2s ease', justifyContent: 'center'
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    padding: '6px',
+    border: '2px solid #555',
+    borderRadius: '10px',
+    width: '140px',
+    height: '140px',
+    cursor: 'pointer',
+    transition: '0.2s ease',
+    justifyContent: 'center',
   },
-  leagueButtonImage: { width: '90px', height: '90px', objectFit: 'cover', borderRadius: '6px' },
-  leagueName: { marginTop: '6px', fontSize: '14px', fontWeight: 'bold' },
+  leagueButtonImage: {
+    width: '90px',
+    height: '90px',
+    objectFit: 'cover',
+    borderRadius: '6px',
+  },
+  leagueName: {
+    marginTop: '6px',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#fff',
+  },
   matchCards: {
-    display: 'flex', flexDirection: 'column', alignItems: 'center',
-    gap: '30px', padding: '20px'
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '30px',
+    padding: '20px',
   },
   card: {
-    backgroundColor: '#ffffff', borderRadius: '12px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-    padding: '20px', width: '90%', maxWidth: '700px',
-    textAlign: 'center', position: 'relative'
+    backgroundColor: '#4a4a4a',
+    borderRadius: '12px',
+    boxShadow: '0 4px 12px rgba(255,255,255,0.05)',
+    padding: '20px',
+    width: '90%',
+    maxWidth: '700px',
+    textAlign: 'center',
+    position: 'relative',
+    color: '#fff',
   },
   teamsRow: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    gap: '10px', marginBottom: '10px'
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '10px',
+    marginBottom: '10px',
   },
   teamBox: {
-    display: 'flex', alignItems: 'center', width: '40%',
-    justifyContent: 'space-between'
+    display: 'flex',
+    alignItems: 'center',
+    width: '40%',
+    justifyContent: 'space-between',
   },
   nameContainer: {
-    flexGrow: 1, textAlign: 'center',
-    fontWeight: 'bold', fontSize: '18px'
+    flexGrow: 1,
+    textAlign: 'center',
+    fontWeight: 'bold',
+    fontSize: '18px',
   },
-  teamLogoLeft: { width: '48px', height: '48px', objectFit: 'contain', marginRight: '12px' },
-  teamLogoRight: { width: '48px', height: '48px', objectFit: 'contain', marginLeft: '12px' },
-  vs: { fontSize: '16px', fontWeight: 'bold', color: '#999' },
-  matchInfo: { marginTop: '12px', fontSize: '14px', color: '#666' },
-  resultButtonContainer: { position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)' },
+  teamLogoLeft: {
+    width: '48px',
+    height: '48px',
+    objectFit: 'contain',
+    marginRight: '12px',
+  },
+  teamLogoRight: {
+    width: '48px',
+    height: '48px',
+    objectFit: 'contain',
+    marginLeft: '12px',
+  },
+  vs: {
+    fontSize: '16px',
+    fontWeight: 'bold',
+    color: '#ccc',
+  },
+  matchInfo: {
+    marginTop: '12px',
+    fontSize: '14px',
+    color: '#aaa',
+  },
+  resultButtonContainer: {
+    position: 'absolute',
+    top: '10px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+  },
   resultButton: {
-    padding: '4px 10px', border: '1px solid #ccc', backgroundColor: '#fff',
-    borderRadius: '6px', fontSize: '12px', cursor: 'pointer'
+    padding: '4px 10px',
+    border: '1px solid #888',
+    backgroundColor: '#1e1e1e',
+    color: '#fff',
+    borderRadius: '6px',
+    fontSize: '12px',
+    cursor: 'pointer',
   },
-  resultText: { fontSize: '14px', fontWeight: 'bold' },
+  resultText: {
+    fontSize: '14px',
+    fontWeight: 'bold',
+  },
   dateDivider: {
-    width: '90%', height: '2px', backgroundColor: '#ccc',
-    margin: '20px 0'
+    width: '90%',
+    height: '2px',
+    backgroundColor: '#555',
+    margin: '20px 0',
   },
 };
 

@@ -1,57 +1,81 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './App.css';
 
 function HomePage() {
   const navigate = useNavigate();
+  const [region, setRegion] = useState('kr');
+  const [riotId, setRiotId] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSearch = () => {
+    const [gameName, tagLine] = riotId.split('#');
+    if (!gameName || !tagLine) {
+      alert('아이디 형식을 확인해주세요. 예: CU24#KR');
+      return;
+    }
+
+    setIsLoading(true);
+    navigate(`/search-result?name=${encodeURIComponent(gameName)}&tag=${encodeURIComponent(tagLine)}`);
+    setIsLoading(false);
+  };
 
   return (
     <div style={styles.container}>
-      {/* 상단 네비게이션 바 */}
       <nav style={styles.navbar}>
         <div style={styles.left}>
-          <span style={styles.logo} onClick={() => navigate('/')}>INFOV</span>
+          <img
+            src="/InfoV_logo.png"
+            alt="INFOV Logo"
+            style={styles.logoImage}
+            onClick={() => navigate('/')}
+          />
         </div>
 
         <div style={styles.center}>
-          <span className="navItem" style={styles.navItem} onClick={() => navigate('/agents')}>요원</span>
-          <span className="navItem" style={styles.navItem} onClick={() => navigate('/maps')}>맵 로테이션</span>
-          <span className="navItem" style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span>
-          <span className="navItem" style={styles.navItem} onClick={() => navigate('/rank')}>랭킹</span>
-          <span className="navItem" style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
+          <span style={styles.navItem} onClick={() => navigate('/agents')}>요원</span>
+          <span style={styles.navItem} onClick={() => navigate('/maps')}>맵 로테이션</span>
+          <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span>
+          <span style={styles.navItem} onClick={() => navigate('/rank')}>랭킹</span>
+          <span style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
         </div>
 
         <div style={styles.right}>
-          <button className="loginButton" style={styles.loginButton}>로그인</button>
           <input
             type="text"
-            placeholder="예) CU24#KR"
+            placeholder="예: CU24#KR"
+            value={riotId}
+            onChange={(e) => setRiotId(e.target.value)}
             style={styles.topSearchInput}
           />
-          <button style={styles.searchButton}>검색</button>
+          <button style={styles.searchButton} onClick={handleSearch} disabled={isLoading}>
+            {isLoading ? '검색 중...' : '검색'}
+          </button>
         </div>
       </nav>
 
-      {/* 메인 콘텐츠 */}
       <div style={styles.main}>
-        <h1 style={styles.title}>INFOV</h1>
+        <img src="/InfoV_logo.png" alt="Main INFOV Logo" style={styles.mainLogo} />
 
         <div style={styles.searchSection}>
-          <select style={styles.select}>
+          <select value={region} onChange={(e) => setRegion(e.target.value)} style={styles.select}>
             <option value="asia">아시아 서버</option>
             <option value="kr">한국 서버</option>
-            <option value="cn">중국 서버</option>
             <option value="na">미국 서버</option>
             <option value="eu">유럽 서버</option>
           </select>
 
           <input
             type="text"
-            placeholder="아이디를 입력해주세요 ex.) CU24#편의점"
+            placeholder="아이디를 입력해주세요 ex.) CU24#KR"
+            value={riotId}
+            onChange={(e) => setRiotId(e.target.value)}
             style={styles.input}
           />
 
-          <button style={styles.button}>INFOV</button>
+          <button style={styles.button} onClick={handleSearch} disabled={isLoading}>
+            {isLoading ? '검색 중...' : '전적 검색'}
+          </button>
         </div>
       </div>
     </div>
@@ -60,8 +84,8 @@ function HomePage() {
 
 const styles = {
   container: {
-    backgroundColor: '#f5f5f5',
-    color: '#222',
+    backgroundColor: '#121212',
+    color: '#FFFFFF',
     fontFamily: 'Black Han Sans, sans-serif',
     minHeight: '100vh',
   },
@@ -70,16 +94,19 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '20px 40px',
-    backgroundColor: '#ffffff',
-    borderBottom: '1px solid #ddd',
+    backgroundColor: '#1E1E1E',
+    borderBottom: '1px solid #333',
     position: 'fixed',
     top: 0,
     width: '100%',
     zIndex: 1000,
-    flexWrap: 'wrap',
+    height: '72px', // ⬅️ 기존보다 살짝 줄임
+    overflow: 'visible', // ✅ 로고가 튀어나와도 보이게
   },
   left: {
     flex: '1 1 auto',
+    display: 'flex',
+    alignItems: 'center',
   },
   center: {
     flex: '1 1 auto',
@@ -97,56 +124,43 @@ const styles = {
     flexWrap: 'wrap',
     paddingRight: '50px',
   },
-  logo: {
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#000',
+  logoImage: {
+    height: '200px', // ✅ 로고를 약 2.5배 키움
+    marginTop: '-8px', // ⬅️ 살짝만 내려서 상단바 중앙 정렬 느낌
     cursor: 'pointer',
   },
   navItem: {
     fontSize: '18px',
-    color: '#333',
+    color: '#DDD',
     cursor: 'pointer',
-    fontWeight: 'normal',
-  },
-  loginButton: {
-    padding: '6px 12px',
-    fontSize: '15px',
-    backgroundColor: 'transparent',
-    color: '#000',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap'
   },
   topSearchInput: {
     height: '34px',
     fontSize: '14px',
     padding: '0 10px',
     borderRadius: '6px',
-    border: '1px solid #ccc',
-    whiteSpace: 'nowrap'
+    border: '1px solid #555',
+    backgroundColor: '#1e1e1e',
+    color: '#fff',
   },
   searchButton: {
     padding: '6px 12px',
     fontSize: '14px',
-    backgroundColor: '#4A90E2',
+    backgroundColor: '#E63946',
     color: '#fff',
     border: 'none',
     borderRadius: '6px',
     cursor: 'pointer',
-    whiteSpace: 'nowrap'
   },
   main: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    paddingTop: '120px',
+    paddingTop: '120px', // ✅ 여백 유지
   },
-  title: {
-    fontSize: '72px',
-    fontWeight: 'bold',
-    marginBottom: '30px',
+  mainLogo: {
+    width: '400px',
+    marginBottom: '-100px', // ✅ 여백 축소
   },
   searchSection: {
     display: 'flex',
@@ -160,7 +174,9 @@ const styles = {
     fontSize: '16px',
     padding: '0 10px',
     borderRadius: '5px',
-    border: '1px solid #ccc',
+    border: '1px solid #555',
+    backgroundColor: '#1e1e1e',
+    color: '#fff',
   },
   input: {
     width: '300px',
@@ -168,8 +184,9 @@ const styles = {
     fontSize: '16px',
     padding: '0 10px',
     borderRadius: '5px',
-    border: '1px solid #ccc',
-    outline: 'none',
+    border: '1px solid #555',
+    backgroundColor: '#1e1e1e',
+    color: '#fff',
   },
   button: {
     height: '40px',
@@ -177,7 +194,7 @@ const styles = {
     fontSize: '16px',
     fontWeight: 'bold',
     color: '#fff',
-    backgroundColor: '#4A90E2',
+    backgroundColor: '#E63946',
     border: 'none',
     borderRadius: '5px',
     cursor: 'pointer',

@@ -13,6 +13,8 @@ console.log(`👉 서버가 ${PORT} 포트에서 곧 실행될 예정`);
 const rankingsRouter = require('./routes/rankings');
 const actsRouter = require('./routes/acts');
 const rotationRouter = require('./routes/rotation');
+const searchRouter = require('./routes/search');
+const authRouter = require('./routes/auth');
 
 // ✅ CORS 설정
 const corsOptions = {
@@ -43,6 +45,8 @@ app.use(express.json());
 app.use('/api/rankings', rankingsRouter);
 app.use('/api/acts', actsRouter);
 app.use('/api/rotation', rotationRouter);
+app.use('/api/search', searchRouter);
+app.use('/api/auth', authRouter);
 
 // 🟢 서버 시작
 app.listen(PORT, () => {
