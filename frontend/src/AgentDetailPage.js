@@ -1,28 +1,76 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { agentDetails } from './agentData';
 
 function AgentDetailPage() {
   const { agentName } = useParams();
   const navigate = useNavigate();
 
+  const agent = agentDetails[agentName];
+
+  if (!agent) {
+    return (
+      <div style={{ padding: '100px', color: '#fff', textAlign: 'center' }}>
+        <h2>{agentName} 요원 정보를 찾을 수 없습니다.</h2>
+      </div>
+    );
+  }
+
+  const [selectedSkill, setSelectedSkill] = useState(agent.skills[0].name);
+  const currentSkill = agent.skills.find(s => s.name === selectedSkill);
+
   return (
     <div style={styles.pageWrapper}>
-      {/* 상단 메뉴바 */}
       <nav style={styles.navbar}>
-        <span style={styles.logo} onClick={() => navigate('/')}>INFOV</span>
+        <img
+          src="/InfoV_logo.png"
+          alt="INFOV Logo"
+          style={styles.logoImage}
+          onClick={() => navigate('/')}
+        />
         <div style={styles.navItems}>
           <span style={{ ...styles.navItem, fontWeight: 'bold', fontSize: '20px' }}>요원</span>
           <span style={styles.navItem} onClick={() => navigate('/maps')}>맵 로테이션</span>
-          <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span> {/* 새로 추가 */}
+          <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span>
           <span style={styles.navItem} onClick={() => navigate('/rank')}>랭킹</span>
           <span style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
         </div>
       </nav>
 
-      <div style={styles.content}>
-        <h1 style={styles.title}>{agentName}</h1>
-        <p style={styles.description}>요원 {agentName}에 대한 상세 정보를 여기에 표시할 수 있습니다.</p>
-        {/* 예: 능력치, 역할, 배경 스토리 등 */}
+      <div style={styles.topSection}>
+        <img src={`/agents/${agent.image}`} alt={agent.korName} style={styles.agentImage} />
+        <div style={styles.agentInfo}>
+          <h1 style={styles.title}>
+            <img src={agent.roleIcon} alt="role" style={styles.roleIcon} />
+            {agent.korName}
+          </h1>
+          <p>포지션: {agent.role}</p>
+          <p>주로 사용하는 맵: {agent.maps}</p>
+          <p>픽률: {agent.pickRate}</p>
+          <p>주로 사용하는 무기: {agent.weapons.join(', ')}</p>
+        </div>
+      </div>
+
+      <div style={styles.skillSection}>
+        <div style={styles.skillVideo}>
+          <video width="100%" height="300" controls src={currentSkill.video} />
+          <p style={styles.skillDesc}>{currentSkill.description}</p>
+        </div>
+        <div style={styles.skillList}>
+          {agent.skills.map(skill => (
+            <div
+              key={skill.name}
+              onClick={() => setSelectedSkill(skill.name)}
+              style={{
+                ...styles.skillItem,
+                backgroundColor: skill.name === selectedSkill ? '#333' : 'transparent'
+              }}
+            >
+              <img src={skill.icon} alt={skill.name} style={styles.skillIcon} />
+              <span>{skill.name}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -30,25 +78,26 @@ function AgentDetailPage() {
 
 const styles = {
   pageWrapper: {
-    backgroundColor: '#f5f5f5',
-    minHeight: '100vh'
+    backgroundColor: '#121212',
+    color: '#eee',
+    fontFamily: 'Black Han Sans, sans-serif',
+    minHeight: '100vh',
+    paddingBottom: '60px'
   },
   navbar: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: '40px',
+    justifyContent: 'space-between',
     padding: '20px 40px',
-    backgroundColor: '#ffffff',
-    borderBottom: '1px solid #ddd',
-    position: 'relative'
+    backgroundColor: '#1e1e1e',
+    borderBottom: '1px solid #333',
+    height: '72px',
+    position: 'sticky',
+    top: 0,
+    zIndex: 1000
   },
-  logo: {
-    position: 'absolute',
-    left: '40px',
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#000',
+  logoImage: {
+    height: '48px',
     cursor: 'pointer'
   },
   navItems: {
@@ -57,21 +106,66 @@ const styles = {
   },
   navItem: {
     fontSize: '18px',
-    color: '#333',
+    color: '#DDD',
     cursor: 'pointer'
   },
-  content: {
-    padding: '120px 40px 40px 40px',
-    textAlign: 'center'
+  topSection: {
+    display: 'flex',
+    padding: '40px',
+    gap: '40px',
+    alignItems: 'center'
+  },
+  agentImage: {
+    width: '300px',
+    borderRadius: '8px'
+  },
+  agentInfo: {
+    fontSize: '18px'
   },
   title: {
     fontSize: '36px',
     fontWeight: 'bold',
-    marginBottom: '20px'
+    marginBottom: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px'
   },
-  description: {
-    fontSize: '18px',
-    color: '#444'
+  roleIcon: {
+    width: '32px',
+    height: '32px'
+  },
+  skillSection: {
+    display: 'flex',
+    padding: '0 40px',
+    marginTop: '40px',
+    gap: '40px',
+    alignItems: 'flex-start'
+  },
+  skillVideo: {
+    flex: 1
+  },
+  skillList: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px'
+  },
+  skillItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '8px',
+    borderRadius: '6px',
+    cursor: 'pointer'
+  },
+  skillIcon: {
+    width: '32px',
+    height: '32px'
+  },
+  skillDesc: {
+    marginTop: '10px',
+    fontSize: '16px',
+    color: '#ccc'
   }
 };
 

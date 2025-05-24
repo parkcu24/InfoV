@@ -57,17 +57,9 @@ function SkinPage() {
     selectedEditions.includes(skin.edition)
   );
 
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '80px' }}>
-        <ClipLoader size={50} color="#007bff" />
-        <p style={{ marginTop: 10, color: '#555' }}>스킨 데이터를 불러오는 중입니다...</p>
-      </div>
-    );
-  }
-
   return (
     <div style={styles.pageWrapper}>
+      {/* 네비게이션 바 */}
       <nav style={styles.navbar}>
         <div style={styles.left}>
           <img
@@ -100,6 +92,7 @@ function SkinPage() {
         </div>
       </nav>
 
+      {/* 에디션 필터 */}
       <div style={styles.filterTypeBar}>
         {editions.map(({ icon, short, name }) => (
           <button
@@ -120,18 +113,26 @@ function SkinPage() {
         ))}
       </div>
 
+      {/* 스킨 카드 또는 로딩 스피너 */}
       <div style={styles.grid}>
-        {filteredSkinSets.map((set, idx) => (
-          <div key={idx} style={styles.card} onClick={() => navigate(`/skins/${set.setName}`)}>
-            <img
-              src={set.coverImage}
-              alt={set.setName}
-              style={styles.image}
-              onError={(e) => e.target.src = '/default-skin.png'}
-            />
-            <div style={styles.label}>{set.setName}</div>
+        {loading ? (
+          <div style={{ gridColumn: '1/-1', textAlign: 'center', marginTop: '80px' }}>
+            <ClipLoader size={50} color="#007bff" />
+            <p style={{ marginTop: 10, color: '#aaa' }}>스킨 데이터를 불러오는 중입니다...</p>
           </div>
-        ))}
+        ) : (
+          filteredSkinSets.map((set, idx) => (
+            <div key={idx} style={styles.card} onClick={() => navigate(`/skins/${set.setName}`)}>
+              <img
+                src={set.coverImage}
+                alt={set.setName}
+                style={styles.image}
+                onError={(e) => e.target.src = '/default-skin.png'}
+              />
+              <div style={styles.label}>{set.setName}</div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
@@ -143,7 +144,7 @@ const styles = {
     minHeight: '100vh',
     color: '#fff',
     fontFamily: 'Black Han Sans, sans-serif',
-    paddingTop: '72px', // ✅ navbar 높이만큼 확보
+    paddingTop: '72px',
   },
   navbar: {
     display: 'flex',
@@ -157,7 +158,6 @@ const styles = {
     width: '100%',
     zIndex: 1000,
     height: '72px',
-    overflow: 'visible',
   },
   left: {
     flex: '1 1 auto',
@@ -213,7 +213,7 @@ const styles = {
     justifyContent: 'center',
     gap: '12px',
     flexWrap: 'wrap',
-    marginTop: '60px', // ✅ 기존 40px → 60px (살짝만 띄움)
+    marginTop: '60px',
     marginBottom: '20px',
   },
   editionButton: {
