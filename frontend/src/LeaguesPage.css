@@ -1,0 +1,157 @@
+.leagues-page {
+    background-color: #121212;
+    color: #fff;
+    font-family: 'Black Han Sans', sans-serif;
+    text-align: center;
+    padding-top: 100px;
+    min-height: 100vh;
+  }
+  
+  .navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 40px;
+    background-color: #1E1E1E;
+    border-bottom: 1px solid #333;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1000;
+    height: 72px;
+  }
+  
+  .left {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+  }
+  
+  .center {
+    flex: 1 1 auto;
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    flex-wrap: wrap;
+  }
+  
+  .right {
+    flex: 1.5;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding-right: 50px;
+  }
+  
+  .logoImage {
+    height: 200px;
+    margin-top: -8px;
+    cursor: pointer;
+  }
+  
+  .navItem {
+    font-size: 18px;
+    color: #DDD;
+    cursor: pointer;
+  }
+  
+  .navItem.active {
+    font-weight: bold;
+    font-size: 20px;
+    color: #E63946;
+  }
+  
+  .topSearchInput {
+    height: 34px;
+    font-size: 14px;
+    padding: 0 10px;
+    border-radius: 6px;
+    border: 1px solid #555;
+    background-color: #1e1e1e;
+    color: #fff;
+  }
+  
+  .searchButton {
+    padding: 6px 12px;
+    font-size: 14px;
+    background-color: #E63946;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  
+  .leagues-title {
+    font-size: 36px;
+    margin-bottom: 20px;
+    color: #E63946;
+    text-shadow: 0 0 10px #E63946;
+  }
+  
+  .world-map-container {
+    position: relative;
+    width: 80%;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .world-map {
+    width: 100%;
+    height: auto;
+    display: block;
+    opacity: 0.95;
+  }
+  
+  .world-map path {
+    transition: fill 0.3s ease, transform 0.3s ease, filter 0.3s ease;
+    cursor: pointer;
+  }
+  
+  .world-map path:hover {
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.6));
+    transform: scale(1.05);
+    opacity: 1 !important;
+  }
+  
+  .region-button {
+    position: absolute;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-shadow: 0 0 8px #000;
+    border: 2px solid #fff;
+  }
+  
+  .region-button:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 15px #fff;
+    transform: scale(1.1);
+  }
+  
+  /* 리그 버튼 위치 조정 */
+  .region-button.pacific {
+    top: 40%;
+    left: 65%;
+  }
+  
+  .region-button.emea {
+    top: 35%;
+    left: 45%;
+  }
+  
+  .region-button.americas {
+    top: 50%;
+    left: 15%;
+  }
+  
+  .region-button.cn {
+    top: 30%;
+    left: 75%;
+  }
+  

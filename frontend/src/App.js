@@ -1,3 +1,4 @@
+// src/App.js
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import HomePage from './HomePage';
@@ -9,10 +10,12 @@ import SkinPage from './SkinsPage';
 import SkinDetailPage from './SkinDetailPage';
 import RankPage from './RankPage';
 import EsportsPage from './EsportsPage';
+import LeaguesPage from './LeaguesPage'; // ✅ 리그 선택 페이지
 import SearchResultPage from './SearchResultPage';
 import PrivacyPage from './Privacy';
 import TermsPage from './Terms';
 import LogoutPage from './Logout';
+import SchedulePage from './SchedulePage'; // ✅ src/SchedulePage.js 위치에 맞게 수정
 
 function App() {
   return (
@@ -23,13 +26,15 @@ function App() {
       <Route path="/agents/:agentName" element={<AgentDetailPage />} />
       <Route path="/maps" element={<MapRotationPage />} />
       <Route path="/maps/:mapName" element={<MapDetailPage />} />
-      <Route path="/skins/" element={<SkinPage />} />
+      <Route path="/skins" element={<SkinPage />} />
       <Route path="/skins/:skinId" element={<SkinDetailPage />} />
       <Route path="/rank" element={<RankPage />} />
       <Route path="/esports" element={<EsportsPage />} />
+      <Route path="/leagues" element={<LeaguesPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/logout" element={<LogoutPage />} />
+      <Route path="/schedule" element={<SchedulePage />} />
     </Routes>
   );
 }
