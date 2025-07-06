@@ -16,6 +16,7 @@ import PrivacyPage from './Privacy';
 import TermsPage from './Terms';
 import LogoutPage from './Logout';
 import SchedulePage from './SchedulePage'; // ✅ src/SchedulePage.js 위치에 맞게 수정
+import CallbackPage from './CallbackPage';
 
 function App() {
   return (
@@ -35,6 +36,7 @@ function App() {
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/logout" element={<LogoutPage />} />
       <Route path="/schedule" element={<SchedulePage />} />
+      <Route path="/callback" element={<CallbackPage />} />
     </Routes>
   );
 }

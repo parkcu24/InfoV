@@ -1,11 +1,11 @@
-// src/pages/LeaguesPage.js
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ReactComponent as WorldMap } from './assets/world.svg';
 import './LeaguesPage.css';
 
 function LeaguesPage() {
   const navigate = useNavigate();
+  const [hoverRegion, setHoverRegion] = useState(null);
 
   const regionColors = {
     PACIFIC: '#00FFFF',
@@ -15,47 +15,76 @@ function LeaguesPage() {
   };
 
   const regionCountries = {
-    PACIFIC: ['KR', 'JP', 'ID', 'MY', 'SG', 'PH', 'TH', 'VN', 'HK', 'TW', 'IN', 'AU', 'Japan', 'Indonesia', 'Malaysia'],
-    EMEA: ['FR', 'DE', 'GB', 'SA', 'TR', 'EG', 'AE', 'ES', 'IT', 'PT', 'PL', 'SE', 'FI', 'NO', 'DK', 'IE', 'BE', 'NL', 'LU', 'AT', 'CH'],
-    AMERICAS: [
-      'Antigua and Barbuda', 'Argentina', 'BO', 'BR', 'BZ', 'Bahamas', 'CO', 'CR', 'CU', 'Canada', 'Chile',
-      'DM', 'DO', 'EC', 'GD', 'GT', 'GY', 'HN', 'HT', 'JM', 'MX', 'NI', 'PA', 'PE', 'PY', 'Puerto Rico',
-      'SR', 'SV', 'Trinidad and Tobago', 'UY', 'United States', 'VE','United States', 'Greenland',
+    PACIFIC: ['KR', 'JP', 'ID', 'MY', 'SG', 'PH', 'TH', 'VN', 'HK', 'TW', 'IN'],
+    EMEA: [
+      'FR', 'DE', 'GB', 'ES', 'IT', 'PT', 'PL', 'SE', 'FI', 'NO', 'DK', 'IE',
+      'BE', 'NL', 'LU', 'AT', 'CH', 'CZ', 'HU', 'SK', 'SI', 'HR', 'BG', 'RO', 'GR',
+      'LT', 'LV', 'EE', 'RS', 'BA', 'MK', 'MT', 'CY', 'UA',
+      'SA', 'AE', 'TR', 'IL', 'JO', 'QA', 'KW', 'OM', 'BH', 'IR', 'IQ', 'YE', 'LB', 'PS', 'SY',
+      'EG', 'MA', 'DZ', 'TN', 'LY', 'SD', 'CF', 'NG', 'CI', 'GN', 'SN', 'BF', 'TD', 'ML', 'NE',
+      'MR', 'GW', 'LR', 'GH', 'BJ', 'CG', 'BW', 'AO', 'KE', 'ZM', 'ZA', 'NA', 'CD', 'TZ', 'MZ',
+      'ZW', 'LS', 'SZ', 'ET', 'SS', 'UG', 'SO', 'MG', 'CM', 'GA'
     ],
-    CN: ['CN', 'China'],
+    AMERICAS: [
+      'MX', 'BR', 'AR', 'CL', 'CO', 'PE', 'VE', 'EC', 'BO', 'PY', 'UY', 'GY', 'SR', 'GF',
+      'BZ', 'GT', 'SV', 'HN', 'NI', 'CR', 'PA', 'JM', 'HT', 'DO', 'CU', 'TT', 'BS', 'BB', 'AG',
+      'LC', 'GD', 'VC', 'GL', 'CA', 'United States', 'Canada'
+    ],
+    CN: ['CN', 'CHINA']
   };
 
   useEffect(() => {
-    Object.entries(regionCountries).forEach(([region, countries]) => {
-      countries.forEach((code) => {
-        const classElements = document.querySelectorAll(`.${code}`);
-        const idElement = document.getElementById(code);
-        const elements = [...classElements];
-        if (idElement) elements.push(idElement);
+    const allLeagueCodes = new Set();
 
-        elements.forEach((element) => {
-          element.style.fill = regionColors[region];
-          element.style.opacity = 0.7;
-          element.style.transition = 'fill 0.3s ease, transform 0.3s ease, filter 0.3s ease';
+    Object.entries(regionCountries).forEach(([region, countries]) => {
+      countries.forEach((codeRaw) => {
+        const code = codeRaw.trim().toLowerCase();
+        allLeagueCodes.add(code);
+
+        document.querySelectorAll('path').forEach((element) => {
+          const id = element.id?.toLowerCase();
+          const classList = Array.from(element.classList).map(cls => cls.toLowerCase());
+          const classAttrWords = element.getAttribute('class')?.toLowerCase().split(/\s+/) || [];
+          const name = element.getAttribute('name')?.toLowerCase();
+
+          const isMatch =
+            id === code ||
+            classList.includes(code) ||
+            classAttrWords.includes(code) ||
+            name === code;
+
+          if (isMatch) {
+            element.classList.add('league-country');
+            element.style.setProperty('fill', regionColors[region], 'important');
+            element.style.setProperty(
+              'opacity',
+              !hoverRegion || hoverRegion === region ? '1.0' : '0.3',
+              'important'
+            );
+          }
         });
       });
     });
-  }, []);
 
-  const handleHover = (region, isHovering) => {
-    const countries = regionCountries[region];
-    countries.forEach((code) => {
-      const classElements = document.querySelectorAll(`.${code}`);
-      const idElement = document.getElementById(code);
-      const elements = [...classElements];
-      if (idElement) elements.push(idElement);
+    document.querySelectorAll('path').forEach((path) => {
+      const id = path.id?.toLowerCase();
+      const classList = Array.from(path.classList).map(cls => cls.toLowerCase());
+      const classAttrWords = path.getAttribute('class')?.toLowerCase().split(/\s+/) || [];
+      const name = path.getAttribute('name')?.toLowerCase();
 
-      elements.forEach((el) => {
-        el.style.transform = isHovering ? 'scale(1.08)' : 'scale(1)';
-        el.style.filter = isHovering ? 'drop-shadow(0 0 10px rgba(255,255,255,0.7))' : 'none';
-      });
+      const matched = [...allLeagueCodes].some(code =>
+        id === code ||
+        classList.includes(code) ||
+        classAttrWords.includes(code) ||
+        name === code
+      );
+
+      if (!matched) {
+        path.classList.remove('league-country');
+        path.style.setProperty('opacity', '0.2', 'important');
+      }
     });
-  };
+  }, [hoverRegion]);
 
   const handleRegionClick = (region) => {
     navigate(`/schedule?region=${region}`);
@@ -94,9 +123,9 @@ function LeaguesPage() {
           <div
             key={region}
             className={`region-button ${region.toLowerCase()}`}
+            onMouseEnter={() => setHoverRegion(region)}
+            onMouseLeave={() => setHoverRegion(null)}
             onClick={() => handleRegionClick(region)}
-            onMouseEnter={() => handleHover(region, true)}
-            onMouseLeave={() => handleHover(region, false)}
           >
             {region}
           </div>

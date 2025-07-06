@@ -7,6 +7,7 @@
     min-height: 100vh;
   }
   
+  /* 상단 네비게이션 바 */
   .navbar {
     display: flex;
     align-items: center;
@@ -22,13 +23,13 @@
   }
   
   .left {
-    flex: 1 1 auto;
+    flex: 1;
     display: flex;
     align-items: center;
   }
   
   .center {
-    flex: 1 1 auto;
+    flex: 1;
     display: flex;
     justify-content: center;
     gap: 30px;
@@ -41,8 +42,8 @@
     justify-content: flex-end;
     align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
     padding-right: 50px;
+    flex-wrap: wrap;
   }
   
   .logoImage {
@@ -90,6 +91,7 @@
     text-shadow: 0 0 10px #E63946;
   }
   
+  /* 지도 컨테이너 */
   .world-map-container {
     position: relative;
     width: 80%;
@@ -104,17 +106,18 @@
     opacity: 0.95;
   }
   
-  .world-map path {
-    transition: fill 0.3s ease, transform 0.3s ease, filter 0.3s ease;
+  /* 리그 국가 기본 스타일 */
+  .league-country {
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
     cursor: pointer;
   }
   
-  .world-map path:hover {
-    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.6));
-    transform: scale(1.05);
-    opacity: 1 !important;
+  .league-country:hover {
+    opacity: 1.0 !important;
   }
   
+  /* 리그 버튼 */
   .region-button {
     position: absolute;
     padding: 8px 12px;
@@ -134,7 +137,7 @@
     transform: scale(1.1);
   }
   
-  /* 리그 버튼 위치 조정 */
+  /* 리그 버튼 위치 */
   .region-button.pacific {
     top: 40%;
     left: 65%;
