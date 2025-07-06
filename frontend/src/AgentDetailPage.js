@@ -8,6 +8,13 @@ function AgentDetailPage() {
 
   const agent = agentDetails[agentName];
 
+  // ✅ 조건문보다 위에서 Hook 선언
+  const [selectedSkill, setSelectedSkill] = useState(
+    agent && agent.skills.length > 0 ? agent.skills[0].name : ''
+  );
+
+  const currentSkill = agent?.skills.find(s => s.name === selectedSkill);
+
   if (!agent) {
     return (
       <div style={{ padding: '100px', color: '#fff', textAlign: 'center' }}>
@@ -15,9 +22,6 @@ function AgentDetailPage() {
       </div>
     );
   }
-
-  const [selectedSkill, setSelectedSkill] = useState(agent.skills[0].name);
-  const currentSkill = agent.skills.find(s => s.name === selectedSkill);
 
   return (
     <div style={styles.pageWrapper}>
@@ -53,8 +57,12 @@ function AgentDetailPage() {
 
       <div style={styles.skillSection}>
         <div style={styles.skillVideo}>
-          <video width="100%" height="300" controls src={currentSkill.video} />
-          <p style={styles.skillDesc}>{currentSkill.description}</p>
+          {currentSkill && (
+            <>
+              <video width="100%" height="300" controls src={currentSkill.video} />
+              <p style={styles.skillDesc}>{currentSkill.description}</p>
+            </>
+          )}
         </div>
         <div style={styles.skillList}>
           {agent.skills.map(skill => (
