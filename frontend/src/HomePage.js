@@ -8,32 +8,37 @@ function HomePage() {
   const [riotId, setRiotId] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSearch = () => {
+  const handleSearch = (e) => {
+    if (e) e.preventDefault();
     const [gameName, tagLine] = riotId.split('#');
+
     if (!gameName || !tagLine) {
       alert('아이디 형식을 확인해주세요. 예: CU24#KR');
       return;
     }
 
     setIsLoading(true);
-    navigate(`/search-result?name=${encodeURIComponent(gameName)}&tag=${encodeURIComponent(tagLine)}`);
+    navigate(
+      `/search-result?name=${encodeURIComponent(gameName)}&tag=${encodeURIComponent(tagLine)}&region=${encodeURIComponent(region)}`
+    );
     setIsLoading(false);
   };
 
   return (
     <div style={styles.container}>
       {/* 상단 네비게이션 */}
-      <nav style={styles.navbar}>
+      <nav style={styles.navbar} className="navbar">
         <div style={styles.left}>
           <img
             src="/InfoV_logo.png"
             alt="INFOV Logo"
             style={styles.logoImage}
+            className="logo-img"
             onClick={() => navigate('/')}
           />
         </div>
 
-        <div style={styles.center}>
+        <div style={styles.center} className="nav-center">
           <span style={styles.navItem} onClick={() => navigate('/agents')}>요원</span>
           <span style={styles.navItem} onClick={() => navigate('/maps')}>맵 로테이션</span>
           <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span>
@@ -41,26 +46,43 @@ function HomePage() {
           <span style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
         </div>
 
-        <div style={styles.right}>
+        <form style={styles.right} className="nav-right" onSubmit={handleSearch}>
           <input
             type="text"
             placeholder="예: CU24#KR"
             value={riotId}
             onChange={(e) => setRiotId(e.target.value)}
             style={styles.topSearchInput}
+            className="top-search-input"
+            aria-label="Riot ID"
           />
-          <button style={styles.searchButton} onClick={handleSearch} disabled={isLoading}>
+          <button
+            type="submit"
+            style={styles.searchButton}
+            className="search-button"
+            disabled={isLoading}
+          >
             {isLoading ? '검색 중...' : '검색'}
           </button>
-        </div>
+        </form>
       </nav>
 
       {/* 메인 콘텐츠 */}
-      <div style={styles.main}>
-        <img src="/InfoV_logo.png" alt="Main INFOV Logo" style={styles.mainLogo} />
+      <main style={styles.main} className="main">
+        <img
+          src="/InfoV_logo.png"
+          alt="Main INFOV Logo"
+          style={styles.mainLogo}
+          className="main-logo"
+        />
 
-        <div style={styles.searchSection}>
-          <select value={region} onChange={(e) => setRegion(e.target.value)} style={styles.select}>
+        <form style={styles.searchSection} className="search-section" onSubmit={handleSearch}>
+          <select
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+            style={styles.select}
+            aria-label="지역 선택"
+          >
             <option value="asia">아시아 서버</option>
             <option value="kr">한국 서버</option>
             <option value="na">미국 서버</option>
@@ -73,16 +95,23 @@ function HomePage() {
             value={riotId}
             onChange={(e) => setRiotId(e.target.value)}
             style={styles.input}
+            className="id-input"
+            aria-label="Riot ID 메인"
           />
 
-          <button style={styles.button} onClick={handleSearch} disabled={isLoading}>
+          <button
+            type="submit"
+            style={styles.button}
+            className="main-search-button"
+            disabled={isLoading}
+          >
             {isLoading ? '검색 중...' : '전적 검색'}
           </button>
-        </div>
-      </div>
+        </form>
+      </main>
 
       {/* 하단 개인정보 처리방침 & 이용약관 링크 */}
-      <div style={styles.footer}>
+      <footer style={styles.footer} className="footer">
         <span onClick={() => navigate('/privacy')} style={styles.footerLink}>
           개인정보 처리방침
         </span>
@@ -90,7 +119,7 @@ function HomePage() {
         <span onClick={() => navigate('/terms')} style={styles.footerLink}>
           서비스 이용약관
         </span>
-      </div>
+      </footer>
     </div>
   );
 }
@@ -138,8 +167,7 @@ const styles = {
     paddingRight: '50px',
   },
   logoImage: {
-    height: '200px',
-    marginTop: '-8px',
+    height: '80px',  // 기본 로고 크기
     cursor: 'pointer',
   },
   navItem: {
