@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './App.css';
 
@@ -7,6 +7,17 @@ function HomePage() {
   const [region, setRegion] = useState('kr');
   const [riotId, setRiotId] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // 메뉴 열렸을 때 바디 스크롤 잠금(모바일 UX)
+  useEffect(() => {
+    if (menuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => (document.body.style.overflow = '');
+  }, [menuOpen]);
 
   const handleSearch = (e) => {
     if (e) e.preventDefault();
@@ -22,30 +33,39 @@ function HomePage() {
       `/search-result?name=${encodeURIComponent(gameName)}&tag=${encodeURIComponent(tagLine)}&region=${encodeURIComponent(region)}`
     );
     setIsLoading(false);
+    setMenuOpen(false);
+  };
+
+  const go = (path) => {
+    navigate(path);
+    setMenuOpen(false);
   };
 
   return (
     <div style={styles.container}>
       {/* 상단 네비게이션 */}
       <nav style={styles.navbar} className="navbar">
+        {/* 좌측 로고 */}
         <div style={styles.left}>
           <img
             src="/InfoV_logo.png"
             alt="INFOV Logo"
             style={styles.logoImage}
             className="logo-img"
-            onClick={() => navigate('/')}
+            onClick={() => go('/')}
           />
         </div>
 
-        <div style={styles.center} className="nav-center">
-          <span style={styles.navItem} onClick={() => navigate('/agents')}>요원</span>
-          <span style={styles.navItem} onClick={() => navigate('/maps')}>맵 로테이션</span>
-          <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span>
-          <span style={styles.navItem} onClick={() => navigate('/rank')}>랭킹</span>
-          <span style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
+        {/* 데스크톱 가로 메뉴 */}
+        <div style={styles.center} className="nav-center desktop-nav">
+          <span style={styles.navItem} onClick={() => go('/agents')}>요원</span>
+          <span style={styles.navItem} onClick={() => go('/maps')}>맵 로테이션</span>
+          <span style={styles.navItem} onClick={() => go('/skins')}>스킨</span>
+          <span style={styles.navItem} onClick={() => go('/rank')}>랭킹</span>
+          <span style={styles.navItem} onClick={() => go('/esports')}>E-Sports</span>
         </div>
 
+        {/* 우측 검색 */}
         <form style={styles.right} className="nav-right" onSubmit={handleSearch}>
           <input
             type="text"
@@ -65,7 +85,40 @@ function HomePage() {
             {isLoading ? '검색 중...' : '검색'}
           </button>
         </form>
+
+        {/* 모바일 햄버거 버튼 */}
+        <button
+          className="menu-toggle"
+          aria-label="메뉴 열기"
+          aria-expanded={menuOpen}
+          aria-controls="mobile-drawer"
+          onClick={() => setMenuOpen((v) => !v)}
+        >
+          {/* 심플한 햄버거 아이콘 (SVG) */}
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+            <rect x="3" y="5" width="18" height="2" rx="1"></rect>
+            <rect x="3" y="11" width="18" height="2" rx="1"></rect>
+            <rect x="3" y="17" width="18" height="2" rx="1"></rect>
+          </svg>
+        </button>
       </nav>
+
+      {/* 모바일 드로어(슬라이드 다운) */}
+      <div
+        id="mobile-drawer"
+        className={`mobile-drawer ${menuOpen ? 'open' : ''}`}
+        role="dialog"
+        aria-modal="true"
+      >
+        <button className="drawer-close" onClick={() => setMenuOpen(false)} aria-label="메뉴 닫기">×</button>
+        <div className="drawer-links">
+          <button onClick={() => go('/agents')}>요원</button>
+          <button onClick={() => go('/maps')}>맵 로테이션</button>
+          <button onClick={() => go('/skins')}>스킨</button>
+          <button onClick={() => go('/rank')}>랭킹</button>
+          <button onClick={() => go('/esports')}>E-Sports</button>
+        </div>
+      </div>
 
       {/* 메인 콘텐츠 */}
       <main style={styles.main} className="main">
@@ -112,14 +165,17 @@ function HomePage() {
 
       {/* 하단 개인정보 처리방침 & 이용약관 링크 */}
       <footer style={styles.footer} className="footer">
-        <span onClick={() => navigate('/privacy')} style={styles.footerLink}>
+        <span onClick={() => go('/privacy')} style={styles.footerLink}>
           개인정보 처리방침
         </span>
         <span style={styles.footerDivider}>|</span>
-        <span onClick={() => navigate('/terms')} style={styles.footerLink}>
+        <span onClick={() => go('/terms')} style={styles.footerLink}>
           서비스 이용약관
         </span>
       </footer>
+
+      {/* 햄버거 오픈 시 어두운 배경(클릭하면 닫힘) */}
+      {menuOpen && <div className="drawer-backdrop" onClick={() => setMenuOpen(false)} />}
     </div>
   );
 }
@@ -146,7 +202,7 @@ const styles = {
     overflow: 'visible',
   },
   left: {
-    flex: '1 1 auto',
+    flex: '0 0 auto',
     display: 'flex',
     alignItems: 'center',
   },
@@ -158,16 +214,15 @@ const styles = {
     flexWrap: 'wrap',
   },
   right: {
-    flex: 1.5,
+    flex: '0 0 auto',
     display: 'flex',
     justifyContent: 'flex-end',
     alignItems: 'center',
     gap: '8px',
     flexWrap: 'wrap',
-    paddingRight: '50px',
   },
   logoImage: {
-    height: '80px',  // 기본 로고 크기
+    height: '80px', // 상단 좌측 로고 고정 크기
     cursor: 'pointer',
   },
   navItem: {

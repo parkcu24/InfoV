@@ -1,3 +1,4 @@
+/* 기본 공통 */
 html, body {
   margin: 0;
   padding: 0;
@@ -10,24 +11,16 @@ html, body {
   overflow-x: hidden;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
-.App {
-  text-align: center;
-  min-height: 100vh;
-  background-color: #121212;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
+a { color: inherit; text-decoration: none; }
 
 button {
   font-family: 'Black Han Sans', sans-serif;
   cursor: pointer;
+  background: none;
+  border: none;
+  color: inherit;
 }
 
 input {
@@ -39,19 +32,126 @@ input {
   border-radius: 6px;
 }
 
-img, svg {
-  user-select: none;
-}
+img, svg { user-select: none; }
 
-/* ====== 로고 크기 고정 ====== */
+/* 상단 좌측 로고 고정 크기 */
 .logo-img {
-  height: 80px !important; /* 네비게이션 왼쪽 로고 고정 */
+  height: 80px !important;
   width: auto !important;
   margin-top: 0 !important;
 }
 
-/* 메인 로고는 상황에 따라 조정 가능 */
-.main-logo {
-  width: 400px !important;
-  height: auto !important;
+/* 데스크톱: 가로 메뉴 노출, 햄버거/드로어 숨김 */
+.desktop-nav { display: flex; }
+.menu-toggle { display: none; }
+.mobile-drawer { display: none; }
+.drawer-backdrop { display: none; }
+
+/* ------- 모바일 레이아웃 ------- */
+@media (max-width: 768px) {
+  /* 네비게이션 줄바꿈 및 패딩 최적화 */
+  .navbar {
+    padding: 12px 16px !important;
+    height: 64px !important;
+    gap: 8px;
+  }
+
+  /* 좌측 로고는 그대로 고정(80px). 필요 시 64px로 낮춰도 됨 */
+  .logo-img {
+    height: 72px !important;
+  }
+
+  /* 데스크톱용 가로 메뉴 숨김 */
+  .desktop-nav {
+    display: none !important;
+  }
+
+  /* 햄버거 버튼 노출 */
+  .menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    background-color: #222;
+    color: #fff;
+    margin-left: 8px;
+  }
+  .menu-toggle:active { transform: scale(0.98); }
+
+  /* 우측 검색 영역 너비 조정 */
+  .nav-right {
+    gap: 8px !important;
+  }
+  .top-search-input {
+    width: 140px !important;  /* 너무 길면 네비 깨지니 축소 */
+    height: 34px !important;
+  }
+  .search-button {
+    height: 34px !important;
+    padding: 0 10px !important;
+  }
+
+  /* 메인 상단 여백 보정(네비 높이 감소 반영) */
+  .main {
+    padding-top: 96px !important;
+  }
+
+  /* --------- 드로어 --------- */
+  .mobile-drawer {
+    display: block;
+    position: fixed;
+    top: 64px;               /* navbar 높이만큼 아래에서 시작 */
+    left: 0; right: 0;
+    background: #161616;
+    border-bottom: 1px solid #2a2a2a;
+    z-index: 1100;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 220ms ease;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .mobile-drawer.open {
+    max-height: 60vh;       /* 열릴 때 슬라이드다운 */
+  }
+
+  .drawer-close {
+    position: absolute;
+    right: 10px; top: 10px;
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    background: #222;
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .drawer-links {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+  }
+  .drawer-links > button {
+    text-align: left;
+    padding: 12px 10px;
+    border-radius: 8px;
+    background: #1f1f1f;
+    border: 1px solid #333;
+    color: #ddd;
+    font-size: 16px;
+  }
+  .drawer-links > button:active {
+    background: #262626;
+  }
+
+  /* 배경 어둡게 */
+  .drawer-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 1090;
+  }
 }
+
+/* 약간 큰 태블릿(769~1024)에서도 햄버거 유지하고 싶으면 위 max-width를 1024로 늘려도 됨 */
