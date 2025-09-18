@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const agentImageMap = {
@@ -20,40 +20,47 @@ function AgentsPage() {
   const navigate = useNavigate();
   const [riotId, setRiotId] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  const handleSearch = () => {
+  // 바디 스크롤 잠금
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [menuOpen]);
+
+  const handleSearch = (e) => {
+    if (e) e.preventDefault();
     const [gameName, tagLine] = riotId.split('#');
     if (!gameName || !tagLine) {
       alert('아이디 형식을 확인해주세요. 예: CU24#KR');
       return;
     }
-
     setIsLoading(true);
     navigate(`/search-result?name=${encodeURIComponent(gameName)}&tag=${encodeURIComponent(tagLine)}`);
     setIsLoading(false);
+    setMenuOpen(false);
   };
 
   return (
     <div style={styles.pageWrapper}>
+      {/* 네비게이션 바 */}
       <nav style={styles.navbar}>
-        <div style={styles.left}>
-          <img
-            src="/InfoV_logo.png"
-            alt="INFOV Logo"
-            style={styles.logoImage}
-            onClick={() => navigate('/')}
-          />
+        {/* 좌측 로고 */}
+        <div style={styles.left} onClick={() => go('/')}>
+          <img src="/InfoV_logo.png" alt="INFOV Logo" style={styles.logoImage}/>
         </div>
 
-        <div style={styles.center}>
-          <span style={{ ...styles.navItem, fontWeight: 'bold', fontSize: '20px' }}>요원</span>
+        {/* 데스크탑 메뉴 */}
+        <div style={styles.center} className="nav-center desktop-nav">
+          <span style={{ ...styles.navItem, fontWeight: 'bold' }}>요원</span>
           <span style={styles.navItem} onClick={() => navigate('/maps')}>맵 로테이션</span>
           <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span>
           <span style={styles.navItem} onClick={() => navigate('/rank')}>랭킹</span>
           <span style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
         </div>
 
-        <div style={styles.right}>
+        {/* 검색 */}
+        <form style={styles.right} className="nav-right" onSubmit={handleSearch}>
           <input
             type="text"
             placeholder="예: CU24#KR"
@@ -61,12 +68,41 @@ function AgentsPage() {
             onChange={(e) => setRiotId(e.target.value)}
             style={styles.topSearchInput}
           />
-          <button style={styles.searchButton} onClick={handleSearch} disabled={isLoading}>
+          <button type="submit" style={styles.searchButton} disabled={isLoading}>
             {isLoading ? '검색 중...' : '검색'}
           </button>
-        </div>
+        </form>
+
+        {/* 햄버거 버튼 */}
+        <button
+          className="menu-toggle"
+          aria-label="메뉴 열기"
+          aria-expanded={menuOpen}
+          aria-controls="mobile-drawer"
+          onClick={() => setMenuOpen(v => !v)}
+        >
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+            <rect x="3" y="5" width="18" height="2" rx="1"></rect>
+            <rect x="3" y="11" width="18" height="2" rx="1"></rect>
+            <rect x="3" y="17" width="18" height="2" rx="1"></rect>
+          </svg>
+        </button>
       </nav>
 
+      {/* 모바일 드로어 */}
+      <div id="mobile-drawer" className={`mobile-drawer ${menuOpen ? 'open' : ''}`} role="dialog" aria-modal="true">
+        <button className="drawer-close" onClick={() => setMenuOpen(false)}>×</button>
+        <div className="drawer-links">
+          <button className="active">요원</button>
+          <button onClick={() => navigate('/maps')}>맵 로테이션</button>
+          <button onClick={() => navigate('/skins')}>스킨</button>
+          <button onClick={() => navigate('/rank')}>랭킹</button>
+          <button onClick={() => navigate('/esports')}>E-Sports</button>
+        </div>
+      </div>
+      {menuOpen && <div className="drawer-backdrop" onClick={() => setMenuOpen(false)} />}
+
+      {/* 페이지 콘텐츠 */}
       <div style={styles.pageContent}>
         <div style={styles.leftColumn}>
           {Object.entries(agentData).map(([role, agents]) => (
@@ -74,18 +110,8 @@ function AgentsPage() {
               <h2 style={styles.roleTitle}>{role}</h2>
               <div style={styles.grid}>
                 {agents.map((name) => (
-                  <div
-                    key={name}
-                    style={styles.card}
-                    onClick={() => navigate(`/agents/${name}`)}
-                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                  >
-                    <img
-                      src={`${process.env.PUBLIC_URL}/agents/${agentImageMap[name]}.png`}
-                      alt={name}
-                      style={styles.image}
-                    />
+                  <div key={name} style={styles.card} onClick={() => navigate(`/agents/${name}`)}>
+                    <img src={`${process.env.PUBLIC_URL}/agents/${agentImageMap[name]}.png`} alt={name} style={styles.image}/>
                     <div style={styles.name}>{name}</div>
                   </div>
                 ))}
@@ -106,137 +132,42 @@ function AgentsPage() {
 }
 
 const styles = {
-  pageWrapper: {
-    backgroundColor: '#121212',
-    minHeight: '100vh',
-    color: '#fff',
-    fontFamily: 'Black Han Sans, sans-serif',
-  },
+  pageWrapper: { background: '#121212', minHeight: '100vh', color: '#fff', fontFamily: 'Black Han Sans, sans-serif' },
   navbar: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '20px 40px',
-    backgroundColor: '#1E1E1E',
-    borderBottom: '1px solid #333',
-    position: 'sticky',
-    top: 0,
-    width: '100%',
-    zIndex: 1000,
-    height: '72px',
-    overflow: 'visible',
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '20px 40px', background: '#1E1E1E', borderBottom: '1px solid #333',
+    position: 'fixed', top: 0, width: '100%', height: '72px', zIndex: 1000
   },
-  left: {
-    flex: '1 1 auto',
-    display: 'flex',
-    alignItems: 'center',
-  },
-  center: {
-    flex: '1 1 auto',
-    display: 'flex',
-    justifyContent: 'center',
-    gap: '30px',
-    flexWrap: 'wrap',
-  },
-  right: {
-    flex: 1.5,
-    display: 'flex',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: '8px',
-    flexWrap: 'wrap',
-    paddingRight: '50px',
-  },
-  logoImage: {
-    height: '200px',
-    marginTop: '-8px',
-    cursor: 'pointer',
-  },
-  navItem: {
-    fontSize: '18px',
-    color: '#DDD',
-    cursor: 'pointer',
-  },
+  left: { display: 'flex', alignItems: 'center' },
+  center: { display: 'flex', justifyContent: 'center', gap: '30px', flexWrap: 'wrap' },
+  right: { display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap', flex: 'none' },
+  logoImage: { height: '80px', cursor: 'pointer' },
+  navItem: { fontSize: '18px', color: '#DDD', cursor: 'pointer' },
   topSearchInput: {
-    height: '34px',
-    fontSize: '14px',
-    padding: '0 10px',
-    borderRadius: '6px',
-    border: '1px solid #555',
-    backgroundColor: '#1e1e1e',
-    color: '#fff',
+    height: '34px', fontSize: '14px', padding: '0 10px',
+    borderRadius: '6px', border: '1px solid #555', background: '#1e1e1e', color: '#fff'
   },
   searchButton: {
-    padding: '6px 12px',
-    fontSize: '14px',
-    backgroundColor: '#E63946',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
+    padding: '6px 12px', fontSize: '14px', background: '#E63946', color: '#fff',
+    border: 'none', borderRadius: '6px', cursor: 'pointer'
   },
-  pageContent: {
-    display: 'flex',
-    padding: '40px',
-    gap: '40px',
-  },
-  leftColumn: {
-    flex: 3,
-  },
+  pageContent: { display: 'flex', padding: '100px 40px 40px', gap: '40px' },
+  leftColumn: { flex: 3 },
   rightColumn: {
-    flex: 1,
-    backgroundColor: '#1e1e1e',
-    padding: '20px',
-    borderRadius: '10px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-    height: 'fit-content',
-    position: 'sticky',
-    top: '20px',
+    flex: 1, background: '#1e1e1e', padding: '20px', borderRadius: '10px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.3)', height: 'fit-content', position: 'sticky', top: '100px'
   },
-  roleTitle: {
-    fontSize: '24px',
-    margin: '30px 0 15px',
-    color: '#E63946',
-    fontWeight: 'bold',
-  },
-  grid: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '20px',
-  },
+  roleTitle: { fontSize: '24px', margin: '30px 0 15px', color: '#E63946', fontWeight: 'bold' },
+  grid: { display: 'flex', flexWrap: 'wrap', gap: '20px' },
   card: {
-    backgroundColor: '#1e1e1e',
-    borderRadius: '10px',
-    padding: '6px',
-    width: '90px',
-    boxShadow: '0 2px 10px rgba(255,255,255,0.05)',
-    textAlign: 'center',
-    transition: 'transform 0.2s ease-in-out',
-    cursor: 'pointer',
+    background: '#1e1e1e', borderRadius: '10px', padding: '6px', width: '90px',
+    boxShadow: '0 2px 10px rgba(255,255,255,0.05)', textAlign: 'center',
+    transition: 'transform 0.2s ease-in-out', cursor: 'pointer'
   },
-  image: {
-    width: '90px',
-    height: '90px',
-    objectFit: 'cover',
-    borderRadius: '10px',
-  },
-  name: {
-    marginTop: '6px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  rankingTitle: {
-    fontSize: '20px',
-    marginBottom: '20px',
-    color: '#E63946',
-    fontWeight: 'bold',
-  },
-  rankingBox: {
-    fontSize: '16px',
-    color: '#ccc',
-    lineHeight: '1.6',
-  },
+  image: { width: '90px', height: '90px', objectFit: 'cover', borderRadius: '10px' },
+  name: { marginTop: '6px', fontSize: '16px', fontWeight: 'bold', color: '#fff' },
+  rankingTitle: { fontSize: '20px', marginBottom: '20px', color: '#E63946', fontWeight: 'bold' },
+  rankingBox: { fontSize: '16px', color: '#ccc', lineHeight: '1.6' },
 };
 
 export default AgentsPage;

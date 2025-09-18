@@ -14,6 +14,13 @@ function RankPage() {
   const [endRank, setEndRank] = useState(50);
   const [riotId, setRiotId] = useState('');
 
+  // 햄버거 메뉴
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [menuOpen]);
+
   const API_BASE_URL = 'https://infov.onrender.com';
 
   useEffect(() => {
@@ -62,7 +69,8 @@ function RankPage() {
     }
 
     setIsLoading(true);
-    axios.get(`${API_BASE_URL}/api/rankings?actId=${selectedActId}&server=${server}&start=${start}&size=${size}`)
+    axios
+      .get(`${API_BASE_URL}/api/rankings?actId=${selectedActId}&server=${server}&start=${start}&size=${size}`)
       .then(res => {
         setRankings(res.data.players || []);
         setIsLoading(false);
@@ -70,47 +78,103 @@ function RankPage() {
       .catch(() => setIsLoading(false));
   };
 
-  const handleSearch = () => {
+  const handleSearch = (e) => {
+    if (e) e.preventDefault();
     const [gameName, tagLine] = riotId.split('#');
     if (!gameName || !tagLine) {
       alert('아이디 형식을 확인해주세요. 예: CU24#KR');
       return;
     }
     navigate(`/search-result?name=${encodeURIComponent(gameName)}&tag=${encodeURIComponent(tagLine)}`);
+    setMenuOpen(false);
+  };
+
+  const go = (path) => {
+    navigate(path);
+    setMenuOpen(false);
   };
 
   return (
     <div style={styles.pageWrapper}>
+      {/* NAVBAR */}
       <nav style={styles.navbar}>
-        <div style={styles.left}>
+        {/* 좌측 로고 */}
+        <div style={styles.left} onClick={() => go('/')}>
           <img
             src="/InfoV_logo.png"
             alt="INFOV Logo"
             style={styles.logoImage}
-            onClick={() => navigate('/')}
           />
         </div>
 
-        <div style={styles.center}>
-          <span style={styles.navItem} onClick={() => navigate('/agents')}>요원</span>
-          <span style={styles.navItem} onClick={() => navigate('/maps')}>맵 로테이션</span>
-          <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span>
+        {/* 데스크톱 메뉴 */}
+        <div style={styles.center} className="nav-center">
+          <span style={styles.navItem} onClick={() => go('/agents')}>요원</span>
+          <span style={styles.navItem} onClick={() => go('/maps')}>맵 로테이션</span>
+          <span style={styles.navItem} onClick={() => go('/skins')}>스킨</span>
           <span style={{ ...styles.navItem, fontWeight: 'bold', fontSize: '20px' }}>랭킹</span>
-          <span style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
+          <span style={styles.navItem} onClick={() => go('/esports')}>E-Sports</span>
         </div>
 
-        <div style={styles.right}>
+        {/* 검색 */}
+        <form style={styles.right} onSubmit={handleSearch}>
           <input
             type="text"
             placeholder="예: CU24#KR"
             value={riotId}
             onChange={(e) => setRiotId(e.target.value)}
             style={styles.topSearchInput}
+            aria-label="Riot ID"
           />
-          <button style={styles.searchButton} onClick={handleSearch}>검색</button>
-        </div>
+          <button type="submit" style={styles.searchButton}>검색</button>
+        </form>
+
+        {/* 햄버거 버튼 */}
+        <button
+          aria-label="메뉴 열기"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen(v => !v)}
+          style={styles.menuToggle}
+        >
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="2" rx="1"></rect>
+            <rect x="3" y="11" width="18" height="2" rx="1"></rect>
+            <rect x="3" y="17" width="18" height="2" rx="1"></rect>
+          </svg>
+        </button>
       </nav>
 
+      {/* 모바일 드로어 (인라인 스타일로 구현) */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        style={{
+          ...drawerStyles.drawer,
+          transform: menuOpen ? 'translateX(0)' : 'translateX(100%)',
+        }}
+      >
+        <button style={drawerStyles.closeBtn} onClick={() => setMenuOpen(false)} aria-label="메뉴 닫기">×</button>
+        <div style={drawerStyles.links}>
+          <button style={drawerStyles.linkActive}>랭킹</button>
+          <button style={drawerStyles.link} onClick={() => go('/agents')}>요원</button>
+          <button style={drawerStyles.link} onClick={() => go('/maps')}>맵 로테이션</button>
+          <button style={drawerStyles.link} onClick={() => go('/skins')}>스킨</button>
+          <button style={drawerStyles.link} onClick={() => go('/esports')}>E-Sports</button>
+        </div>
+        <form onSubmit={handleSearch} style={{ padding: '12px' }}>
+          <input
+            type="text"
+            placeholder="예: CU24#KR"
+            value={riotId}
+            onChange={(e) => setRiotId(e.target.value)}
+            style={{ ...styles.topSearchInput, width: '100%' }}
+          />
+          <button type="submit" style={{ ...styles.searchButton, width: '100%', marginTop: 8 }}>검색</button>
+        </form>
+      </div>
+      {menuOpen && <div onClick={() => setMenuOpen(false)} style={drawerStyles.backdrop} />}
+
+      {/* CONTENT */}
       <div style={styles.content}>
         <h1 style={styles.heroTitle}>
           Who is the <span style={styles.highlight}>Best</span> VALORANT Player?
@@ -182,6 +246,7 @@ function RankPage() {
   );
 }
 
+/* ===== Styles ===== */
 const styles = {
   pageWrapper: {
     backgroundColor: '#121212',
@@ -193,44 +258,35 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '20px 40px',
+    padding: '12px 16px',
     backgroundColor: '#1E1E1E',
     borderBottom: '1px solid #333',
     position: 'fixed',
     top: 0,
     width: '100%',
     zIndex: 1000,
-    height: '72px',
-    overflow: 'visible',
+    height: '64px',
   },
-  left: {
-    flex: '1 1 auto',
-    display: 'flex',
-    alignItems: 'center',
-  },
+  left: { display: 'flex', alignItems: 'center' },
   center: {
-    flex: '1 1 auto',
     display: 'flex',
     justifyContent: 'center',
-    gap: '30px',
+    gap: '24px',
     flexWrap: 'wrap',
   },
   right: {
-    flex: 1.5,
     display: 'flex',
-    justifyContent: 'flex-end',
     alignItems: 'center',
     gap: '8px',
-    flexWrap: 'wrap',
-    paddingRight: '50px',
+    whiteSpace: 'nowrap',   // 버튼 밀림 방지
+    flex: 'none',           // 영역 고정
   },
   logoImage: {
-    height: '200px',
-    marginTop: '-8px',
+    height: '56px',
     cursor: 'pointer',
   },
   navItem: {
-    fontSize: '18px',
+    fontSize: '16px',
     color: '#DDD',
     cursor: 'pointer',
   },
@@ -252,8 +308,19 @@ const styles = {
     borderRadius: '6px',
     cursor: 'pointer',
   },
+  menuToggle: {
+    background: 'transparent',
+    color: '#fff',
+    border: 'none',
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+
   content: {
-    paddingTop: '140px',
+    paddingTop: '100px',
     textAlign: 'center',
   },
   heroTitle: {
@@ -262,13 +329,12 @@ const styles = {
     marginBottom: '30px',
     color: '#fff',
   },
-  highlight: {
-    color: '#E63946',
-  },
+  highlight: { color: '#E63946' },
+
   selectRow: {
     display: 'flex',
     justifyContent: 'center',
-    gap: '20px',
+    gap: '12px',
     marginBottom: '10px',
     flexWrap: 'wrap',
   },
@@ -298,38 +364,80 @@ const styles = {
     cursor: 'pointer',
     fontWeight: 'bold',
   },
-  noticeText: {
-    fontSize: '12px',
-    color: '#aaa',
-    marginTop: '-5px',
-    marginBottom: '15px',
-  },
-  rankList: {
-    maxWidth: '900px',
-    margin: '0 auto',
-    textAlign: 'left',
-  },
+  noticeText: { fontSize: '12px', color: '#aaa', marginTop: '-5px', marginBottom: '15px' },
+
+  rankList: { maxWidth: '900px', margin: '0 auto', textAlign: 'left' },
   rankItem: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '10px 20px',
-    borderBottom: '1px solid #333',
-    backgroundColor: '#1e1e1e',
-    marginBottom: '5px',
-    borderRadius: '5px',
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '10px 20px', borderBottom: '1px solid #333',
+    backgroundColor: '#1e1e1e', marginBottom: '5px', borderRadius: '5px',
   },
   rankNumber: { fontWeight: 'bold', width: '60px' },
   playerName: { flexGrow: 1 },
-  tierBox: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '50px',
-  },
+  tierBox: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: '50px' },
   tierImage: { width: '30px', height: '30px', objectFit: 'contain' },
   rankRating: { width: '100px', textAlign: 'right', color: '#4af' },
   wins: { width: '80px', textAlign: 'right', color: '#4f4' },
+};
+
+/* 드로어 인라인 스타일 */
+const drawerStyles = {
+  drawer: {
+    position: 'fixed',
+    top: 0,
+    right: 0,
+    width: '78%',
+    maxWidth: 360,
+    height: '100vh',
+    background: '#1E1E1E',
+    color: '#fff',
+    boxShadow: '0 0 0 9999px rgba(0,0,0,.4)',
+    transform: 'translateX(100%)',
+    transition: 'transform .2s ease-out',
+    zIndex: 1100,
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  closeBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: '#fff',
+    fontSize: 28,
+    padding: 12,
+    alignSelf: 'flex-end',
+    cursor: 'pointer',
+  },
+  links: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+    padding: '0 12px 12px',
+  },
+  link: {
+    padding: '12px 14px',
+    borderRadius: 10,
+    border: '1px solid #444',
+    background: '#1e1e1e',
+    color: '#fff',
+    textAlign: 'left',
+    cursor: 'pointer',
+  },
+  linkActive: {
+    padding: '12px 14px',
+    borderRadius: 10,
+    border: '2px solid #E63946',
+    background: '#2a2a2a',
+    color: '#fff',
+    textAlign: 'left',
+    cursor: 'default',
+    fontWeight: 700,
+  },
+  backdrop: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(0,0,0,.4)',
+    zIndex: 1005,
+  },
 };
 
 export default RankPage;
