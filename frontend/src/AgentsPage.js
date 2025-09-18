@@ -20,15 +20,14 @@ function AgentsPage() {
   const navigate = useNavigate();
   const [riotId, setRiotId] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  // 햄버거 메뉴
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // 메뉴 열릴 때 바디 스크롤 잠금
   useEffect(() => {
     document.body.style.overflow = menuOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [menuOpen]);
 
-  // 공통 이동 헬퍼
   const go = (path) => {
     navigate(path);
     setMenuOpen(false);
@@ -50,17 +49,11 @@ function AgentsPage() {
   return (
     <div style={styles.pageWrapper}>
       {/* NAVBAR */}
-      <nav style={styles.navbar}>
-        {/* 좌측 로고 */}
-        <div style={styles.left} onClick={() => go('/')}>
-          <img
-            src="/InfoV_logo.png"
-            alt="INFOV Logo"
-            style={styles.logoImage}
-          />
+      <nav style={styles.navbar} className="navbar">
+        <div style={styles.left} className="nav-left" onClick={() => go('/')}>
+          <img src="/InfoV_logo.png" alt="INFOV Logo" style={styles.logoImage} className="logo-img" />
         </div>
 
-        {/* 데스크톱 메뉴 */}
         <div style={styles.center} className="nav-center desktop-nav">
           <span style={{ ...styles.navItem, fontWeight: 'bold', fontSize: '20px' }}>요원</span>
           <span style={styles.navItem} onClick={() => go('/maps')}>맵 로테이션</span>
@@ -69,7 +62,7 @@ function AgentsPage() {
           <span style={styles.navItem} onClick={() => go('/esports')}>E-Sports</span>
         </div>
 
-        {/* 검색 영역 (줄바꿈 방지) */}
+        {/* 검색 (버튼 밀림 방지) */}
         <form style={styles.right} className="nav-right" onSubmit={handleSearch}>
           <input
             type="text"
@@ -79,17 +72,18 @@ function AgentsPage() {
             style={styles.topSearchInput}
             aria-label="Riot ID"
           />
-          <button type="submit" style={styles.searchButton} disabled={isLoading}>
+          <button type="submit" style={styles.searchButton} className="search-button" disabled={isLoading}>
             {isLoading ? '검색 중...' : '검색'}
           </button>
         </form>
 
-        {/* 햄버거 버튼 */}
+        {/* 모바일 햄버거 버튼 (SkinPage와 동일 클래스) */}
         <button
+          className="menu-toggle"
           aria-label="메뉴 열기"
           aria-expanded={menuOpen}
+          aria-controls="mobile-drawer"
           onClick={() => setMenuOpen(v => !v)}
-          style={styles.menuToggle}
         >
           <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
             <rect x="3" y="5" width="18" height="2" rx="1"></rect>
@@ -99,26 +93,19 @@ function AgentsPage() {
         </button>
       </nav>
 
-      {/* 모바일 드로어 */}
-      <div
-        role="dialog"
-        aria-modal="true"
-        style={{
-          ...drawerStyles.drawer,
-          transform: menuOpen ? 'translateX(0)' : 'translateX(100%)',
-        }}
-      >
-        <button style={drawerStyles.closeBtn} onClick={() => setMenuOpen(false)} aria-label="메뉴 닫기">×</button>
-        <div style={drawerStyles.links}>
-          <button style={drawerStyles.linkActive}>요원</button>
-          <button style={drawerStyles.link} onClick={() => go('/maps')}>맵 로테이션</button>
-          <button style={drawerStyles.link} onClick={() => go('/skins')}>스킨</button>
-          <button style={drawerStyles.link} onClick={() => go('/rank')}>랭킹</button>
-          <button style={drawerStyles.link} onClick={() => go('/esports')}>E-Sports</button>
+      {/* 모바일 드로어 (SkinPage와 동일 구조/클래스) */}
+      <div id="mobile-drawer" className={`mobile-drawer ${menuOpen ? 'open' : ''}`} role="dialog" aria-modal="true">
+        <button className="drawer-close" onClick={() => setMenuOpen(false)} aria-label="메뉴 닫기">×</button>
+        <div className="drawer-links">
+          <button className="active">요원</button>
+          <button onClick={() => go('/maps')}>맵 로테이션</button>
+          <button onClick={() => go('/skins')}>스킨</button>
+          <button onClick={() => go('/rank')}>랭킹</button>
+          <button onClick={() => go('/esports')}>E-Sports</button>
         </div>
 
         {/* 드로어 내 검색 */}
-        <form onSubmit={handleSearch} style={{ padding: '12px' }}>
+        <form onSubmit={handleSearch} style={{ padding: 12 }}>
           <input
             type="text"
             placeholder="예: CU24#KR"
@@ -131,7 +118,7 @@ function AgentsPage() {
           </button>
         </form>
       </div>
-      {menuOpen && <div onClick={() => setMenuOpen(false)} style={drawerStyles.backdrop} />}
+      {menuOpen && <div className="drawer-backdrop" onClick={() => setMenuOpen(false)} />}
 
       {/* CONTENT */}
       <div style={styles.pageContent}>
@@ -172,111 +159,90 @@ function AgentsPage() {
   );
 }
 
-/* ===== Styles ===== */
 const styles = {
   pageWrapper: {
     backgroundColor: '#121212',
     minHeight: '100vh',
     color: '#fff',
     fontFamily: 'Black Han Sans, sans-serif',
+    paddingTop: '72px', // 고정 네비 상단 여백
   },
   navbar: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '12px 16px',
+    padding: '20px 40px',
     backgroundColor: '#1E1E1E',
     borderBottom: '1px solid #333',
     position: 'fixed',
     top: 0,
     width: '100%',
     zIndex: 1000,
-    height: '64px',
+    height: '72px',
   },
   left: { display: 'flex', alignItems: 'center' },
   center: {
     display: 'flex',
     justifyContent: 'center',
-    gap: '24px',
+    gap: '30px',
     flexWrap: 'wrap',
   },
   right: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    whiteSpace: 'nowrap',   // ✅ 버튼 줄바꿈 방지
-    flex: 'none',           // ✅ 영역 고정
+    whiteSpace: 'nowrap', // 검색 버튼 줄바꿈 방지
+    flex: 'none',
   },
-  logoImage: { height: '56px', cursor: 'pointer' },
-  navItem: { fontSize: '16px', color: '#DDD', cursor: 'pointer' },
+  logoImage: { height: '80px', cursor: 'pointer' },
+  navItem: { fontSize: '18px', color: '#DDD', cursor: 'pointer' },
   topSearchInput: {
-    height: '34px', fontSize: '14px', padding: '0 10px',
-    borderRadius: '6px', border: '1px solid #555', backgroundColor: '#1e1e1e', color: '#fff',
+    height: '34px',
+    fontSize: '14px',
+    padding: '0 10px',
+    borderRadius: '6px',
+    border: '1px solid #555',
+    backgroundColor: '#1e1e1e',
+    color: '#fff',
   },
   searchButton: {
-    padding: '6px 12px', fontSize: '14px', backgroundColor: '#E63946', color: '#fff',
-    border: 'none', borderRadius: '6px', cursor: 'pointer',
-  },
-  menuToggle: {
-    background: 'transparent', color: '#fff', border: 'none',
-    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginLeft: 8,
+    padding: '6px 12px',
+    fontSize: '14px',
+    backgroundColor: '#E63946',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
   },
 
-  pageContent: { display: 'flex', padding: '100px 40px 40px', gap: '40px' },
+  pageContent: { display: 'flex', padding: '40px', gap: '40px' },
   leftColumn: { flex: 3 },
   rightColumn: {
-    flex: 1, backgroundColor: '#1e1e1e', padding: '20px', borderRadius: '10px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.3)', height: 'fit-content', position: 'sticky', top: '100px',
+    flex: 1,
+    backgroundColor: '#1e1e1e',
+    padding: '20px',
+    borderRadius: '10px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+    height: 'fit-content',
+    position: 'sticky',
+    top: '100px',
   },
   roleTitle: { fontSize: '24px', margin: '30px 0 15px', color: '#E63946', fontWeight: 'bold' },
   grid: { display: 'flex', flexWrap: 'wrap', gap: '20px' },
   card: {
-    backgroundColor: '#1e1e1e', borderRadius: '10px', padding: '6px', width: '90px',
-    boxShadow: '0 2px 10px rgba(255,255,255,0.05)', textAlign: 'center',
-    transition: 'transform 0.2s ease-in-out', cursor: 'pointer',
+    backgroundColor: '#1e1e1e',
+    borderRadius: '10px',
+    padding: '6px',
+    width: '90px',
+    boxShadow: '0 2px 10px rgba(255,255,255,0.05)',
+    textAlign: 'center',
+    transition: 'transform 0.2s ease-in-out',
+    cursor: 'pointer',
   },
   image: { width: '90px', height: '90px', objectFit: 'cover', borderRadius: '10px' },
   name: { marginTop: '6px', fontSize: '16px', fontWeight: 'bold', color: '#fff' },
   rankingTitle: { fontSize: '20px', marginBottom: '20px', color: '#E63946', fontWeight: 'bold' },
   rankingBox: { fontSize: '16px', color: '#ccc', lineHeight: '1.6' },
-};
-
-/* 드로어 인라인 스타일 */
-const drawerStyles = {
-  drawer: {
-    position: 'fixed',
-    top: 0,
-    right: 0,
-    width: '78%',
-    maxWidth: 360,
-    height: '100vh',
-    background: '#1E1E1E',
-    color: '#fff',
-    boxShadow: '0 0 0 9999px rgba(0,0,0,.4)',
-    transform: 'translateX(100%)',
-    transition: 'transform .2s ease-out',
-    zIndex: 1100,
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  closeBtn: {
-    background: 'transparent', border: 'none', color: '#fff',
-    fontSize: 28, padding: 12, alignSelf: 'flex-end', cursor: 'pointer',
-  },
-  links: {
-    display: 'flex', flexDirection: 'column', gap: 10, padding: '0 12px 12px',
-  },
-  link: {
-    padding: '12px 14px', borderRadius: 10, border: '1px solid #444',
-    background: '#1e1e1e', color: '#fff', textAlign: 'left', cursor: 'pointer',
-  },
-  linkActive: {
-    padding: '12px 14px', borderRadius: 10, border: '2px solid #E63946',
-    background: '#2a2a2a', color: '#fff', textAlign: 'left', cursor: 'default', fontWeight: 700,
-  },
-  backdrop: {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', zIndex: 1005,
-  },
 };
 
 export default AgentsPage;
