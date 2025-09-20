@@ -95,7 +95,7 @@ function SkinPage() {
           <span style={styles.navItem} className="nav-item" onClick={() => go('/esports')}>E-Sports</span>
         </div>
 
-        {/* 우측 검색 */}
+        {/* 우측 검색 (줄바꿈 방지 적용) */}
         <form style={styles.right} className="nav-right" onSubmit={handleSearch}>
           <input
             type="text"
@@ -209,7 +209,7 @@ const styles = {
     justifyContent: 'space-between',
     padding: '20px 40px',
     backgroundColor: '#1E1E1E',
-    borderBottom: '1px solid #333', // ← 따옴표 수정
+    borderBottom: '1px solid #333',
     position: 'fixed',
     top: 0,
     width: '100%',
@@ -225,14 +225,16 @@ const styles = {
   },
   right: {
     display: 'flex',
-    justifyContent: 'flex-end',
     alignItems: 'center',
     gap: '8px',
-    flexWrap: 'wrap',
+    // 버튼 줄바꿈 방지 & 영역 고정
+    whiteSpace: 'nowrap',
+    flex: 'none',
+    flexWrap: 'nowrap',
     paddingRight: '50px',
   },
   logoImage: {
-    height: '80px', // 좌상단 로고 고정
+    height: '80px',
     cursor: 'pointer',
   },
   navItem: {
@@ -248,6 +250,8 @@ const styles = {
     border: '1px solid #555',
     backgroundColor: '#1e1e1e',
     color: '#fff',
+    // 아주 좁은 폭에서도 버튼이 밀리지 않게 최소 폭
+    width: 150,
   },
   searchButton: {
     padding: '6px 12px',

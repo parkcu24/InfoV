@@ -27,7 +27,6 @@ function MapRotationPage() {
 
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // 메뉴 열릴 때 body 스크롤 잠금
   useEffect(() => {
     document.body.style.overflow = menuOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
@@ -69,7 +68,7 @@ function MapRotationPage() {
 
   return (
     <div style={styles.pageWrapper}>
-      {/* 상단 네비게이션 */}
+      {/* 네비게이션 바 */}
       <nav style={styles.navbar} className="navbar">
         {/* 좌측 로고 */}
         <div style={styles.left} className="nav-left" onClick={() => go('/')}>
@@ -90,7 +89,7 @@ function MapRotationPage() {
           <span style={styles.navItem} className="nav-item" onClick={() => go('/esports')}>E-Sports</span>
         </div>
 
-        {/* 우측 검색 */}
+        {/* 우측 검색 (줄바꿈 방지 적용) */}
         <form style={styles.right} className="nav-right" onSubmit={handleSearch}>
           <input
             type="text"
@@ -174,7 +173,7 @@ function MapRotationPage() {
               <div
                 key={map}
                 style={styles.mapCard}
-                onClick={() => navigate(`/maps/${map}`)}
+                onClick={() => navigate(`/maps/${encodeURIComponent(map)}`)}
               >
                 <img
                   src={`/maps/${mapImageMap[map] || 'unknown'}.jpg`}
@@ -222,21 +221,18 @@ const styles = {
   },
   right: {
     display: 'flex',
-    justifyContent: 'flex-end',
     alignItems: 'center',
     gap: '8px',
-    flexWrap: 'wrap',
-    paddingRight: '50px',
+    // ✅ 버튼 줄바꿈 방지 & 영역 고정
+    whiteSpace: 'nowrap',
+    flex: 'none',
+    flexWrap: 'nowrap',
   },
   logoImage: {
     height: '80px',
     cursor: 'pointer',
   },
-  navItem: {
-    fontSize: '18px',
-    color: '#DDD',
-    cursor: 'pointer',
-  },
+  navItem: { fontSize: '18px', color: '#DDD', cursor: 'pointer' },
   topSearchInput: {
     height: '34px',
     fontSize: '14px',
@@ -245,6 +241,8 @@ const styles = {
     border: '1px solid #555',
     backgroundColor: '#1e1e1e',
     color: '#fff',
+    // ✅ 아주 좁은 폭에서도 버튼이 밀리지 않게 최소 폭
+    width: 150,
   },
   searchButton: {
     padding: '6px 12px',
