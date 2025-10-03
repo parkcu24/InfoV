@@ -222,7 +222,7 @@ const styles = {
     flexWrap: 'wrap',
   },
   logoImage: {
-    height: '80px', // 상단 좌측 로고 고정 크기
+    height: '200px', // 상단 좌측 로고 고정 크기
     cursor: 'pointer',
   },
   navItem: {
