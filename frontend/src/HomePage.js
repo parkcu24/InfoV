@@ -30,7 +30,9 @@ function HomePage() {
 
     setIsLoading(true);
     navigate(
-      `/search-result?name=${encodeURIComponent(gameName)}&tag=${encodeURIComponent(tagLine)}&region=${encodeURIComponent(region)}`
+      `/search-result?name=${encodeURIComponent(gameName)}&tag=${encodeURIComponent(
+        tagLine
+      )}&region=${encodeURIComponent(region)}`
     );
     setIsLoading(false);
     setMenuOpen(false);
@@ -51,7 +53,6 @@ function HomePage() {
             src="/InfoV_logo.png"
             alt="INFOV Logo"
             style={styles.logoImage}
-            className="logo-img"
             onClick={() => go('/')}
           />
         </div>
@@ -73,13 +74,11 @@ function HomePage() {
             value={riotId}
             onChange={(e) => setRiotId(e.target.value)}
             style={styles.topSearchInput}
-            className="top-search-input"
             aria-label="Riot ID"
           />
           <button
             type="submit"
             style={styles.searchButton}
-            className="search-button"
             disabled={isLoading}
           >
             {isLoading ? '검색 중...' : '검색'}
@@ -103,7 +102,7 @@ function HomePage() {
         </button>
       </nav>
 
-      {/* 모바일 드로어(슬라이드 다운) */}
+      {/* 모바일 드로어 */}
       <div
         id="mobile-drawer"
         className={`mobile-drawer ${menuOpen ? 'open' : ''}`}
@@ -126,7 +125,6 @@ function HomePage() {
           src="/InfoV_logo.png"
           alt="Main INFOV Logo"
           style={styles.mainLogo}
-          className="main-logo"
         />
 
         <form style={styles.searchSection} className="search-section" onSubmit={handleSearch}>
@@ -148,14 +146,12 @@ function HomePage() {
             value={riotId}
             onChange={(e) => setRiotId(e.target.value)}
             style={styles.input}
-            className="id-input"
             aria-label="Riot ID 메인"
           />
 
           <button
             type="submit"
             style={styles.button}
-            className="main-search-button"
             disabled={isLoading}
           >
             {isLoading ? '검색 중...' : '전적 검색'}
@@ -163,7 +159,7 @@ function HomePage() {
         </form>
       </main>
 
-      {/* 하단 개인정보 처리방침 & 이용약관 링크 */}
+      {/* 하단 개인정보 처리방침 & 이용약관 */}
       <footer style={styles.footer} className="footer">
         <span onClick={() => go('/privacy')} style={styles.footerLink}>
           개인정보 처리방침
@@ -174,7 +170,7 @@ function HomePage() {
         </span>
       </footer>
 
-      {/* 햄버거 오픈 시 어두운 배경(클릭하면 닫힘) */}
+      {/* 햄버거 오픈 시 어두운 배경 */}
       {menuOpen && <div className="drawer-backdrop" onClick={() => setMenuOpen(false)} />}
     </div>
   );
@@ -191,14 +187,14 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '20px 40px',
+    padding: '16px 40px',
     backgroundColor: '#1E1E1E',
     borderBottom: '1px solid #333',
     position: 'fixed',
     top: 0,
     width: '100%',
     zIndex: 1000,
-    height: '72px',
+    height: '120px',      // ⬅️ 네비게이션 바 높이 증가
     overflow: 'visible',
   },
   left: {
@@ -222,7 +218,7 @@ const styles = {
     flexWrap: 'wrap',
   },
   logoImage: {
-    height: '200px', // 상단 좌측 로고 고정 크기
+    height: '200px',      // ⬅️ 로고 크게
     cursor: 'pointer',
   },
   navItem: {
@@ -252,7 +248,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    paddingTop: '120px',
+    paddingTop: '180px',   // ⬅️ navbar 높아진 만큼 여백도 늘림
   },
   mainLogo: {
     width: '400px',
