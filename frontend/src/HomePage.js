@@ -9,7 +9,7 @@ function HomePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // 메뉴 열렸을 때 바디 스크롤 잠금(모바일 UX)
+  // 메뉴 열렸을 때 바디 스크롤 잠금
   useEffect(() => {
     if (menuOpen) {
       document.body.style.overflow = 'hidden';
@@ -22,12 +22,10 @@ function HomePage() {
   const handleSearch = (e) => {
     if (e) e.preventDefault();
     const [gameName, tagLine] = riotId.split('#');
-
     if (!gameName || !tagLine) {
       alert('아이디 형식을 확인해주세요. 예: CU24#KR');
       return;
     }
-
     setIsLoading(true);
     navigate(
       `/search-result?name=${encodeURIComponent(gameName)}&tag=${encodeURIComponent(
@@ -46,7 +44,7 @@ function HomePage() {
   return (
     <div style={styles.container}>
       {/* 상단 네비게이션 */}
-      <nav style={styles.navbar} className="navbar">
+      <nav style={styles.navbar}>
         {/* 좌측 로고 */}
         <div style={styles.left}>
           <img
@@ -57,8 +55,8 @@ function HomePage() {
           />
         </div>
 
-        {/* 데스크톱 가로 메뉴 */}
-        <div style={styles.center} className="nav-center desktop-nav">
+        {/* 중앙 메뉴 (데스크톱 전용) */}
+        <div style={styles.center} className="desktop-nav">
           <span style={styles.navItem} onClick={() => go('/agents')}>요원</span>
           <span style={styles.navItem} onClick={() => go('/maps')}>맵 로테이션</span>
           <span style={styles.navItem} onClick={() => go('/skins')}>스킨</span>
@@ -67,7 +65,7 @@ function HomePage() {
         </div>
 
         {/* 우측 검색 */}
-        <form style={styles.right} className="nav-right" onSubmit={handleSearch}>
+        <form style={styles.right} onSubmit={handleSearch} className="nav-right">
           <input
             type="text"
             placeholder="예: CU24#KR"
@@ -93,7 +91,6 @@ function HomePage() {
           aria-controls="mobile-drawer"
           onClick={() => setMenuOpen((v) => !v)}
         >
-          {/* 심플한 햄버거 아이콘 (SVG) */}
           <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
             <rect x="3" y="5" width="18" height="2" rx="1"></rect>
             <rect x="3" y="11" width="18" height="2" rx="1"></rect>
@@ -120,14 +117,14 @@ function HomePage() {
       </div>
 
       {/* 메인 콘텐츠 */}
-      <main style={styles.main} className="main">
+      <main style={styles.main}>
         <img
           src="/InfoV_logo.png"
           alt="Main INFOV Logo"
           style={styles.mainLogo}
         />
 
-        <form style={styles.searchSection} className="search-section" onSubmit={handleSearch}>
+        <form style={styles.searchSection} onSubmit={handleSearch}>
           <select
             value={region}
             onChange={(e) => setRegion(e.target.value)}
@@ -160,7 +157,7 @@ function HomePage() {
       </main>
 
       {/* 하단 개인정보 처리방침 & 이용약관 */}
-      <footer style={styles.footer} className="footer">
+      <footer style={styles.footer}>
         <span onClick={() => go('/privacy')} style={styles.footerLink}>
           개인정보 처리방침
         </span>
@@ -182,26 +179,23 @@ const styles = {
     color: '#FFFFFF',
     fontFamily: 'Black Han Sans, sans-serif',
     minHeight: '100vh',
+    paddingTop: '72px',
   },
   navbar: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '16px 40px',
+    padding: '20px 40px',
     backgroundColor: '#1E1E1E',
     borderBottom: '1px solid #333',
     position: 'fixed',
     top: 0,
     width: '100%',
+    height: '72px',
     zIndex: 1000,
-    height: '120px',      // ⬅️ 네비게이션 바 높이 증가
     overflow: 'visible',
   },
-  left: {
-    flex: '0 0 auto',
-    display: 'flex',
-    alignItems: 'center',
-  },
+  left: { flex: '1 1 auto', display: 'flex', alignItems: 'center' },
   center: {
     flex: '1 1 auto',
     display: 'flex',
@@ -210,15 +204,16 @@ const styles = {
     flexWrap: 'wrap',
   },
   right: {
-    flex: '0 0 auto',
+    flex: 1.5,
     display: 'flex',
     justifyContent: 'flex-end',
     alignItems: 'center',
     gap: '8px',
-    flexWrap: 'wrap',
+    paddingRight: '50px',
   },
   logoImage: {
-    height: '200px',      // ⬅️ 로고 크게
+    height: '200px',
+    marginTop: '-8px',
     cursor: 'pointer',
   },
   navItem: {
@@ -248,7 +243,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    paddingTop: '180px',   // ⬅️ navbar 높아진 만큼 여백도 늘림
+    padding: '40px 20px 0',
   },
   mainLogo: {
     width: '400px',
