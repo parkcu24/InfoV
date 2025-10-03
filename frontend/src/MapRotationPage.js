@@ -24,7 +24,6 @@ function MapRotationPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [riotId, setRiotId] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -68,19 +67,18 @@ function MapRotationPage() {
 
   return (
     <div style={styles.pageWrapper}>
-      {/* 네비게이션 바 */}
+      {/* 네비게이션 바 (Privacy와 동일 레이아웃/스타일) */}
       <nav style={styles.navbar} className="navbar">
         {/* 좌측 로고 */}
         <div style={styles.left} className="nav-left" onClick={() => go('/')}>
           <img
             src="/InfoV_logo.png"
             alt="INFOV Logo"
-            style={styles.logoImage}
-            className="logo-img"
+            style={styles.logoImage}  /* className 제거: 외부 CSS 충돌 방지 */
           />
         </div>
 
-        {/* 데스크톱 가로 메뉴 */}
+        {/* 중앙 메뉴 (데스크톱) */}
         <div style={styles.center} className="nav-center desktop-nav">
           <span style={styles.navItem} className="nav-item" onClick={() => go('/agents')}>요원</span>
           <span style={{ ...styles.navItem, fontWeight: 'bold', fontSize: '20px' }} className="nav-item active">맵 로테이션</span>
@@ -89,7 +87,7 @@ function MapRotationPage() {
           <span style={styles.navItem} className="nav-item" onClick={() => go('/esports')}>E-Sports</span>
         </div>
 
-        {/* 우측 검색 (줄바꿈 방지 적용) */}
+        {/* 우측 검색 */}
         <form style={styles.right} className="nav-right" onSubmit={handleSearch}>
           <input
             type="text"
@@ -136,6 +134,20 @@ function MapRotationPage() {
           <button onClick={() => go('/rank')}>랭킹</button>
           <button onClick={() => go('/esports')}>E-Sports</button>
         </div>
+
+        {/* 드로어 내 검색 */}
+        <form onSubmit={handleSearch} style={{ padding: 12 }}>
+          <input
+            type="text"
+            placeholder="예: CU24#KR"
+            value={riotId}
+            onChange={(e) => setRiotId(e.target.value)}
+            style={{ ...styles.topSearchInput, width: '100%' }}
+          />
+          <button type="submit" style={{ ...styles.searchButton, width: '100%', marginTop: 8 }}>
+            {isLoading ? '검색 중...' : '검색'}
+          </button>
+        </form>
       </div>
       {menuOpen && <div className="drawer-backdrop" onClick={() => setMenuOpen(false)} />}
 
@@ -197,39 +209,45 @@ const styles = {
     minHeight: '100vh',
     color: '#fff',
     fontFamily: 'Black Han Sans, sans-serif',
-    paddingTop: '72px',
+    paddingTop: '72px',           // ✅ 고정 네비 여백
   },
   navbar: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '20px 40px',
+    padding: '20px 40px',         // ✅ Privacy와 동일
     backgroundColor: '#1E1E1E',
     borderBottom: '1px solid #333',
     position: 'fixed',
     top: 0,
     width: '100%',
     zIndex: 1000,
-    height: '72px',
+    height: '72px',               // ✅ Privacy와 동일
+    overflow: 'visible',          // ✅ 큰 로고가 자연스럽게 보이도록
   },
-  left: { display: 'flex', alignItems: 'center' },
-  center: {
+  left: {                         // ✅ Privacy와 동일
+    flex: '1 1 auto',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  center: {                       // ✅ Privacy와 동일
+    flex: '1 1 auto',
     display: 'flex',
     justifyContent: 'center',
     gap: '30px',
     flexWrap: 'wrap',
   },
-  right: {
+  right: {                        // ✅ Privacy와 동일
+    flex: 1.5,
     display: 'flex',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     gap: '8px',
-    // ✅ 버튼 줄바꿈 방지 & 영역 고정
-    whiteSpace: 'nowrap',
-    flex: 'none',
-    flexWrap: 'nowrap',
+    paddingRight: '50px',
   },
-  logoImage: {
-    height: '80px',
+  logoImage: {                    // ✅ Privacy와 동일 (큰 로고)
+    height: '200px',
+    marginTop: '-8px',
     cursor: 'pointer',
   },
   navItem: { fontSize: '18px', color: '#DDD', cursor: 'pointer' },
@@ -241,8 +259,6 @@ const styles = {
     border: '1px solid #555',
     backgroundColor: '#1e1e1e',
     color: '#fff',
-    // ✅ 아주 좁은 폭에서도 버튼이 밀리지 않게 최소 폭
-    width: 150,
   },
   searchButton: {
     padding: '6px 12px',
@@ -253,6 +269,7 @@ const styles = {
     borderRadius: '6px',
     cursor: 'pointer',
   },
+
   content: { padding: '40px' },
   seasonTitle: { fontSize: '28px', fontWeight: 'bold', marginBottom: '30px' },
   modeContainer: { display: 'flex', gap: '20px', marginBottom: '30px', flexWrap: 'wrap' },
