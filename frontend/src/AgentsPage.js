@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+// 에이전트 이미지 매핑 (필요시 수정)
 const agentImageMap = {
   네온: "neon", 레이나: "reyna", 레이즈: "raze", 아이소: "iso", 요루: "yoru", 웨이레이: "wayray",
   제트: "jett", 피닉스: "phoenix", 게코: "geko", 브리치: "breach", 소바: "sova", 스카이: "skye",
@@ -48,13 +49,13 @@ function AgentsPage() {
 
   return (
     <div style={styles.pageWrapper}>
-      {/* NAVBAR */}
-      <nav style={styles.navbar} className="navbar">
-        <div style={styles.left} className="nav-left" onClick={() => go('/')}>
-          <img src="/InfoV_logo.png" alt="INFOV Logo" style={styles.logoImage} className="logo-img" />
+      {/* NAVBAR (Privacy와 동일 레이아웃/스타일) */}
+      <nav style={styles.navbar}>
+        <div style={styles.left} onClick={() => go('/')}>
+          <img src="/InfoV_logo.png" alt="INFOV Logo" style={styles.logoImage} />
         </div>
 
-        <div style={styles.center} className="nav-center desktop-nav">
+        <div style={styles.center} className="desktop-nav">
           <span style={{ ...styles.navItem, fontWeight: 'bold', fontSize: '20px' }}>요원</span>
           <span style={styles.navItem} onClick={() => go('/maps')}>맵 로테이션</span>
           <span style={styles.navItem} onClick={() => go('/skins')}>스킨</span>
@@ -62,8 +63,8 @@ function AgentsPage() {
           <span style={styles.navItem} onClick={() => go('/esports')}>E-Sports</span>
         </div>
 
-        {/* 검색 (버튼 밀림 방지) */}
-        <form style={styles.right} className="nav-right" onSubmit={handleSearch}>
+        {/* 우측 검색 */}
+        <form style={styles.right} onSubmit={handleSearch}>
           <input
             type="text"
             placeholder="예: CU24#KR"
@@ -72,12 +73,12 @@ function AgentsPage() {
             style={styles.topSearchInput}
             aria-label="Riot ID"
           />
-          <button type="submit" style={styles.searchButton} className="search-button" disabled={isLoading}>
+          <button type="submit" style={styles.searchButton} disabled={isLoading}>
             {isLoading ? '검색 중...' : '검색'}
           </button>
         </form>
 
-        {/* 모바일 햄버거 버튼 (SkinPage와 동일 클래스) */}
+        {/* 모바일 햄버거 버튼 */}
         <button
           className="menu-toggle"
           aria-label="메뉴 열기"
@@ -93,7 +94,7 @@ function AgentsPage() {
         </button>
       </nav>
 
-      {/* 모바일 드로어 (SkinPage와 동일 구조/클래스) */}
+      {/* 모바일 드로어 */}
       <div id="mobile-drawer" className={`mobile-drawer ${menuOpen ? 'open' : ''}`} role="dialog" aria-modal="true">
         <button className="drawer-close" onClick={() => setMenuOpen(false)} aria-label="메뉴 닫기">×</button>
         <div className="drawer-links">
@@ -165,36 +166,47 @@ const styles = {
     minHeight: '100vh',
     color: '#fff',
     fontFamily: 'Black Han Sans, sans-serif',
-    paddingTop: '72px', // 고정 네비 상단 여백
+    paddingTop: '72px', // ✅ 고정 네비 상단 여백 (Privacy와 동일)
   },
   navbar: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '20px 40px',
+    padding: '20px 40px',     // ✅ Privacy와 동일
     backgroundColor: '#1E1E1E',
     borderBottom: '1px solid #333',
     position: 'fixed',
     top: 0,
     width: '100%',
+    height: '72px',           // ✅ Privacy와 동일
     zIndex: 1000,
-    height: '72px',
+    overflow: 'visible',      // ✅ 큰 로고 노출
   },
-  left: { display: 'flex', alignItems: 'center' },
-  center: {
+  left: {                     // ✅ Privacy와 동일
+    flex: '1 1 auto',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  center: {                   // ✅ Privacy와 동일
+    flex: '1 1 auto',
     display: 'flex',
     justifyContent: 'center',
     gap: '30px',
     flexWrap: 'wrap',
   },
-  right: {
+  right: {                    // ✅ Privacy와 동일
+    flex: 1.5,
     display: 'flex',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     gap: '8px',
-    whiteSpace: 'nowrap', // 검색 버튼 줄바꿈 방지
-    flex: 'none',
+    paddingRight: '50px',
   },
-  logoImage: { height: '80px', cursor: 'pointer' },
+  logoImage: {                // ✅ Privacy와 동일 (큰 로고)
+    height: '200px',
+    marginTop: '-8px',
+    cursor: 'pointer',
+  },
   navItem: { fontSize: '18px', color: '#DDD', cursor: 'pointer' },
   topSearchInput: {
     height: '34px',
