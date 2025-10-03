@@ -19,10 +19,8 @@ function SkinPage() {
   const [riotId, setRiotId] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // 햄버거 메뉴 상태
+  // 햄버거 메뉴
   const [menuOpen, setMenuOpen] = useState(false);
-
-  // 메뉴 열릴 때 바디 스크롤 잠금
   useEffect(() => {
     document.body.style.overflow = menuOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
@@ -68,34 +66,24 @@ function SkinPage() {
     setMenuOpen(false);
   };
 
-  const filteredSkinSets = skinSets.filter(skin =>
-    selectedEditions.includes(skin.edition)
-  );
+  const filteredSkinSets = skinSets.filter(skin => selectedEditions.includes(skin.edition));
 
   return (
     <div style={styles.pageWrapper}>
-      {/* 네비게이션 바 */}
+      {/* NAVBAR — Privacy와 동일 */}
       <nav style={styles.navbar} className="navbar">
-        {/* 좌측 로고 (고정 크기) */}
         <div style={styles.left} className="nav-left" onClick={() => go('/')}>
-          <img
-            src="/InfoV_logo.png"
-            alt="INFOV Logo"
-            style={styles.logoImage}
-            className="logo-img"
-          />
+          <img src="/InfoV_logo.png" alt="INFOV Logo" style={styles.logoImage} />
         </div>
 
-        {/* 데스크톱 가로 메뉴 */}
         <div style={styles.center} className="nav-center desktop-nav">
-          <span style={styles.navItem} className="nav-item" onClick={() => go('/agents')}>요원</span>
-          <span style={styles.navItem} className="nav-item" onClick={() => go('/maps')}>맵 로테이션</span>
-          <span style={{ ...styles.navItem, fontWeight: 'bold' }} className="nav-item active">스킨</span>
-          <span style={styles.navItem} className="nav-item" onClick={() => go('/rank')}>랭킹</span>
-          <span style={styles.navItem} className="nav-item" onClick={() => go('/esports')}>E-Sports</span>
+          <span style={styles.navItem} onClick={() => go('/agents')}>요원</span>
+          <span style={styles.navItem} onClick={() => go('/maps')}>맵 로테이션</span>
+          <span style={{ ...styles.navItem, fontWeight: 'bold' }} className="active">스킨</span>
+          <span style={styles.navItem} onClick={() => go('/rank')}>랭킹</span>
+          <span style={styles.navItem} onClick={() => go('/esports')}>E-Sports</span>
         </div>
 
-        {/* 우측 검색 (줄바꿈 방지 적용) */}
         <form style={styles.right} className="nav-right" onSubmit={handleSearch}>
           <input
             type="text"
@@ -103,20 +91,14 @@ function SkinPage() {
             value={riotId}
             onChange={(e) => setRiotId(e.target.value)}
             style={styles.topSearchInput}
-            className="top-search-input"
             aria-label="Riot ID"
           />
-          <button
-            type="submit"
-            style={styles.searchButton}
-            className="search-button"
-            disabled={isLoading}
-          >
+          <button type="submit" style={styles.searchButton} disabled={isLoading}>
             {isLoading ? '검색 중...' : '검색'}
           </button>
         </form>
 
-        {/* 모바일 햄버거 버튼 */}
+        {/* 모바일 햄버거 */}
         <button
           className="menu-toggle"
           aria-label="메뉴 열기"
@@ -142,6 +124,20 @@ function SkinPage() {
           <button onClick={() => go('/rank')}>랭킹</button>
           <button onClick={() => go('/esports')}>E-Sports</button>
         </div>
+
+        {/* 드로어 내 검색 */}
+        <form onSubmit={handleSearch} style={{ padding: 12 }}>
+          <input
+            type="text"
+            placeholder="예: CU24#KR"
+            value={riotId}
+            onChange={(e) => setRiotId(e.target.value)}
+            style={{ ...styles.topSearchInput, width: '100%' }}
+          />
+          <button type="submit" style={{ ...styles.searchButton, width: '100%', marginTop: 8 }}>
+            {isLoading ? '검색 중...' : '검색'}
+          </button>
+        </form>
       </div>
       {menuOpen && <div className="drawer-backdrop" onClick={() => setMenuOpen(false)} />}
 
@@ -166,7 +162,7 @@ function SkinPage() {
         ))}
       </div>
 
-      {/* 스킨 카드 또는 로딩 스피너 */}
+      {/* 스킨 카드 / 로딩 */}
       <div style={styles.grid}>
         {loading ? (
           <div style={{ gridColumn: '1/-1', textAlign: 'center', marginTop: '80px' }}>
@@ -201,7 +197,7 @@ const styles = {
     minHeight: '100vh',
     color: '#fff',
     fontFamily: 'Black Han Sans, sans-serif',
-    paddingTop: '72px',
+    paddingTop: '72px',  // 고정 네비 여백
   },
   navbar: {
     display: 'flex',
@@ -215,26 +211,31 @@ const styles = {
     width: '100%',
     zIndex: 1000,
     height: '72px',
+    overflow: 'visible', // 큰 로고 자연스러운 노출
   },
-  left: { display: 'flex', alignItems: 'center' },
+  left: {
+    display: 'flex',
+    alignItems: 'center',
+    flex: '1 1 auto',
+  },
   center: {
     display: 'flex',
     justifyContent: 'center',
     gap: '30px',
     flexWrap: 'wrap',
+    flex: '1 1 auto',
   },
   right: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    // 버튼 줄바꿈 방지 & 영역 고정
-    whiteSpace: 'nowrap',
-    flex: 'none',
-    flexWrap: 'nowrap',
     paddingRight: '50px',
+    justifyContent: 'flex-end',
+    flex: 1.5,
   },
   logoImage: {
-    height: '80px',
+    height: '200px', // Privacy와 동일
+    marginTop: '-8px',
     cursor: 'pointer',
   },
   navItem: {
@@ -250,8 +251,6 @@ const styles = {
     border: '1px solid #555',
     backgroundColor: '#1e1e1e',
     color: '#fff',
-    // 아주 좁은 폭에서도 버튼이 밀리지 않게 최소 폭
-    width: 150,
   },
   searchButton: {
     padding: '6px 12px',
@@ -297,17 +296,8 @@ const styles = {
     textAlign: 'center',
     cursor: 'pointer',
   },
-  image: {
-    width: '100%',
-    height: '140px',
-    objectFit: 'cover',
-  },
-  label: {
-    padding: '12px',
-    fontWeight: 'bold',
-    fontSize: '16px',
-    color: '#fff',
-  },
+  image: { width: '100%', height: '140px', objectFit: 'cover' },
+  label: { padding: '12px', fontWeight: 'bold', fontSize: '16px', color: '#fff' },
 };
 
 export default SkinPage;
