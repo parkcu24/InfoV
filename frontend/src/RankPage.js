@@ -14,7 +14,7 @@ function RankPage() {
   const [endRank, setEndRank] = useState(50);
   const [riotId, setRiotId] = useState('');
 
-  // 햄버거 메뉴 (SkinPage와 동일 구조를 쓰기 위해 상태만 유지)
+  // 햄버거 메뉴
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
     document.body.style.overflow = menuOpen ? 'hidden' : '';
@@ -96,15 +96,14 @@ function RankPage() {
 
   return (
     <div style={styles.pageWrapper}>
-      {/* NAVBAR */}
+      {/* NAVBAR — Privacy와 동일 레이아웃/스타일 */}
       <nav style={styles.navbar} className="navbar">
         {/* 좌측 로고 */}
         <div style={styles.left} className="nav-left" onClick={() => go('/')}>
           <img
             src="/InfoV_logo.png"
             alt="INFOV Logo"
-            style={styles.logoImage}
-            className="logo-img"
+            style={styles.logoImage}  /* className 제거하여 충돌 방지 */
           />
         </div>
 
@@ -117,7 +116,7 @@ function RankPage() {
           <span style={styles.navItem} onClick={() => go('/esports')}>E-Sports</span>
         </div>
 
-        {/* 검색 (버튼 줄바꿈 방지) */}
+        {/* 우측 검색 */}
         <form style={styles.right} className="nav-right" onSubmit={handleSearch}>
           <input
             type="text"
@@ -132,7 +131,7 @@ function RankPage() {
           </button>
         </form>
 
-        {/* 모바일 햄버거 버튼 — SkinPage와 동일 클래스 */}
+        {/* 모바일 햄버거 버튼 */}
         <button
           className="menu-toggle"
           aria-label="메뉴 열기"
@@ -148,7 +147,7 @@ function RankPage() {
         </button>
       </nav>
 
-      {/* 모바일 드로어 — SkinPage와 동일 구조/클래스 */}
+      {/* 모바일 드로어 */}
       <div id="mobile-drawer" className={`mobile-drawer ${menuOpen ? 'open' : ''}`} role="dialog" aria-modal="true">
         <button className="drawer-close" onClick={() => setMenuOpen(false)} aria-label="메뉴 닫기">×</button>
         <div className="drawer-links">
@@ -254,31 +253,48 @@ const styles = {
     minHeight: '100vh',
     color: '#fff',
     fontFamily: 'Black Han Sans, sans-serif',
-    paddingTop: '72px', // 고정 네비바 높이 보정 (SkinPage와 동일)
+    paddingTop: '72px', // ✅ 고정 네비바 높이 보정 (Privacy와 동일)
   },
   navbar: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '20px 40px',
+    padding: '20px 40px',    // ✅ Privacy와 동일
     backgroundColor: '#1E1E1E',
     borderBottom: '1px solid #333',
     position: 'fixed',
     top: 0,
     width: '100%',
     zIndex: 1000,
-    height: '72px',
+    height: '72px',          // ✅ Privacy와 동일
+    overflow: 'visible',     // ✅ 큰 로고가 자연스럽게 보이도록
   },
-  left: { display: 'flex', alignItems: 'center' },
-  center: { display: 'flex', justifyContent: 'center', gap: '30px', flexWrap: 'wrap' },
-  right: {
+  left: {                    // ✅ Privacy와 동일
+    display: 'flex',
+    alignItems: 'center',
+    flex: '1 1 auto',
+  },
+  center: {                  // ✅ Privacy와 동일
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '30px',
+    flexWrap: 'wrap',
+    flex: '1 1 auto',
+  },
+  right: {                   // ✅ Privacy와 동일
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    whiteSpace: 'nowrap', // 버튼 밀림 방지
-    flex: 'none',
+    whiteSpace: 'nowrap',
+    justifyContent: 'flex-end',
+    flex: 1.5,
+    paddingRight: '50px',
   },
-  logoImage: { height: '80px', cursor: 'pointer' },
+  logoImage: {               // ✅ Privacy와 동일 (큰 로고)
+    height: '200px',
+    marginTop: '-8px',
+    cursor: 'pointer',
+  },
   navItem: { fontSize: '18px', color: '#DDD', cursor: 'pointer' },
   topSearchInput: {
     height: '34px',

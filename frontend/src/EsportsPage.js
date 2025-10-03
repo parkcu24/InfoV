@@ -17,7 +17,7 @@ function EsportsPage() {
   const [riotId, setRiotId] = useState('');
   const [randomImages, setRandomImages] = useState({});
   const [menuOpen, setMenuOpen] = useState(false);
-  const [region, setRegion] = useState('kr'); // 검색 파라미터 맞춤(선택)
+  const [region, setRegion] = useState('kr');
 
   useEffect(() => {
     const newRandoms = {};
@@ -28,14 +28,10 @@ function EsportsPage() {
     setRandomImages(newRandoms);
   }, []);
 
-  // 메뉴 열릴 때 바디 스크롤 잠금(모바일 UX)
+  // 모바일 드로어 열릴 때 바디 스크롤 잠금
   useEffect(() => {
-    if (menuOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => (document.body.style.overflow = '');
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
   }, [menuOpen]);
 
   const go = (path) => {
@@ -55,34 +51,41 @@ function EsportsPage() {
   };
 
   return (
-    <div className="page-wrapper">
-      {/* 상단 네비게이션 */}
-      <nav className="navbar">
-        {/* 좌측 로고 (고정 크기) */}
-        <div className="nav-left" onClick={() => go('/')}>
-          <img src="/InfoV_logo.png" alt="INFOV Logo" className="logo-img" />
+    <div style={styles.pageWrapper}>
+      {/* 상단 네비게이션 — Privacy와 동일 레이아웃/스타일 */}
+      <nav style={styles.navbar} className="navbar">
+        {/* 좌측 로고 */}
+        <div style={styles.left} className="nav-left" onClick={() => go('/')}>
+          <img src="/InfoV_logo.png" alt="INFOV Logo" style={styles.logoImage} />
         </div>
 
-        {/* 데스크톱 가로 메뉴 */}
-        <div className="nav-center desktop-nav">
-          <span className="nav-item" onClick={() => go('/agents')}>요원</span>
-          <span className="nav-item" onClick={() => go('/maps')}>맵 로테이션</span>
-          <span className="nav-item" onClick={() => go('/skins')}>스킨</span>
-          <span className="nav-item" onClick={() => go('/rank')}>랭킹</span>
-          <span className="nav-item active">E-Sports</span>
+        {/* 중앙 메뉴 (데스크톱) */}
+        <div style={styles.center} className="nav-center desktop-nav">
+          <span style={styles.navItem} onClick={() => go('/agents')}>요원</span>
+          <span style={styles.navItem} onClick={() => go('/maps')}>맵 로테이션</span>
+          <span style={styles.navItem} onClick={() => go('/skins')}>스킨</span>
+          <span style={styles.navItem} onClick={() => go('/rank')}>랭킹</span>
+          <span style={{ ...styles.navItem, fontWeight: 'bold', fontSize: '20px' }}>E-Sports</span>
         </div>
 
         {/* 우측 검색 */}
-        <form className="nav-right" onSubmit={handleSearch}>
+        <form style={styles.right} className="nav-right" onSubmit={handleSearch}>
+          {/* 필요하다면 region 셀렉트 노출 */}
+          {/* <select value={region} onChange={(e) => setRegion(e.target.value)} style={styles.regionSelect}>
+            <option value="kr">한국</option>
+            <option value="asia">아시아</option>
+            <option value="na">북미</option>
+            <option value="eu">유럽</option>
+          </select> */}
           <input
             type="text"
             placeholder="예: CU24#KR"
             value={riotId}
             onChange={(e) => setRiotId(e.target.value)}
-            className="top-search-input"
+            style={styles.topSearchInput}
             aria-label="Riot ID"
           />
-          <button type="submit" className="search-button">검색</button>
+          <button type="submit" style={styles.searchButton}>검색</button>
         </form>
 
         {/* 모바일 햄버거 버튼 */}
@@ -111,10 +114,24 @@ function EsportsPage() {
           <button onClick={() => go('/rank')}>랭킹</button>
           <button className="active">E-Sports</button>
         </div>
+
+        {/* 드로어 내 검색 */}
+        <form onSubmit={handleSearch} style={{ padding: 12 }}>
+          <input
+            type="text"
+            placeholder="예: CU24#KR"
+            value={riotId}
+            onChange={(e) => setRiotId(e.target.value)}
+            style={{ ...styles.topSearchInput, width: '100%' }}
+          />
+          <button type="submit" style={{ ...styles.searchButton, width: '100%', marginTop: 8 }}>
+            검색
+          </button>
+        </form>
       </div>
       {menuOpen && <div className="drawer-backdrop" onClick={() => setMenuOpen(false)} />}
 
-      {/* 본문 */}
+      {/* 본문 (기존 CSS 유지) */}
       <div className="content">
         <h1 className="esports-title">2025 VCT 대회 일정</h1>
 
@@ -139,7 +156,7 @@ function EsportsPage() {
         </div>
       </div>
 
-      {/* 하단 푸터(필요 시) */}
+      {/* 푸터 (기존 CSS 유지) */}
       <footer className="footer">
         <span onClick={() => go('/privacy')} className="footer-link">개인정보 처리방침</span>
         <span className="footer-divider">|</span>
@@ -148,5 +165,89 @@ function EsportsPage() {
     </div>
   );
 }
+
+/* 인라인 스타일 — Privacy 네비게이션과 동일 값 */
+const styles = {
+  pageWrapper: {
+    backgroundColor: '#121212',
+    minHeight: '100vh',
+    color: '#fff',
+    fontFamily: 'Black Han Sans, sans-serif',
+    paddingTop: '72px',           // 고정 네비 높이 보정
+  },
+  navbar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '20px 40px',
+    backgroundColor: '#1E1E1E',
+    borderBottom: '1px solid #333',
+    position: 'fixed',
+    top: 0,
+    width: '100%',
+    zIndex: 1000,
+    height: '72px',
+    overflow: 'visible',          // 큰 로고가 자연스럽게 노출
+  },
+  left: {
+    flex: '1 1 auto',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  center: {
+    flex: '1 1 auto',
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '30px',
+    flexWrap: 'wrap',
+  },
+  right: {
+    flex: 1.5,
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: '8px',
+    paddingRight: '50px',
+  },
+  logoImage: {
+    height: '200px',              // 큰 로고
+    marginTop: '-8px',
+    cursor: 'pointer',
+  },
+  navItem: {
+    fontSize: '18px',
+    color: '#DDD',
+    cursor: 'pointer',
+  },
+  topSearchInput: {
+    height: '34px',
+    fontSize: '14px',
+    padding: '0 10px',
+    borderRadius: '6px',
+    border: '1px solid #555',
+    backgroundColor: '#1e1e1e',
+    color: '#fff',
+  },
+  searchButton: {
+    padding: '6px 12px',
+    fontSize: '14px',
+    backgroundColor: '#E63946',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+  },
+  // 필요 시 region 셀렉트를 쓸 때
+  regionSelect: {
+    height: '34px',
+    fontSize: '14px',
+    padding: '0 10px',
+    borderRadius: '6px',
+    border: '1px solid #555',
+    backgroundColor: '#1e1e1e',
+    color: '#fff',
+    marginRight: '8px',
+  },
+};
 
 export default EsportsPage;
