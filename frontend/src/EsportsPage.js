@@ -17,7 +17,7 @@ function EsportsPage() {
   const [riotId, setRiotId] = useState('');
   const [randomImages, setRandomImages] = useState({});
   const [menuOpen, setMenuOpen] = useState(false);
-  const [region, setRegion] = useState('kr');
+  const [region] = useState('kr');
 
   useEffect(() => {
     const newRandoms = {};
