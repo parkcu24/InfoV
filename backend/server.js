@@ -29,6 +29,10 @@ const allowedOrigins = [
   /^https:\/\/.+\.onrender\.com$/
 ];
 
+app.get('/', (req, res) => {
+  res.send('✅ InfoV backend is running on Render');
+});
+
 const corsOptions = {
   origin(origin, cb) {
     if (!origin) return cb(null, true); // 서버-서버/로컬 툴 호출 허용
