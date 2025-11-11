@@ -22,7 +22,7 @@ function SearchResultPage() {
   };
 
   const handleLogin = () => {
-    window.location.href = 'http://localhost:5050/api/auth/login';
+    window.location.href = 'https://infov.onrender.com/';
   };
 
   return (

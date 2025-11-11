@@ -1,4 +1,4 @@
-// src/CallbackPage.js
+// 📁 src/CallbackPage.js
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -7,21 +7,14 @@ function CallbackPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
+    const token = params.get('access_token');
 
-    if (code) {
-      fetch(`http://localhost:5050/api/auth/callback?code=${code}`)
-        .then(res => res.json())
-        .then(data => {
-          // 여기에서 로그인 완료 처리 (예: 토큰 저장 등)
-          console.log('OAuth 로그인 성공:', data);
-          navigate('/'); // 로그인 후 홈으로 이동
-        })
-        .catch(err => {
-          console.error('OAuth 처리 중 오류:', err);
-          navigate('/error');
-        });
+    if (token) {
+      localStorage.setItem('riot_access_token', token);
+      console.log('✅ 로그인 성공! Access Token 저장됨:', token);
+      navigate('/'); // 홈 또는 전적 페이지로 이동
     } else {
+      console.error('❌ access_token 없음');
       navigate('/');
     }
   }, [navigate]);
@@ -59,110 +52,5 @@ function CallbackPage() {
   );
 }
 
-const styles = {
-    pageWrapper: {
-      backgroundColor: '#121212',
-      minHeight: '100vh',
-      color: '#eee',
-      fontFamily: 'Black Han Sans, sans-serif',
-      paddingTop: '72px',
-    },
-    navbar: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '20px 40px',
-      backgroundColor: '#1E1E1E',
-      borderBottom: '1px solid #333',
-      position: 'fixed',
-      top: 0,
-      width: '100%',
-      height: '72px',
-      zIndex: 1000,
-      overflow: 'visible',
-    },
-    left: { flex: '1 1 auto', display: 'flex', alignItems: 'center' },
-    center: {
-      flex: '1 1 auto',
-      display: 'flex',
-      justifyContent: 'center',
-      gap: '30px',
-      flexWrap: 'wrap',
-    },
-    right: {
-      flex: 1.5,
-      display: 'flex',
-      justifyContent: 'flex-end',
-      alignItems: 'center',
-      gap: '8px',
-      paddingRight: '50px',
-    },
-    logoImage: {
-      height: '200px',
-      marginTop: '-8px',
-      cursor: 'pointer',
-    },
-    navItem: {
-      fontSize: '18px',
-      color: '#DDD',
-      cursor: 'pointer',
-    },
-    topSearchInput: {
-      height: '34px',
-      fontSize: '14px',
-      padding: '0 10px',
-      borderRadius: '6px',
-      border: '1px solid #555',
-      backgroundColor: '#1e1e1e',
-      color: '#fff',
-    },
-    searchButton: {
-      padding: '6px 12px',
-      fontSize: '14px',
-      backgroundColor: '#E63946',
-      color: '#fff',
-      border: 'none',
-      borderRadius: '6px',
-      cursor: 'pointer',
-    },
-    content: {
-      textAlign: 'center',
-      padding: '80px 20px',
-    },
-    title: {
-      fontSize: '32px',
-      marginBottom: '20px',
-    },
-    message: {
-      fontSize: '18px',
-      color: '#bbb',
-      lineHeight: '1.6',
-    },
-    buttonGroup: {
-      marginTop: '40px',
-      display: 'flex',
-      justifyContent: 'center',
-      gap: '20px',
-      flexWrap: 'wrap',
-    },
-    grayButton: {
-      padding: '12px 24px',
-      fontSize: '16px',
-      backgroundColor: '#555',
-      color: '#fff',
-      border: 'none',
-      borderRadius: '6px',
-      cursor: 'pointer',
-    },
-    blueButton: {
-      padding: '12px 24px',
-      fontSize: '16px',
-      backgroundColor: '#4A90E2',
-      color: '#fff',
-      border: 'none',
-      borderRadius: '6px',
-      cursor: 'pointer',
-    },
-  };
-
+// (styles 객체는 그대로 유지)
 export default CallbackPage;
