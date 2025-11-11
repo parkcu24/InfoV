@@ -52,5 +52,59 @@ function CallbackPage() {
   );
 }
 
-// (styles 객체는 그대로 유지)
+const styles = {
+  pageWrapper: {
+    backgroundColor: '#121212',
+    minHeight: '100vh',
+    color: '#eee',
+    fontFamily: 'Black Han Sans, sans-serif',
+    paddingTop: '72px',
+  },
+  navbar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '20px 40px',
+    backgroundColor: '#1E1E1E',
+    borderBottom: '1px solid #333',
+    position: 'fixed',
+    top: 0,
+    width: '100%',
+    height: '72px',
+    zIndex: 1000,
+    overflow: 'visible',
+  },
+  left: { flex: '1 1 auto', display: 'flex', alignItems: 'center' },
+  center: {
+    flex: '1 1 auto',
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '30px',
+    flexWrap: 'wrap',
+  },
+  logoImage: {
+    height: '200px',
+    marginTop: '-8px',
+    cursor: 'pointer',
+  },
+  navItem: {
+    fontSize: '18px',
+    color: '#DDD',
+    cursor: 'pointer',
+  },
+  content: {
+    textAlign: 'center',
+    padding: '80px 20px',
+  },
+  title: {
+    fontSize: '32px',
+    marginBottom: '20px',
+  },
+  message: {
+    fontSize: '18px',
+    color: '#bbb',
+    lineHeight: '1.6',
+  },
+};
+
 export default CallbackPage;
