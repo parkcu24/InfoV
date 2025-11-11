@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ReactComponent as WorldMap } from './assets/world.svg';
 import './LeaguesPage.css';
@@ -7,14 +7,15 @@ function LeaguesPage() {
   const navigate = useNavigate();
   const [hoverRegion, setHoverRegion] = useState(null);
 
-  const regionColors = {
+  // ✅ useMemo로 객체를 고정 (렌더마다 새로 만들어지지 않게)
+  const regionColors = useMemo(() => ({
     PACIFIC: '#00FFFF',
     EMEA: '#4A90E2',
     AMERICAS: '#FFD700',
     CN: '#FF4C4C',
-  };
+  }), []);
 
-  const regionCountries = {
+  const regionCountries = useMemo(() => ({
     PACIFIC: ['KR', 'JP', 'ID', 'MY', 'SG', 'PH', 'TH', 'VN', 'HK', 'TW', 'IN'],
     EMEA: [
       'FR', 'DE', 'GB', 'ES', 'IT', 'PT', 'PL', 'SE', 'FI', 'NO', 'DK', 'IE',
@@ -31,60 +32,60 @@ function LeaguesPage() {
       'LC', 'GD', 'VC', 'GL', 'CA', 'United States', 'Canada'
     ],
     CN: ['CN', 'CHINA']
-  };
+  }), []);
 
   useEffect(() => {
-  const allLeagueCodes = new Set();
+    const allLeagueCodes = new Set();
 
-  Object.entries(regionCountries).forEach(([region, countries]) => {
-    countries.forEach((codeRaw) => {
-      const code = codeRaw.trim().toLowerCase();
-      allLeagueCodes.add(code);
+    Object.entries(regionCountries).forEach(([region, countries]) => {
+      countries.forEach((codeRaw) => {
+        const code = codeRaw.trim().toLowerCase();
+        allLeagueCodes.add(code);
 
-      document.querySelectorAll('path').forEach((element) => {
-        const id = element.id?.toLowerCase();
-        const classList = Array.from(element.classList).map(cls => cls.toLowerCase());
-        const classAttrWords = element.getAttribute('class')?.toLowerCase().split(/\s+/) || [];
-        const name = element.getAttribute('name')?.toLowerCase();
+        document.querySelectorAll('path').forEach((element) => {
+          const id = element.id?.toLowerCase();
+          const classList = Array.from(element.classList).map(cls => cls.toLowerCase());
+          const classAttrWords = element.getAttribute('class')?.toLowerCase().split(/\s+/) || [];
+          const name = element.getAttribute('name')?.toLowerCase();
 
-        const isMatch =
-          id === code ||
-          classList.includes(code) ||
-          classAttrWords.includes(code) ||
-          name === code;
+          const isMatch =
+            id === code ||
+            classList.includes(code) ||
+            classAttrWords.includes(code) ||
+            name === code;
 
-        if (isMatch) {
-          element.classList.add('league-country');
-          element.style.setProperty('fill', regionColors[region], 'important');
-          element.style.setProperty(
-            'opacity',
-            !hoverRegion || hoverRegion === region ? '1.0' : '0.3',
-            'important'
-          );
-        }
+          if (isMatch) {
+            element.classList.add('league-country');
+            element.style.setProperty('fill', regionColors[region], 'important');
+            element.style.setProperty(
+              'opacity',
+              !hoverRegion || hoverRegion === region ? '1.0' : '0.3',
+              'important'
+            );
+          }
+        });
       });
     });
-  });
 
-  document.querySelectorAll('path').forEach((path) => {
-    const id = path.id?.toLowerCase();
-    const classList = Array.from(path.classList).map(cls => cls.toLowerCase());
-    const classAttrWords = path.getAttribute('class')?.toLowerCase().split(/\s+/) || [];
-    const name = path.getAttribute('name')?.toLowerCase();
+    document.querySelectorAll('path').forEach((path) => {
+      const id = path.id?.toLowerCase();
+      const classList = Array.from(path.classList).map(cls => cls.toLowerCase());
+      const classAttrWords = path.getAttribute('class')?.toLowerCase().split(/\s+/) || [];
+      const name = path.getAttribute('name')?.toLowerCase();
 
-    const matched = [...allLeagueCodes].some(code =>
-      id === code ||
-      classList.includes(code) ||
-      classAttrWords.includes(code) ||
-      name === code
-    );
+      const matched = [...allLeagueCodes].some(code =>
+        id === code ||
+        classList.includes(code) ||
+        classAttrWords.includes(code) ||
+        name === code
+      );
 
-    if (!matched) {
-      path.classList.remove('league-country');
-      path.style.setProperty('opacity', '0.2', 'important');
-    }
-  });
-}, [hoverRegion, regionColors, regionCountries]);
+      if (!matched) {
+        path.classList.remove('league-country');
+        path.style.setProperty('opacity', '0.2', 'important');
+      }
+    });
+  }, [hoverRegion, regionColors, regionCountries]);
 
   const handleRegionClick = (region) => {
     navigate(`/schedule?region=${region}`);
