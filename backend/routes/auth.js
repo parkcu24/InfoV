@@ -1,4 +1,3 @@
-// 📁 backend/routes/auth.js
 const express = require('express');
 const axios = require('axios');
 require('dotenv').config();
@@ -7,11 +6,24 @@ const router = express.Router();
 
 const CLIENT_ID = process.env.RIOT_CLIENT_ID;
 const CLIENT_SECRET = process.env.RIOT_CLIENT_SECRET;
-const REDIRECT_URI = process.env.RIOT_REDIRECT_URI; // ex) https://infov.vercel.app/callback or localhost:5050/api/auth/callback
+const REDIRECT_URI = process.env.RIOT_REDIRECT_URI;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://infov.vercel.app';
 
 // 1️⃣ 로그인 페이지로 이동
 router.get('/login', (req, res) => {
-  const authorizeUrl = `https://auth.riotgames.com/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=openid`;
+  const authorizeUrl = `https://auth.riotgames.com/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(
+    REDIRECT_URI
+  )}&response_type=code&scope=openid`;
+
+  // 🔍 디버그 로그: Riot으로 리디렉트되는 실제 URL과 환경 변수 출력
+  console.log('------------------------------------------');
+  console.log('🧭 [RSO DEBUG] 로그인 요청 발생');
+  console.log('CLIENT_ID:', CLIENT_ID);
+  console.log('REDIRECT_URI:', REDIRECT_URI);
+  console.log('🔗 Redirecting to Riot URL:');
+  console.log(authorizeUrl);
+  console.log('------------------------------------------');
+
   res.redirect(authorizeUrl);
 });
 
@@ -21,7 +33,8 @@ router.get('/callback', async (req, res) => {
   if (!code) return res.status(400).send('Authorization code not found');
 
   try {
-    // 3️⃣ 액세스 토큰 요청
+    console.log('🧾 [RSO DEBUG] 콜백 호출됨, code:', code);
+
     const tokenResponse = await axios.post('https://auth.riotgames.com/token', null, {
       params: {
         grant_type: 'authorization_code',
@@ -34,19 +47,19 @@ router.get('/callback', async (req, res) => {
     });
 
     const { access_token } = tokenResponse.data;
+    console.log('✅ [RSO DEBUG] Access Token 획득 완료');
 
-    // 4️⃣ 사용자 정보 요청
     const userInfo = await axios.get('https://auth.riotgames.com/userinfo', {
       headers: { Authorization: `Bearer ${access_token}` },
     });
 
-    console.log('✅ 사용자 정보:', userInfo.data);
+    console.log('✅ [RSO DEBUG] 로그인 성공:', userInfo.data);
 
-    // 5️⃣ 프론트엔드로 리디렉션 (토큰 전달)
-    const frontendURL = process.env.FRONTEND_URL || 'https://infov.vercel.app';
-    res.redirect(`${frontendURL}/callback?access_token=${access_token}`);
+    // ✅ access_token 프론트로 전달
+    res.redirect(`${FRONTEND_URL}/callback?access_token=${access_token}`);
   } catch (err) {
-    console.error('OAuth 처리 중 오류:', err.response?.data || err.message);
+    console.error('❌ [RSO DEBUG] OAuth 처리 중 오류 발생:');
+    console.error(err.response?.data || err.message);
     res.status(500).send('로그인 중 오류가 발생했습니다.');
   }
 });
