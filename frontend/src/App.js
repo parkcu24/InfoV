@@ -17,6 +17,7 @@ import TermsPage from './Terms';
 import LogoutPage from './Logout';
 import SchedulePage from './SchedulePage'; // ✅ src/SchedulePage.js 위치에 맞게 수정
 import CallbackPage from './CallbackPage';
+import MatchHistoryPage from './pages/MatchHistoryPage';
 
 function App() {
   return (
