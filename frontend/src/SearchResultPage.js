@@ -22,7 +22,7 @@ function SearchResultPage() {
   };
 
   const handleLogin = () => {
-    window.location.href = 'https://infov.onrender.com/';
+    window.location.href = 'https://infov.onrender.com/api/auth/login';
   };
 
   return (
