@@ -2,8 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-// 🔧 백엔드 주소 하드코딩 (Render에서 사용하는 URL로 반드시 변경!!)
-const API_BASE_URL = "https://infov.onrender.com";
+// Render 백엔드 주소
+const API_BASE_URL = 'https://infov.onrender.com';
 
 function MatchHistoryPage() {
   const navigate = useNavigate();
@@ -11,15 +11,19 @@ function MatchHistoryPage() {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [hasToken, setHasToken] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('riot_access_token');
 
     if (!token) {
+      setHasToken(false);
       setError('로그인이 필요합니다. Riot 계정으로 먼저 로그인해 주세요.');
       setLoading(false);
       return;
     }
+
+    setHasToken(true);
 
     const fetchData = async () => {
       try {
@@ -27,10 +31,10 @@ function MatchHistoryPage() {
         setLoading(true);
 
         // 🔥 1) 프로필 정보 가져오기
-        const profileRes = await fetch(`${API_BASE_URL}/auth/profile`, {
+        const profileRes = await fetch(`${API_BASE_URL}/api/auth/profile`, {
           headers: {
             Authorization: `Bearer ${token}`,
-          }
+          },
         });
 
         if (!profileRes.ok) throw new Error('프로필 정보를 불러오지 못했습니다.');
@@ -38,19 +42,18 @@ function MatchHistoryPage() {
         setProfile(profileData);
 
         // 🔥 2) 전적 정보 가져오기
-        const matchesRes = await fetch(`${API_BASE_URL}/auth/matches`, {
+        const matchesRes = await fetch(`${API_BASE_URL}/api/auth/matches`, {
           headers: {
             Authorization: `Bearer ${token}`,
-          }
+          },
         });
 
         if (!matchesRes.ok) throw new Error('전적 정보를 불러오지 못했습니다.');
         const matchesData = await matchesRes.json();
         setMatches(matchesData.matches || matchesData);
-
       } catch (err) {
         console.error(err);
-        setError(err.message);
+        setError(err.message || '알 수 없는 오류가 발생했습니다.');
       } finally {
         setLoading(false);
       }
@@ -66,7 +69,7 @@ function MatchHistoryPage() {
 
   return (
     <div style={styles.pageWrapper}>
-      {/* 네비게이션바 */}
+      {/* 네비게이션 */}
       <nav style={styles.navbar}>
         <div style={styles.left}>
           <img
@@ -111,9 +114,11 @@ function MatchHistoryPage() {
         {!loading && error && (
           <div style={styles.errorBox}>
             <p style={styles.errorText}>{error}</p>
-            <button style={styles.primaryButton} onClick={() => navigate('/login')}>
-              로그인 하러 가기
-            </button>
+            {!hasToken && (
+              <button style={styles.primaryButton} onClick={() => navigate('/login')}>
+                로그인 하러 가기
+              </button>
+            )}
           </div>
         )}
 
@@ -126,7 +131,7 @@ function MatchHistoryPage() {
                   <h2 style={styles.profileTitle}>
                     {profile.gameName}#{profile.tagLine}
                   </h2>
-                  <p style={styles.profileSub}>레벨 {profile.accountLevel}</p>
+                  <p style={styles.profileSub}>PUUID: {profile.puuid}</p>
                 </div>
               </div>
             )}
@@ -140,17 +145,16 @@ function MatchHistoryPage() {
                 {matches.map((match) => (
                   <div key={match.matchId} style={styles.matchCard}>
                     <div style={styles.matchHeader}>
-                      <span style={styles.matchMap}>{match.map || "미확인 맵"}</span>
+                      <span style={styles.matchMap}>{match.map || '미확인 맵'}</span>
                       <span
                         style={{
                           ...styles.matchResult,
                           color: match.win ? '#4CAF50' : '#F44336',
                         }}
                       >
-                        {match.win ? "승리" : "패배"}
+                        {match.win ? '승리' : '패배'}
                       </span>
                     </div>
-
                     <div style={styles.matchBody}>
                       <div style={styles.matchRow}>
                         <span style={styles.matchLabel}>K / D / A</span>
@@ -286,6 +290,33 @@ const styles = {
   },
   matchLabel: { color: '#888' },
   matchValue: { color: '#eee' },
+  profileBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  profileName: {
+    fontSize: '14px',
+    color: '#ddd',
+  },
+  loginButton: {
+    padding: '6px 14px',
+    borderRadius: '999px',
+    border: '1px solid #555',
+    backgroundColor: 'transparent',
+    color: '#eee',
+    cursor: 'pointer',
+    fontSize: '14px',
+  },
+  logoutButton: {
+    padding: '6px 14px',
+    borderRadius: '999px',
+    border: '1px solid #555',
+    backgroundColor: 'transparent',
+    color: '#eee',
+    cursor: 'pointer',
+    fontSize: '12px',
+  },
 };
 
 export default MatchHistoryPage;
