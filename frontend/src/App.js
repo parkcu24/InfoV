@@ -38,7 +38,7 @@ function App() {
       <Route path="/logout" element={<LogoutPage />} />
       <Route path="/schedule" element={<SchedulePage />} />
       <Route path="/callback" element={<CallbackPage />} />
-      <Route path="/match-history" element={<MatchHistoryPage />} />
+      <Route path="/matches" element={<MatchHistoryPage />} />
     </Routes>
   );
 }
