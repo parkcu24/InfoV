@@ -13,7 +13,7 @@ function CallbackPage() {
       localStorage.setItem('riot_access_token', token);
       console.log('✅ 로그인 성공! Access Token 저장됨:', token);
       console.log('받은 토큰:', token);
-      navigate('/'); // 홈 또는 전적 페이지로 이동
+      navigate('/matches'); // 홈 또는 전적 페이지로 이동
     } else {
       console.error('❌ access_token 없음');
       navigate('/');
