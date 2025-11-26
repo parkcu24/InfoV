@@ -65,7 +65,7 @@ router.get('/callback', async (req, res) => {
 });
 
 
-// ✅ 3️⃣ 프로필 정보 반환 (프론트의 /auth/profile 요청 처리)
+// 3️⃣ 프로필 정보 반환 (/auth/profile)
 router.get('/profile', async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -75,22 +75,19 @@ router.get('/profile', async (req, res) => {
   const accessToken = authHeader.split(' ')[1];
 
   try {
-    console.log('👤 [RSO DEBUG] /auth/profile 호출, 토큰 확인');
+    console.log('👤 [RSO DEBUG] /auth/profile 호출');
 
-    // RSO userinfo 다시 호출 (콜백에서 한 번 했던 그 API)
     const userInfoRes = await axios.get('https://auth.riotgames.com/userinfo', {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
     const data = userInfoRes.data;
 
-    // 프론트에서 쓰기 좋은 형태로 가공
     const profile = {
       gameName: data.acct?.game_name,
       tagLine: data.acct?.tag_line,
       puuid: data.sub,
       country: data.country,
-      // 필요하면 더 추가 가능
     };
 
     console.log('✅ [RSO DEBUG] /auth/profile 응답:', profile);
@@ -103,8 +100,8 @@ router.get('/profile', async (req, res) => {
 });
 
 
-// ✅ 4️⃣ 전적 정보 반환 (프론트의 /auth/matches 요청 처리)
-//    아직 RSO로 매치 히스토리까지 안 붙였다면, 일단 더미 데이터/빈 배열로 보내도 됨.
+// 4️⃣ 전적 정보 반환 (/auth/matches)
+//    지금은 더미 데이터로 UI만 먼저 확인하고, 나중에 Riot 매치 API 붙이자.
 router.get('/matches', async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -112,11 +109,9 @@ router.get('/matches', async (req, res) => {
   }
 
   const accessToken = authHeader.split(' ')[1];
-  console.log('🎮 [RSO DEBUG] /auth/matches 호출, 토큰:', accessToken.slice(0, 10), '...');
+  console.log('🎮 [RSO DEBUG] /auth/matches 호출, 토큰 앞 10자리:', accessToken.slice(0, 10), '...');
 
   try {
-    // TODO: 나중에 여기서 Riot 매치 API 붙이면 됨.
-    // 우선은 구조 테스트용으로 더미 데이터 리턴
     const dummyMatches = [
       {
         matchId: 'dummy-1',
