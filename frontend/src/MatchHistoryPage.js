@@ -291,7 +291,7 @@ const styles = {
   matchLabel: { color: '#888' },
   matchValue: { color: '#eee' },
   profileBox: {
-    display: 'flex',
+    display: 'flex',          
     alignItems: 'center',
     gap: '10px',
   },
@@ -320,3 +320,4 @@ const styles = {
 };
 
 export default MatchHistoryPage;
+z

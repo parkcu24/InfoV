@@ -14,7 +14,7 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'https://infov.vercel.app';
 router.get('/login', (req, res) => {
   const authorizeUrl = `https://auth.riotgames.com/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(
     REDIRECT_URI
-  )}&response_type=code&scope=openid`;
+  )}&response_type=code&scope=openid%20profile`; // ⭐ scope에 profile 추가 (공백은 %20)
 
   console.log('------------------------------------------');
   console.log('🧭 [RSO DEBUG] 로그인 요청 발생');
