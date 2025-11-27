@@ -320,4 +320,3 @@ const styles = {
 };
 
 export default MatchHistoryPage;
-z
