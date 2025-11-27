@@ -10,11 +10,14 @@ const CLIENT_SECRET = process.env.RIOT_CLIENT_SECRET;
 const REDIRECT_URI = process.env.RIOT_REDIRECT_URI;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://infov.vercel.app';
 
-// 1️⃣ 로그인 페이지로 이동
+
+// ------------------------------------------------------
+// 1️⃣ Riot 로그인 페이지로 이동
+// ------------------------------------------------------
 router.get('/login', (req, res) => {
   const authorizeUrl = `https://auth.riotgames.com/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(
     REDIRECT_URI
-  )}&response_type=code&scope=openid%20profile`; // ⭐ scope에 profile 추가 (공백은 %20)
+  )}&response_type=code&scope=openid%20profile`; // ★ profile 포함
 
   console.log('------------------------------------------');
   console.log('🧭 [RSO DEBUG] 로그인 요청 발생');
@@ -27,7 +30,10 @@ router.get('/login', (req, res) => {
   res.redirect(authorizeUrl);
 });
 
+
+// ------------------------------------------------------
 // 2️⃣ Riot 로그인 성공 후 콜백
+// ------------------------------------------------------
 router.get('/callback', async (req, res) => {
   const { code } = req.query;
   if (!code) return res.status(400).send('Authorization code not found');
@@ -47,15 +53,17 @@ router.get('/callback', async (req, res) => {
     });
 
     const { access_token } = tokenResponse.data;
-    console.log('✅ [RSO DEBUG] Access Token 획득 완료');
+    console.log('✅ [RSO DEBUG] Access Token 획득 완료:', access_token.slice(0, 20) + '...');
 
+    // 유저 정보 요청
     const userInfo = await axios.get('https://auth.riotgames.com/userinfo', {
       headers: { Authorization: `Bearer ${access_token}` },
     });
 
-    console.log('✅ [RSO DEBUG] 로그인 성공:', userInfo.data);
+    console.log('✅ [RSO DEBUG] 로그인 성공');
+    console.log(JSON.stringify(userInfo.data, null, 2));
 
-    // ✅ access_token 프론트로 전달
+    // 프론트엔드로 토큰 전달
     res.redirect(`${FRONTEND_URL}/callback?access_token=${access_token}`);
   } catch (err) {
     console.error('❌ [RSO DEBUG] OAuth 처리 중 오류 발생:');
@@ -65,9 +73,12 @@ router.get('/callback', async (req, res) => {
 });
 
 
+// ------------------------------------------------------
 // 3️⃣ 프로필 정보 반환 (/auth/profile)
+// ------------------------------------------------------
 router.get('/profile', async (req, res) => {
   const authHeader = req.headers.authorization;
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'No access token provided' });
   }
@@ -76,12 +87,17 @@ router.get('/profile', async (req, res) => {
 
   try {
     console.log('👤 [RSO DEBUG] /auth/profile 호출');
+    console.log('🔑 Access Token 앞자리:', accessToken.slice(0, 20), '...');
 
+    // Riot UserInfo API 호출
     const userInfoRes = await axios.get('https://auth.riotgames.com/userinfo', {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
     const data = userInfoRes.data;
+
+    // 🔥 여기! raw userinfo 로그
+    console.log('🧾 [RSO DEBUG] raw userinfo:', JSON.stringify(data, null, 2));
 
     const profile = {
       gameName: data.acct?.game_name,
@@ -92,6 +108,7 @@ router.get('/profile', async (req, res) => {
 
     console.log('✅ [RSO DEBUG] /auth/profile 응답:', profile);
     res.json(profile);
+
   } catch (err) {
     console.error('❌ [RSO DEBUG] /auth/profile 에러:');
     console.error(err.response?.data || err.message);
@@ -100,16 +117,18 @@ router.get('/profile', async (req, res) => {
 });
 
 
-// 4️⃣ 전적 정보 반환 (/auth/matches)
-//    지금은 더미 데이터로 UI만 먼저 확인하고, 나중에 Riot 매치 API 붙이자.
+// ------------------------------------------------------
+// 4️⃣ 전적 정보 반환 (/auth/matches) — 더미 데이터
+// ------------------------------------------------------
 router.get('/matches', async (req, res) => {
   const authHeader = req.headers.authorization;
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'No access token provided' });
   }
 
   const accessToken = authHeader.split(' ')[1];
-  console.log('🎮 [RSO DEBUG] /auth/matches 호출, 토큰 앞 10자리:', accessToken.slice(0, 10), '...');
+  console.log('🎮 [RSO DEBUG] /auth/matches 호출, 토큰 앞자리:', accessToken.slice(0, 10), '...');
 
   try {
     const dummyMatches = [
@@ -132,6 +151,7 @@ router.get('/matches', async (req, res) => {
     ];
 
     res.json({ matches: dummyMatches });
+
   } catch (err) {
     console.error('❌ [RSO DEBUG] /auth/matches 에러:');
     console.error(err.response?.data || err.message);
