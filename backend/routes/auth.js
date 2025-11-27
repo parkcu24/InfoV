@@ -10,14 +10,13 @@ const CLIENT_SECRET = process.env.RIOT_CLIENT_SECRET;
 const REDIRECT_URI = process.env.RIOT_REDIRECT_URI;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://infov.vercel.app';
 
-
-// ------------------------------------------------------
-// 1️⃣ Riot 로그인 페이지로 이동
-// ------------------------------------------------------
+/* -----------------------------------------------------------
+   1️⃣ 로그인 페이지로 이동
+----------------------------------------------------------- */
 router.get('/login', (req, res) => {
   const authorizeUrl = `https://auth.riotgames.com/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(
     REDIRECT_URI
-  )}&response_type=code&scope=openid%20profile`; // ★ profile 포함
+  )}&response_type=code&scope=openid`;
 
   console.log('------------------------------------------');
   console.log('🧭 [RSO DEBUG] 로그인 요청 발생');
@@ -30,12 +29,12 @@ router.get('/login', (req, res) => {
   res.redirect(authorizeUrl);
 });
 
-
-// ------------------------------------------------------
-// 2️⃣ Riot 로그인 성공 후 콜백
-// ------------------------------------------------------
+/* -----------------------------------------------------------
+   2️⃣ Riot 로그인 성공 → callback
+----------------------------------------------------------- */
 router.get('/callback', async (req, res) => {
   const { code } = req.query;
+
   if (!code) return res.status(400).send('Authorization code not found');
 
   try {
@@ -53,17 +52,14 @@ router.get('/callback', async (req, res) => {
     });
 
     const { access_token } = tokenResponse.data;
-    console.log('✅ [RSO DEBUG] Access Token 획득 완료:', access_token.slice(0, 20) + '...');
+    console.log('✅ [RSO DEBUG] Access Token 획득 완료');
 
-    // 유저 정보 요청
     const userInfo = await axios.get('https://auth.riotgames.com/userinfo', {
       headers: { Authorization: `Bearer ${access_token}` },
     });
 
-    console.log('✅ [RSO DEBUG] 로그인 성공');
-    console.log(JSON.stringify(userInfo.data, null, 2));
+    console.log('✅ [RSO DEBUG] 로그인 성공:', userInfo.data);
 
-    // 프론트엔드로 토큰 전달
     res.redirect(`${FRONTEND_URL}/callback?access_token=${access_token}`);
   } catch (err) {
     console.error('❌ [RSO DEBUG] OAuth 처리 중 오류 발생:');
@@ -72,10 +68,9 @@ router.get('/callback', async (req, res) => {
   }
 });
 
-
-// ------------------------------------------------------
-// 3️⃣ 프로필 정보 반환 (/auth/profile)
-// ------------------------------------------------------
+/* -----------------------------------------------------------
+   3️⃣ 프로필 정보 반환 (/auth/profile)
+----------------------------------------------------------- */
 router.get('/profile', async (req, res) => {
   const authHeader = req.headers.authorization;
 
@@ -89,19 +84,47 @@ router.get('/profile', async (req, res) => {
     console.log('👤 [RSO DEBUG] /auth/profile 호출');
     console.log('🔑 Access Token 앞자리:', accessToken.slice(0, 20), '...');
 
-    // Riot UserInfo API 호출
     const userInfoRes = await axios.get('https://auth.riotgames.com/userinfo', {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
     const data = userInfoRes.data;
 
-    // 🔥 여기! raw userinfo 로그
+    // 🔥 전체 userinfo 출력
     console.log('🧾 [RSO DEBUG] raw userinfo:', JSON.stringify(data, null, 2));
 
+    // ---------------------------
+    // 여러 케이스에 대응해 닉네임/태그를 최대한 추출
+    // ---------------------------
+
+    // 1) 표준 RSO 형태
+    const acct = data.acct || {};
+    let gameName = acct.game_name || null;
+    let tagLine = acct.tag_line || null;
+
+    // 2) preferred_username: "닉네임#태그"
+    if ((!gameName || !tagLine) && typeof data.preferred_username === 'string') {
+      const [gn, tl] = data.preferred_username.split('#');
+      if (!gameName && gn) gameName = gn;
+      if (!tagLine && tl) tagLine = tl;
+    }
+
+    // 3) 혹시 개별 필드로 옴
+    if (!gameName && typeof data.game_name === 'string') {
+      gameName = data.game_name;
+    }
+    if (!tagLine && typeof data.tag_line === 'string') {
+      tagLine = data.tag_line;
+    }
+
+    // 4) 일반 필드 fallback
+    if (!gameName && typeof data.name === 'string') {
+      gameName = data.name;
+    }
+
     const profile = {
-      gameName: data.acct?.game_name,
-      tagLine: data.acct?.tag_line,
+      gameName: gameName || null,
+      tagLine: tagLine || null,
       puuid: data.sub,
       country: data.country,
     };
@@ -116,10 +139,9 @@ router.get('/profile', async (req, res) => {
   }
 });
 
-
-// ------------------------------------------------------
-// 4️⃣ 전적 정보 반환 (/auth/matches) — 더미 데이터
-// ------------------------------------------------------
+/* -----------------------------------------------------------
+   4️⃣ 전적 정보 반환 (현재 더미 데이터)
+----------------------------------------------------------- */
 router.get('/matches', async (req, res) => {
   const authHeader = req.headers.authorization;
 
@@ -128,30 +150,15 @@ router.get('/matches', async (req, res) => {
   }
 
   const accessToken = authHeader.split(' ')[1];
-  console.log('🎮 [RSO DEBUG] /auth/matches 호출, 토큰 앞자리:', accessToken.slice(0, 10), '...');
+  console.log('🎮 [RSO DEBUG] /auth/matches 호출, 토큰 앞 10자리:', accessToken.slice(0, 10), '...');
 
   try {
     const dummyMatches = [
-      {
-        matchId: 'dummy-1',
-        map: 'Ascent',
-        win: true,
-        kills: 20,
-        deaths: 15,
-        assists: 5,
-      },
-      {
-        matchId: 'dummy-2',
-        map: 'Bind',
-        win: false,
-        kills: 12,
-        deaths: 17,
-        assists: 7,
-      },
+      { matchId: 'dummy-1', map: 'Ascent', win: true, kills: 20, deaths: 15, assists: 5 },
+      { matchId: 'dummy-2', map: 'Bind', win: false, kills: 12, deaths: 17, assists: 7 },
     ];
 
     res.json({ matches: dummyMatches });
-
   } catch (err) {
     console.error('❌ [RSO DEBUG] /auth/matches 에러:');
     console.error(err.response?.data || err.message);

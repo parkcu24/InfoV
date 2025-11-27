@@ -64,7 +64,7 @@ function MatchHistoryPage() {
 
   const handleLogout = () => {
     localStorage.removeItem('riot_access_token');
-    navigate('/login');
+    navigate('/');
   };
 
   // 닉네임 표시용 (gameName/tagLine 없으면 안내 문구)
