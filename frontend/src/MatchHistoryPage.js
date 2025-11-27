@@ -30,7 +30,7 @@ function MatchHistoryPage() {
         setError('');
         setLoading(true);
 
-        // 🔥 1) 프로필 정보 가져오기
+        // 1) 프로필 정보 가져오기
         const profileRes = await fetch(`${API_BASE_URL}/api/auth/profile`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -41,7 +41,7 @@ function MatchHistoryPage() {
         const profileData = await profileRes.json();
         setProfile(profileData);
 
-        // 🔥 2) 전적 정보 가져오기
+        // 2) 전적 정보 가져오기
         const matchesRes = await fetch(`${API_BASE_URL}/api/auth/matches`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -66,6 +66,14 @@ function MatchHistoryPage() {
     localStorage.removeItem('riot_access_token');
     navigate('/login');
   };
+
+  // 닉네임 표시용 (gameName/tagLine 없으면 안내 문구)
+  const displayName =
+    profile?.gameName && profile?.tagLine
+      ? `${profile.gameName}#${profile.tagLine}`
+      : profile
+      ? '닉네임 정보를 불러오지 못했습니다.'
+      : '';
 
   return (
     <div style={styles.pageWrapper}>
@@ -92,9 +100,7 @@ function MatchHistoryPage() {
         <div style={styles.right}>
           {profile ? (
             <div style={styles.profileBox}>
-              <span style={styles.profileName}>
-                {profile.gameName}#{profile.tagLine}
-              </span>
+              <span style={styles.profileName}>{displayName}</span>
               <button style={styles.logoutButton} onClick={handleLogout}>
                 로그아웃
               </button>
@@ -128,10 +134,11 @@ function MatchHistoryPage() {
             {profile && (
               <div style={styles.profileCard}>
                 <div>
-                  <h2 style={styles.profileTitle}>
-                    {profile.gameName}#{profile.tagLine}
-                  </h2>
+                  <h2 style={styles.profileTitle}>{displayName}</h2>
                   <p style={styles.profileSub}>PUUID: {profile.puuid}</p>
+                  {profile.country && (
+                    <p style={styles.profileSub}>지역: {profile.country}</p>
+                  )}
                 </div>
               </div>
             )}
@@ -183,18 +190,18 @@ const styles = {
     paddingTop: '72px',
   },
   navbar: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '20px 40px',
-    backgroundColor: '#1E1E1E',
-    borderBottom: '1px solid #333',
-    position: 'fixed',
-    top: 0,
-    width: '100%',
-    height: '72px',
-    zIndex: 1000,
-  },
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '20px 40px',
+  backgroundColor: '#1E1E1E',     // ← ✔ 정상
+  borderBottom: '1px solid #333', // ← ✔ 정상
+  position: 'fixed',
+  top: 0,
+  width: '100%',
+  height: '72px',
+  zIndex: 1000,
+},
   left: { flex: 1 },
   center: {
     flex: 1,
@@ -291,7 +298,7 @@ const styles = {
   matchLabel: { color: '#888' },
   matchValue: { color: '#eee' },
   profileBox: {
-    display: 'flex',          
+    display: 'flex',
     alignItems: 'center',
     gap: '10px',
   },
