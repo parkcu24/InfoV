@@ -74,11 +74,16 @@ function MatchHistoryPage() {
     return '닉네임 정보를 불러오지 못했습니다.';
   };
 
-  const getAgentImageSrc = (agentName) => {
-    if (!agentName) return '/agents/default.png'; // 기본 이미지 있으면 사용
-    // ⚠️ 폴더명이 /agnets 라면 여기만 '/agnets' 로 바꿔줘
-    return `/agents/${agentName}.png`;
-  };
+ const getAgentImageSrc = (agentName) => {
+  if (!agentName) return '/agents/default.png';
+
+  const file = agentName
+    .toLowerCase()
+    .replace(/\s+/g, '')    // 공백 제거
+    .replace(/[^\w]/g, ''); // 특수문자 제거(KAY/O → kayo)
+
+  return `/agents/${file}.png`;
+};
 
   return (
     <div style={styles.pageWrapper}>
