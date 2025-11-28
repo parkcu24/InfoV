@@ -30,7 +30,7 @@ function MatchHistoryPage() {
         setError('');
         setLoading(true);
 
-        // 1) 프로필 정보 가져오기
+        // 1) 프로필 정보
         const profileRes = await fetch(`${API_BASE_URL}/api/auth/profile`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -41,7 +41,7 @@ function MatchHistoryPage() {
         const profileData = await profileRes.json();
         setProfile(profileData);
 
-        // 2) 전적 정보 가져오기
+        // 2) 전적 정보
         const matchesRes = await fetch(`${API_BASE_URL}/api/auth/matches`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -64,16 +64,21 @@ function MatchHistoryPage() {
 
   const handleLogout = () => {
     localStorage.removeItem('riot_access_token');
-    navigate('/');
+    navigate('/login');
   };
 
-  // 닉네임 표시용 (gameName/tagLine 없으면 안내 문구)
-  const displayName =
-    profile?.gameName && profile?.tagLine
-      ? `${profile.gameName}#${profile.tagLine}`
-      : profile
-      ? '닉네임 정보를 불러오지 못했습니다.'
-      : '';
+  const getDisplayName = (p) => {
+    if (!p) return '';
+    if (p.gameName && p.tagLine) return `${p.gameName}#${p.tagLine}`;
+    if (p.gameName) return p.gameName;
+    return '닉네임 정보를 불러오지 못했습니다.';
+  };
+
+  const getAgentImageSrc = (agentName) => {
+    if (!agentName) return '/agents/default.png'; // 기본 이미지 있으면 사용
+    // ⚠️ 폴더명이 /agnets 라면 여기만 '/agnets' 로 바꿔줘
+    return `/agents/${agentName}.png`;
+  };
 
   return (
     <div style={styles.pageWrapper}>
@@ -89,18 +94,30 @@ function MatchHistoryPage() {
         </div>
 
         <div style={styles.center}>
-          <span style={styles.navItem} onClick={() => navigate('/agents')}>요원</span>
-          <span style={styles.navItem} onClick={() => navigate('/maps')}>맵 로테이션</span>
-          <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span>
-          <span style={styles.navItem} onClick={() => navigate('/rank')}>랭킹</span>
-          <span style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
-          <span style={styles.navItem} onClick={() => navigate('/matches')}>전적</span>
+          <span style={styles.navItem} onClick={() => navigate('/agents')}>
+            요원
+          </span>
+          <span style={styles.navItem} onClick={() => navigate('/maps')}>
+            맵 로테이션
+          </span>
+          <span style={styles.navItem} onClick={() => navigate('/skins')}>
+            스킨
+          </span>
+          <span style={styles.navItem} onClick={() => navigate('/rank')}>
+            랭킹
+          </span>
+          <span style={styles.navItem} onClick={() => navigate('/esports')}>
+            E-Sports
+          </span>
+          <span style={styles.navItem} onClick={() => navigate('/matches')}>
+            전적
+          </span>
         </div>
 
         <div style={styles.right}>
           {profile ? (
             <div style={styles.profileBox}>
-              <span style={styles.profileName}>{displayName}</span>
+              <span style={styles.profileName}>{getDisplayName(profile)}</span>
               <button style={styles.logoutButton} onClick={handleLogout}>
                 로그아웃
               </button>
@@ -134,10 +151,9 @@ function MatchHistoryPage() {
             {profile && (
               <div style={styles.profileCard}>
                 <div>
-                  <h2 style={styles.profileTitle}>{displayName}</h2>
-                  <p style={styles.profileSub}>PUUID: {profile.puuid}</p>
-                  {profile.country && (
-                    <p style={styles.profileSub}>지역: {profile.country}</p>
+                  <h2 style={styles.profileTitle}>{getDisplayName(profile)}</h2>
+                  {profile.puuid && (
+                    <p style={styles.profileSub}>PUUID: {profile.puuid}</p>
                   )}
                 </div>
               </div>
@@ -149,29 +165,107 @@ function MatchHistoryPage() {
               <p style={styles.message}>전적이 없습니다.</p>
             ) : (
               <div style={styles.matchList}>
-                {matches.map((match) => (
-                  <div key={match.matchId} style={styles.matchCard}>
-                    <div style={styles.matchHeader}>
-                      <span style={styles.matchMap}>{match.map || '미확인 맵'}</span>
-                      <span
-                        style={{
-                          ...styles.matchResult,
-                          color: match.win ? '#4CAF50' : '#F44336',
-                        }}
-                      >
-                        {match.win ? '승리' : '패배'}
-                      </span>
-                    </div>
-                    <div style={styles.matchBody}>
-                      <div style={styles.matchRow}>
-                        <span style={styles.matchLabel}>K / D / A</span>
-                        <span style={styles.matchValue}>
-                          {match.kills} / {match.deaths} / {match.assists}
-                        </span>
+                {matches.map((match) => {
+                  const k = match.kills ?? 0;
+                  const d = match.deaths ?? 0;
+                  const a = match.assists ?? 0;
+                  const kd =
+                    match.kd != null
+                      ? match.kd
+                      : d > 0
+                      ? (k / d).toFixed(2)
+                      : k.toFixed(2);
+
+                  const acs =
+                    match.acs != null ? match.acs : '-';
+                  const adr =
+                    match.adr != null ? match.adr : '-';
+                  const hs =
+                    match.hsPercent != null ? `${match.hsPercent}%` : '-';
+
+                  const scoreText =
+                    match.teamScore != null && match.enemyScore != null
+                      ? `${match.teamScore} : ${match.enemyScore}`
+                      : match.win
+                      ? '승리'
+                      : '패배';
+
+                  const isWin =
+                    typeof match.win === 'boolean'
+                      ? match.win
+                      : match.teamScore > match.enemyScore;
+
+                  return (
+                    <div key={match.matchId} style={styles.matchRowCard}>
+                      {/* 왼쪽: 에이전트 + 맵/큐 */}
+                      <div style={styles.matchLeft}>
+                        <img
+                          src={getAgentImageSrc(match.agent)}
+                          alt={match.agent || 'Agent'}
+                          style={styles.agentImage}
+                          onError={(e) => {
+                            // 이미지 없으면 숨기기
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                        <div style={styles.matchLeftText}>
+                          <div style={styles.mapName}>{match.map || 'Unknown Map'}</div>
+                          <div style={styles.queueText}>
+                            {match.queue || 'Mode'} · {match.timeAgo || ''}
+                          </div>
+                          <div style={styles.scoreBox}>
+                            <span
+                              style={{
+                                ...styles.scoreText,
+                                color: isWin ? '#4CAF50' : '#F44336',
+                              }}
+                            >
+                              {scoreText}
+                            </span>
+                            {match.placement && (
+                              <span style={styles.placementBadge}>
+                                {match.placement}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 오른쪽: 스탯 라인 */}
+                      <div style={styles.statsRow}>
+                        <div style={styles.statBlock}>
+                          <span style={styles.statLabel}>K / D / A</span>
+                          <span style={styles.statValue}>
+                            {k} / {d} / {a}
+                          </span>
+                        </div>
+                        <div style={styles.statBlock}>
+                          <span style={styles.statLabel}>K/D</span>
+                          <span
+                            style={{
+                              ...styles.statValue,
+                              color: kd >= 1 ? '#4CAF50' : '#F44336',
+                            }}
+                          >
+                            {kd}
+                          </span>
+                        </div>
+                        <div style={styles.statBlock}>
+                          <span style={styles.statLabel}>ACS</span>
+                          <span style={styles.statValue}>{acs}</span>
+                        </div>
+                        <div style={styles.statBlock}>
+                          <span style={styles.statLabel}>ADR</span>
+                          <span style={styles.statValue}>{adr}</span>
+                        </div>
+                        <div style={styles.statBlock}>
+                          <span style={styles.statLabel}>HS%</span>
+                          <span style={styles.statValue}>{hs}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </>
@@ -190,18 +284,18 @@ const styles = {
     paddingTop: '72px',
   },
   navbar: {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: '20px 40px',
-  backgroundColor: '#1E1E1E',     // ← ✔ 정상
-  borderBottom: '1px solid #333', // ← ✔ 정상
-  position: 'fixed',
-  top: 0,
-  width: '100%',
-  height: '72px',
-  zIndex: 1000,
-},
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '20px 40px',
+    backgroundColor: '#1E1E1E',
+    borderBottom: '1px solid #333',
+    position: 'fixed',
+    top: 0,
+    width: '100%',
+    height: '72px',
+    zIndex: 1000,
+  },
   left: { flex: 1 },
   center: {
     flex: 1,
@@ -272,31 +366,87 @@ const styles = {
     marginBottom: '10px',
     fontSize: '20px',
   },
+
+  // ▶ 한 줄 전적 리스트
   matchList: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-    gap: '14px',
-  },
-  matchCard: {
-    backgroundColor: '#1b1b1b',
-    padding: '14px',
-    borderRadius: '12px',
-    border: '1px solid #333',
-  },
-  matchHeader: {
     display: 'flex',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    gap: '10px',
   },
-  matchMap: { fontSize: '16px' },
-  matchResult: { fontWeight: 'bold' },
-  matchBody: { marginTop: '6px' },
-  matchRow: {
+  matchRowCard: {
     display: 'flex',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: '4px',
+    backgroundColor: '#181818',
+    padding: '12px 16px',
+    borderRadius: '10px',
+    border: '1px solid #303030',
   },
-  matchLabel: { color: '#888' },
-  matchValue: { color: '#eee' },
+  matchLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    minWidth: 0,
+  },
+  agentImage: {
+    width: '48px',
+    height: '48px',
+    borderRadius: '4px',
+    objectFit: 'cover',
+  },
+  matchLeftText: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+  },
+  mapName: {
+    fontSize: '16px',
+    fontWeight: '600',
+  },
+  queueText: {
+    fontSize: '12px',
+    color: '#999',
+  },
+  scoreBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginTop: '2px',
+  },
+  scoreText: {
+    fontSize: '14px',
+    fontWeight: '600',
+  },
+  placementBadge: {
+    fontSize: '11px',
+    padding: '2px 6px',
+    borderRadius: '999px',
+    backgroundColor: '#262626',
+    color: '#ccc',
+  },
+
+  statsRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '18px',
+    fontSize: '12px',
+  },
+  statBlock: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    minWidth: '60px',
+  },
+  statLabel: {
+    color: '#777',
+    fontSize: '11px',
+  },
+  statValue: {
+    color: '#eee',
+    fontSize: '13px',
+    fontWeight: '500',
+  },
+
   profileBox: {
     display: 'flex',
     alignItems: 'center',

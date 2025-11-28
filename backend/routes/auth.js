@@ -164,6 +164,7 @@ router.get('/profile', async (req, res) => {
 });
 
 // 4️⃣ 전적 정보 반환 (/api/auth/matches) – 현재는 더미 데이터
+// 4️⃣ 전적 정보 반환 (/api/auth/matches) – 현재는 더미 데이터
 router.get('/matches', async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -178,19 +179,45 @@ router.get('/matches', async (req, res) => {
     const dummyMatches = [
       {
         matchId: 'dummy-1',
-        map: 'Ascent',
+        map: 'Split',
+        queue: 'Competitive',
+        timeAgo: '17h ago',
+        agent: 'Raze',         // 📌 /public/agents/Raze.png 이런 식으로 저장했다고 가정
+        teamScore: 13,
+        enemyScore: 4,
+        rankTier: 'Emerald',
+        rr: 473,
+        placement: '6th',
+        kills: 12,
+        deaths: 11,
+        assists: 2,
+        kd: 1.1,
+        acs: 180,
+        adr: 108,
+        hsPercent: 36,
+        ddDelta: -11,         // 데미지 차이 같은 거 (없으면 빼도 됨)
         win: true,
-        kills: 20,
-        deaths: 15,
-        assists: 5,
       },
       {
         matchId: 'dummy-2',
         map: 'Bind',
+        queue: 'Competitive',
+        timeAgo: '2d ago',
+        agent: 'Jett',
+        teamScore: 9,
+        enemyScore: 13,
+        rankTier: 'Platinum',
+        rr: 421,
+        placement: '4th',
+        kills: 18,
+        deaths: 20,
+        assists: 3,
+        kd: 0.9,
+        acs: 210,
+        adr: 130,
+        hsPercent: 22,
+        ddDelta: 15,
         win: false,
-        kills: 12,
-        deaths: 17,
-        assists: 7,
       },
     ];
 
@@ -201,5 +228,6 @@ router.get('/matches', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch matches' });
   }
 });
+
 
 module.exports = router;
