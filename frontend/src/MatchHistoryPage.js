@@ -64,7 +64,7 @@ function MatchHistoryPage() {
 
   const handleLogout = () => {
     localStorage.removeItem('riot_access_token');
-    navigate('/login');
+    navigate('/');
   };
 
   const getDisplayName = (p) => {
