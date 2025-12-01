@@ -1,4 +1,4 @@
-// 📁 routes/auth.js
+// 📁 backend/routes/auth.js
 const express = require('express');
 const axios = require('axios');
 require('dotenv').config();
@@ -10,11 +10,15 @@ const CLIENT_SECRET = process.env.RIOT_CLIENT_SECRET;
 const REDIRECT_URI = process.env.RIOT_REDIRECT_URI;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://infov.vercel.app';
 
-// 1️⃣ 로그인 페이지로 이동
+const HENRIK_BASE_URL = 'https://api.henrikdev.xyz/valorant';
+
+// -----------------------------------------------------
+// 1️⃣ 로그인 페이지로 이동 (기존 그대로)
+// -----------------------------------------------------
 router.get('/login', (req, res) => {
   const authorizeUrl = `https://auth.riotgames.com/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(
     REDIRECT_URI
-  )}&response_type=code&scope=openid+offline_access`;
+  )}&response_type=code&scope=openid`;
 
   console.log('------------------------------------------');
   console.log('🧭 [RSO DEBUG] 로그인 요청 발생');
@@ -27,7 +31,9 @@ router.get('/login', (req, res) => {
   res.redirect(authorizeUrl);
 });
 
-// 2️⃣ Riot 로그인 성공 후 콜백
+// -----------------------------------------------------
+// 2️⃣ Riot 로그인 성공 후 콜백 (기존 그대로)
+// -----------------------------------------------------
 router.get('/callback', async (req, res) => {
   const { code } = req.query;
   if (!code) return res.status(400).send('Authorization code not found');
@@ -53,16 +59,16 @@ router.get('/callback', async (req, res) => {
     const { access_token } = tokenResponse.data;
     console.log('✅ [RSO DEBUG] Access Token 획득 완료');
 
-    // userinfo는 여기서 굳이 쓰지 않아도 됨 (디버그용으로만 사용 가능)
     const userInfo = await axios.get('https://auth.riotgames.com/userinfo', {
       headers: { Authorization: `Bearer ${access_token}` },
     });
-    console.log('✅ [RSO DEBUG] 로그인 성공 (userinfo 일부):', {
-      sub: userInfo.data.sub,
-      jti: userInfo.data.jti,
-    });
 
-    // ✅ access_token 프론트로 전달
+    console.log('✅ [RSO DEBUG] 로그인 성공 (RSO userinfo):', userInfo.data);
+
+    // 👉 여기서 userInfo.data 안에 acct.game_name, acct.tag_line 이 들어올 수도 있음
+    // 다만 scope를 openid만 줘서, 안 올 가능성도 있음.
+    // 일단은 access_token만 프론트로 넘기고, 이름/태그는 프론트에서 입력받아 사용하는 방식으로 시작하자.
+
     res.redirect(`${FRONTEND_URL}/callback?access_token=${access_token}`);
   } catch (err) {
     console.error('❌ [RSO DEBUG] OAuth 처리 중 오류 발생:');
@@ -71,289 +77,129 @@ router.get('/callback', async (req, res) => {
   }
 });
 
-// 3️⃣ 프로필 정보 반환 (/api/auth/profile)
-router.get('/profile', async (req, res) => {
-  const authHeader = req.headers.authorization;
+// -----------------------------------------------------
+// 🔧 공통: Henrik API 호출 헬퍼
+// -----------------------------------------------------
+async function callHenrik(path) {
+  const url = `${HENRIK_BASE_URL}${path}`;
+  console.log('🌐 [HENRIK] GET', url);
+  const res = await axios.get(url, {
+    headers: {
+      // Henrik는 기본적으로 토큰 필요 없음, 그래도 UA 정도는 깔끔하게
+      'User-Agent': 'InfoV-Valorant-App',
+    },
+  });
+  return res.data; // { status, data, ... }
+}
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'No access token provided' });
+// -----------------------------------------------------
+// 3️⃣ /auth/profile
+//    - 쿼리: name, tag (예: ?name=요원&tag=KR1)
+//    - 응답: 티어, 레벨, 카드, 지역 등 요약 정보
+// -----------------------------------------------------
+router.get('/profile', async (req, res) => {
+  const { name, tag } = req.query;
+
+  if (!name || !tag) {
+    return res.status(400).json({
+      error: '쿼리 파라미터 name, tag가 필요합니다. 예: /auth/profile?name=닉네임&tag=KR1',
+    });
   }
 
-  const accessToken = authHeader.split(' ')[1];
-
   try {
-    console.log('👤 [RSO DEBUG] /auth/profile 호출');
-    console.log('🔑 Access Token 앞자리:', accessToken.slice(0, 20), '...');
+    // 1) 계정 정보 (이름/태그/레벨/카드/지역 등)
+    const accountRes = await callHenrik(
+      `/v1/account/${encodeURIComponent(name)}/${encodeURIComponent(tag)}`
+    );
 
-    // 3-1) 기본 userinfo (sub, jti 등)
-    const userInfoRes = await axios.get('https://auth.riotgames.com/userinfo', {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-
-    const data = userInfoRes.data;
-    console.log('🧾 [RSO DEBUG] raw userinfo:', JSON.stringify(data, null, 2));
-
-    // 3-2) RSO 공식 문서에서 안내하는 account-v1 /accounts/me 호출
-    //     여기서 gameName, tagLine, puuid 를 얻는 게 목표
-    let gameName = null;
-    let tagLine = null;
-    let puuid = data.sub || null;
-
-    try {
-      console.log('🌍 [RSO DEBUG] account-v1 /accounts/me 호출 시도');
-      const accountRes = await axios.get(
-        'https://asia.api.riotgames.com/riot/account/v1/accounts/me',
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      const accountData = accountRes.data;
-      console.log(
-        '✅ [RSO DEBUG] account-v1 /accounts/me 응답:',
-        JSON.stringify(accountData, null, 2)
-      );
-
-      gameName = accountData.gameName || null;
-      tagLine = accountData.tagLine || null;
-      // 보통 puuid도 여기에서 함께 넘겨줌
-      if (accountData.puuid) puuid = accountData.puuid;
-    } catch (accountErr) {
-      console.error('❌ [RSO DEBUG] account-v1 /accounts/me 에러:');
-      console.error(accountErr.response?.data || accountErr.message);
-      // 실패해도 전체 /profile 은 계속 진행 (최악의 경우 PUUID만 돌려줌)
+    if (!accountRes || !accountRes.data) {
+      return res.status(404).json({ error: '계정 정보를 찾을 수 없습니다.' });
     }
 
-    // 3-3) 그래도 gameName / tagLine 이 없으면 userinfo 에서 한 번 더 시도
-    const acct = data.acct || {};
-    if (!gameName && acct.game_name) gameName = acct.game_name;
-    if (!tagLine && acct.tag_line) tagLine = acct.tag_line;
+    const account = accountRes.data;
+    const region = account.region || 'ap';
 
-    if (!gameName && typeof data.preferred_username === 'string') {
-      const [gn, tl] = data.preferred_username.split('#');
-      if (!gameName && gn) gameName = gn;
-      if (!tagLine && tl) tagLine = tl;
-    }
+    // 2) MMR / 티어 정보
+    const mmrRes = await callHenrik(
+      `/v1/mmr/${region}/${encodeURIComponent(name)}/${encodeURIComponent(tag)}`
+    );
 
-    if (!gameName && typeof data.game_name === 'string') {
-      gameName = data.game_name;
-    }
-    if (!tagLine && typeof data.tag_line === 'string') {
-      tagLine = data.tag_line;
-    }
-    if (!gameName && typeof data.name === 'string') {
-      gameName = data.name;
-    }
+    const mmr = mmrRes?.data || {};
+
+    // 🔹 여기서는 승/패/승률은 제외하고,
+    //     티어, 레벨, 카드, MMR 위주로 반환.
+    //     승률은 /auth/matches 결과로 프론트에서 계산하는 걸 추천.
 
     const profile = {
-      gameName: gameName || null,
-      tagLine: tagLine || null,
-      puuid,
-      country: data.country,
+      gameName: account.name,
+      tagLine: account.tag,
+      region,
+      accountLevel: account.account_level,
+      // 카드 이미지들
+      cardSmall: account.card?.small,
+      cardLarge: account.card?.large,
+      cardWide: account.card?.wide,
+
+      // 티어/랭크 정보
+      competitiveTier: mmr.currenttier ?? null,          // 숫자 (3~27)
+      currentTierPatched: mmr.currenttierpatched ?? '',  // 예: "Ascendant 1"
+      rankedRating: mmr.elo ?? null,                     // MMR 점수
+      rankingInTier: mmr.ranking_in_tier ?? null,        // 티어 내 순위
     };
 
-    console.log('✅ [RSO DEBUG] /auth/profile 응답:', profile);
     res.json(profile);
   } catch (err) {
-    console.error('❌ [RSO DEBUG] /auth/profile 에러:');
-    console.error(err.response?.data || err.message);
-    res.status(500).json({ error: 'Failed to fetch profile from Riot' });
+    console.error('❌ [AUTH /profile] 오류:', err.response?.data || err.message);
+    res.status(500).json({
+      error: 'Henrik API에서 프로필을 불러오는 중 오류가 발생했습니다.',
+    });
   }
 });
 
-// 4️⃣ 전적 정보 반환 (/api/auth/matches) – 현재는 더미 데이터
-// 4️⃣ 전적 정보 반환 (/api/auth/matches) – 현재는 더미 데이터
+// -----------------------------------------------------
+// 4️⃣ /auth/matches
+//    - 쿼리: name, tag, size (기본 10)
+//    - 응답: Henrik v3 matches 결과 그대로 or 필요한 필드만 추려서
+// -----------------------------------------------------
 router.get('/matches', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'No access token provided' });
-  }
+  const { name, tag, size = 10 } = req.query;
 
-  const accessToken = authHeader.split(' ')[1];
-  console.log('🎮 [RSO DEBUG] /auth/matches 호출, 토큰 앞 10자리:', accessToken.slice(0, 10), '...');
+  if (!name || !tag) {
+    return res.status(400).json({
+      error: '쿼리 파라미터 name, tag가 필요합니다. 예: /auth/matches?name=닉네임&tag=KR1',
+    });
+  }
 
   try {
-    const dummyMatches = [
-      {
-        matchId: 'm1',
-        map: 'Split',
-        queue: 'Competitive',
-        timeAgo: '17h ago',
-        agent: 'Raze',
-        teamScore: 13,
-        enemyScore: 4,
-        rankTier: 'Emerald',
-        rr: 473,
-        placement: '6th',
-        kills: 12,
-        deaths: 11,
-        assists: 2,
-        kd: 1.1,
-        acs: 180,
-        adr: 108,
-        hsPercent: 36,
-        ddDelta: -11,
-        win: true,
-      },
-      {
-        matchId: 'm2',
-        map: 'Split',
-        queue: 'Competitive',
-        timeAgo: '20h ago',
-        agent: 'Jett',
-        teamScore: 5,
-        enemyScore: 13,
-        rankTier: 'Emerald',
-        rr: 719,
-        placement: '2nd',
-        kills: 17,
-        deaths: 16,
-        assists: 5,
-        kd: 1.1,
-        acs: 293,
-        adr: 174,
-        hsPercent: 25,
-        ddDelta: 15,
-        win: false,
-      },
-      {
-        matchId: 'm3',
-        map: 'Abyss',
-        queue: 'Competitive',
-        timeAgo: '21h ago',
-        agent: 'Phoenix',
-        teamScore: 13,
-        enemyScore: 15,
-        rankTier: 'Emerald',
-        rr: 410,
-        placement: '7th',
-        kills: 17,
-        deaths: 22,
-        assists: 8,
-        kd: 0.8,
-        acs: 175,
-        adr: 108,
-        hsPercent: 38,
-        ddDelta: -27,
-        win: false,
-      },
-      {
-        matchId: 'm4',
-        map: 'Haven',
-        queue: 'Competitive',
-        timeAgo: '22h ago',
-        agent: 'Omen',
-        teamScore: 13,
-        enemyScore: 7,
-        rankTier: 'Emerald',
-        rr: 724,
-        placement: '6th',
-        kills: 14,
-        deaths: 14,
-        assists: 9,
-        kd: 1.0,
-        acs: 209,
-        adr: 140,
-        hsPercent: 28,
-        ddDelta: 20,
-        win: true,
-      },
-      {
-        matchId: 'm5',
-        map: 'Corrode',
-        queue: 'Competitive',
-        timeAgo: '1d ago',
-        agent: 'Harbor',
-        teamScore: 13,
-        enemyScore: 10,
-        rankTier: 'Emerald',
-        rr: 573,
-        placement: '9th',
-        kills: 15,
-        deaths: 15,
-        assists: 5,
-        kd: 1.0,
-        acs: 178,
-        adr: 122,
-        hsPercent: 18,
-        ddDelta: -16,
-        win: true,
-      },
-      {
-        matchId: 'm6',
-        map: 'Bind',
-        queue: 'Competitive',
-        timeAgo: '1d ago',
-        agent: 'Sova',
-        teamScore: 13,
-        enemyScore: 11,
-        rankTier: 'Emerald',
-        rr: 507,
-        placement: '6th',
-        kills: 16,
-        deaths: 20,
-        assists: 6,
-        kd: 0.8,
-        acs: 204,
-        adr: 135,
-        hsPercent: 37,
-        ddDelta: -6,
-        win: true,
-      },
-      {
-        matchId: 'm7',
-        map: 'Bind',
-        queue: 'Competitive',
-        timeAgo: '2d ago',
-        agent: 'Skye',
-        teamScore: 13,
-        enemyScore: 10,
-        rankTier: 'Emerald',
-        rr: 647,
-        placement: '6th',
-        kills: 19,
-        deaths: 14,
-        assists: 3,
-        kd: 1.4,
-        acs: 225,
-        adr: 140,
-        hsPercent: 32,
-        ddDelta: 18,
-        win: true,
-      },
-      {
-        matchId: 'm8',
-        map: 'Abyss',
-        queue: 'Competitive',
-        timeAgo: '3d ago',
-        agent: 'Viper',
-        teamScore: 9,
-        enemyScore: 13,
-        rankTier: 'Emerald',
-        rr: 345,
-        placement: '7th',
-        kills: 14,
-        deaths: 15,
-        assists: 3,
-        kd: 0.9,
-        acs: 190,
-        adr: 124,
-        hsPercent: 52,
-        ddDelta: -9,
-        win: false,
-      },
-    ];
+    // 1) 먼저 계정 정보에서 region 얻기
+    const accountRes = await callHenrik(
+      `/v1/account/${encodeURIComponent(name)}/${encodeURIComponent(tag)}`
+    );
 
-    // 배열 그대로 응답
-    res.json(dummyMatches);
+    if (!accountRes || !accountRes.data) {
+      return res.status(404).json({ error: '계정 정보를 찾을 수 없습니다.' });
+    }
+
+    const account = accountRes.data;
+    const region = account.region || 'ap';
+
+    // 2) 최근 경기 목록
+    const matchesRes = await callHenrik(
+      `/v3/matches/${region}/${encodeURIComponent(name)}/${encodeURIComponent(
+        tag
+      )}?size=${size}`
+    );
+
+    // Henrik v3/matches 응답 구조:
+    // { status: 200, data: [ ...매치들... ], ... }
+    // 일단은 data 배열을 그대로 프론트로 보내주자.
+    res.json(matchesRes);
   } catch (err) {
-    console.error('❌ [RSO DEBUG] /auth/matches 에러:');
-    console.error(err.response?.data || err.message);
-    res.status(500).json({ error: 'Failed to fetch matches' });
+    console.error('❌ [AUTH /matches] 오류:', err.response?.data || err.message);
+    res.status(500).json({
+      error: 'Henrik API에서 매치를 불러오는 중 오류가 발생했습니다.',
+    });
   }
 });
-
 
 module.exports = router;
