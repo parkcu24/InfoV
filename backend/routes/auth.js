@@ -18,7 +18,7 @@ const HENRIK_BASE = 'https://api.henrikdev.xyz';
 router.get('/login', (req, res) => {
   const authorizeUrl = `https://auth.riotgames.com/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(
     REDIRECT_URI
-  )}&response_type=code&scope=openid+offline_access`;
+  )}&response_type=code&scope=openid+offline_access&prompt=login`;
 
   console.log('------------------------------------------');
   console.log('🧭 [RSO DEBUG] 로그인 요청 발생');
