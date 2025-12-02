@@ -1,4 +1,4 @@
-// 📁 src/MatchHistoryPage.js
+// 📁 frontend/src/MatchHistoryPage.js
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -37,8 +37,20 @@ function MatchHistoryPage() {
           },
         });
 
-        if (!profileRes.ok) throw new Error('프로필 정보를 불러오지 못했습니다.');
+        if (!profileRes.ok) {
+          const errText = await profileRes.text();
+          console.error(
+            '[DEBUG] /api/auth/profile 실패',
+            profileRes.status,
+            errText
+          );
+          throw new Error(
+            `프로필 정보를 불러오지 못했습니다. (status ${profileRes.status})`
+          );
+        }
+
         const profileData = await profileRes.json();
+        console.log('[DEBUG] profileData:', profileData);
         setProfile(profileData);
 
         // 2) 전적 정보
@@ -48,8 +60,20 @@ function MatchHistoryPage() {
           },
         });
 
-        if (!matchesRes.ok) throw new Error('전적 정보를 불러오지 못했습니다.');
+        if (!matchesRes.ok) {
+          const errText = await matchesRes.text();
+          console.error(
+            '[DEBUG] /api/auth/matches 실패',
+            matchesRes.status,
+            errText
+          );
+          throw new Error(
+            `전적 정보를 불러오지 못했습니다. (status ${matchesRes.status})`
+          );
+        }
+
         const matchesData = await matchesRes.json();
+        console.log('[DEBUG] matchesData:', matchesData);
         setMatches(matchesData.matches || matchesData);
       } catch (err) {
         console.error(err);
@@ -64,7 +88,7 @@ function MatchHistoryPage() {
 
   const handleLogout = () => {
     localStorage.removeItem('riot_access_token');
-    navigate('/');
+    navigate('/login');
   };
 
   const getDisplayName = (p) => {
@@ -74,16 +98,16 @@ function MatchHistoryPage() {
     return '닉네임 정보를 불러오지 못했습니다.';
   };
 
- const getAgentImageSrc = (agentName) => {
-  if (!agentName) return '/agents/default.png';
+  const getAgentImageSrc = (agentName) => {
+    if (!agentName) return '/agents/default.png';
 
-  const file = agentName
-    .toLowerCase()
-    .replace(/\s+/g, '')    // 공백 제거
-    .replace(/[^\w]/g, ''); // 특수문자 제거(KAY/O → kayo)
+    const file = agentName
+      .toLowerCase()
+      .replace(/\s+/g, '') // 공백 제거
+      .replace(/[^\w]/g, ''); // 특수문자 제거(KAY/O → kayo)
 
-  return `/agents/${file}.png`;
-};
+    return `/agents/${file}.png`;
+  };
 
   return (
     <div style={styles.pageWrapper}>
@@ -128,7 +152,10 @@ function MatchHistoryPage() {
               </button>
             </div>
           ) : (
-            <button style={styles.loginButton} onClick={() => navigate('/login')}>
+            <button
+              style={styles.loginButton}
+              onClick={() => navigate('/login')}
+            >
               로그인
             </button>
           )}
@@ -143,7 +170,10 @@ function MatchHistoryPage() {
           <div style={styles.errorBox}>
             <p style={styles.errorText}>{error}</p>
             {!hasToken && (
-              <button style={styles.primaryButton} onClick={() => navigate('/login')}>
+              <button
+                style={styles.primaryButton}
+                onClick={() => navigate('/login')}
+              >
                 로그인 하러 가기
               </button>
             )}
@@ -181,10 +211,8 @@ function MatchHistoryPage() {
                       ? (k / d).toFixed(2)
                       : k.toFixed(2);
 
-                  const acs =
-                    match.acs != null ? match.acs : '-';
-                  const adr =
-                    match.adr != null ? match.adr : '-';
+                  const acs = match.acs != null ? match.acs : '-';
+                  const adr = match.adr != null ? match.adr : '-';
                   const hs =
                     match.hsPercent != null ? `${match.hsPercent}%` : '-';
 
@@ -209,12 +237,13 @@ function MatchHistoryPage() {
                           alt={match.agent || 'Agent'}
                           style={styles.agentImage}
                           onError={(e) => {
-                            // 이미지 없으면 숨기기
                             e.currentTarget.style.display = 'none';
                           }}
                         />
                         <div style={styles.matchLeftText}>
-                          <div style={styles.mapName}>{match.map || 'Unknown Map'}</div>
+                          <div style={styles.mapName}>
+                            {match.map || 'Unknown Map'}
+                          </div>
                           <div style={styles.queueText}>
                             {match.queue || 'Mode'} · {match.timeAgo || ''}
                           </div>
@@ -371,8 +400,6 @@ const styles = {
     marginBottom: '10px',
     fontSize: '20px',
   },
-
-  // ▶ 한 줄 전적 리스트
   matchList: {
     display: 'flex',
     flexDirection: 'column',
@@ -429,7 +456,6 @@ const styles = {
     backgroundColor: '#262626',
     color: '#ccc',
   },
-
   statsRow: {
     display: 'flex',
     alignItems: 'center',
@@ -451,7 +477,6 @@ const styles = {
     fontSize: '13px',
     fontWeight: '500',
   },
-
   profileBox: {
     display: 'flex',
     alignItems: 'center',
