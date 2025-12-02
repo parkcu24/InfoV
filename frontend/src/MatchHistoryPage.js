@@ -1,4 +1,4 @@
-// 📁 frontend/src/MatchHistoryPage.js
+// 📁 src/MatchHistoryPage.js
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -9,6 +9,7 @@ function MatchHistoryPage() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [matches, setMatches] = useState([]);
+  const [summary, setSummary] = useState(null); // ⭐ Henrik 요약 스탯
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [hasToken, setHasToken] = useState(false);
@@ -53,7 +54,32 @@ function MatchHistoryPage() {
         console.log('[DEBUG] profileData:', profileData);
         setProfile(profileData);
 
-        // 2) 전적 정보
+        // 2) Henrik 기반 요약 스탯
+        try {
+          const statsRes = await fetch(`${API_BASE_URL}/api/auth/stats`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (!statsRes.ok) {
+            const errText = await statsRes.text();
+            console.error(
+              '[DEBUG] /api/auth/stats 실패',
+              statsRes.status,
+              errText
+            );
+          } else {
+            const statsData = await statsRes.json();
+            console.log('[DEBUG] statsData:', statsData);
+            setSummary(statsData);
+          }
+        } catch (statsErr) {
+          console.error('[DEBUG] /api/auth/stats 호출 중 에러:', statsErr);
+          // stats 실패해도 전적은 계속 불러오도록 함
+        }
+
+        // 3) 전적 정보
         const matchesRes = await fetch(`${API_BASE_URL}/api/auth/matches`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -152,10 +178,7 @@ function MatchHistoryPage() {
               </button>
             </div>
           ) : (
-            <button
-              style={styles.loginButton}
-              onClick={() => navigate('/')}
-            >
+            <button style={styles.loginButton} onClick={() => navigate('/')}>
               로그인
             </button>
           )}
@@ -191,6 +214,34 @@ function MatchHistoryPage() {
                     <p style={styles.profileSub}>PUUID: {profile.puuid}</p>
                   )}
                 </div>
+
+                {/* ⭐ Henrik 요약 스탯 */}
+                {summary && (
+                  <div style={styles.summaryRow}>
+                    <div style={styles.summaryItem}>
+                      <span style={styles.summaryLabel}>계정 레벨 </span>
+                      <span style={styles.summaryValue}>
+                        {summary.accountLevel ?? '-'}
+                      </span>
+                    </div>
+                    <div style={styles.summaryItem}>
+                      <span style={styles.summaryLabel}>현재 티어 </span>
+                      <span style={styles.summaryValue}>
+                        {summary.currentTier || 'Unrated'}
+                        {summary.rr != null ? ` (${summary.rr} RR)` : ''}
+                      </span>
+                    </div>
+                    <div style={styles.summaryItem}>
+                      <span style={styles.summaryLabel}>시즌 전적 </span>
+                      <span style={styles.summaryValue}>
+                        {summary.wins ?? 0}승 {summary.losses ?? 0}패
+                        {summary.winRate != null
+                          ? ` (${summary.winRate}%)`
+                          : ''}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -503,6 +554,23 @@ const styles = {
     color: '#eee',
     cursor: 'pointer',
     fontSize: '12px',
+  },
+  summaryRow: {
+    marginTop: '10px',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '16px',
+    fontSize: '14px',
+  },
+  summaryItem: {
+    display: 'flex',
+    gap: '4px',
+  },
+  summaryLabel: {
+    color: '#888',
+  },
+  summaryValue: {
+    color: '#f5f5f5',
   },
 };
 

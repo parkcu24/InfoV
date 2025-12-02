@@ -10,6 +10,10 @@ const CLIENT_SECRET = process.env.RIOT_CLIENT_SECRET;
 const REDIRECT_URI = process.env.RIOT_REDIRECT_URI;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://infov.vercel.app';
 
+// ⭐ Henrik API
+const HENRIK_API_KEY = process.env.HENRIK_API_KEY;
+const HENRIK_BASE = 'https://api.henrikdev.xyz';
+
 // 1️⃣ 로그인 페이지로 이동
 router.get('/login', (req, res) => {
   const authorizeUrl = `https://auth.riotgames.com/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(
@@ -162,7 +166,169 @@ router.get('/profile', async (req, res) => {
   }
 });
 
-// 4️⃣ 전적 정보 반환 (/api/auth/matches) – 현재는 더미 데이터
+// 4️⃣ Henrik API 기반 요약 스탯 (/api/auth/stats)
+router.get('/stats', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log('❌ [RSO+Henrik] Authorization 헤더 없음');
+    return res.status(401).json({ error: 'No access token provided' });
+  }
+
+  const accessToken = authHeader.split(' ')[1];
+
+  if (!HENRIK_API_KEY) {
+    console.error('❌ [RSO+Henrik] HENRIK_API_KEY 미설정');
+    return res.status(500).json({
+      error: 'Henrik API key not configured',
+    });
+  }
+
+  try {
+    console.log('🎯 [RSO+Henrik] /auth/stats 호출');
+    console.log('🔑 Access Token 앞자리:', accessToken.slice(0, 20), '...');
+
+    // 4-1) Riot userinfo + accounts/me 로 gameName, tagLine, puuid 확보
+    const userInfoRes = await axios.get('https://auth.riotgames.com/userinfo', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const data = userInfoRes.data;
+
+    let gameName = null;
+    let tagLine = null;
+    let puuid = data.sub || null;
+
+    try {
+      console.log('🌍 [RSO+Henrik] account-v1 /accounts/me 호출 시도');
+      const accountRes = await axios.get(
+        'https://asia.api.riotgames.com/riot/account/v1/accounts/me',
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+      const accountData = accountRes.data;
+      console.log(
+        '✅ [RSO+Henrik] account-v1 /accounts/me 응답:',
+        JSON.stringify(accountData, null, 2)
+      );
+
+      gameName = accountData.gameName || null;
+      tagLine = accountData.tagLine || null;
+      if (accountData.puuid) puuid = accountData.puuid;
+    } catch (accountErr) {
+      console.error('❌ [RSO+Henrik] account-v1 /accounts/me 에러:');
+      console.error(accountErr.response?.data || accountErr.message);
+    }
+
+    // userinfo 보조로 채우기
+    const acct = data.acct || {};
+    if (!gameName && acct.game_name) gameName = acct.game_name;
+    if (!tagLine && acct.tag_line) tagLine = acct.tag_line;
+
+    if (!gameName && typeof data.preferred_username === 'string') {
+      const [gn, tl] = data.preferred_username.split('#');
+      if (!gameName && gn) gameName = gn;
+      if (!tagLine && tl) tagLine = tl;
+    }
+
+    if (!gameName && typeof data.game_name === 'string') gameName = data.game_name;
+    if (!tagLine && typeof data.tag_line === 'string') tagLine = data.tag_line;
+    if (!gameName && typeof data.name === 'string') gameName = data.name;
+
+    if (!gameName || !tagLine) {
+      console.error('❌ [RSO+Henrik] gameName/tagLine 결정 실패');
+      return res.status(400).json({
+        error: 'Could not resolve Riot gameName/tagLine from RSO token',
+      });
+    }
+
+    console.log('👤 [RSO+Henrik] Riot 계정:', `${gameName}#${tagLine}`);
+
+    // 4-2) Henrik 계정 정보 (region + account_level)
+    const henrikAccountRes = await axios.get(
+      `${HENRIK_BASE}/valorant/v2/account/${encodeURIComponent(
+        gameName
+      )}/${encodeURIComponent(tagLine)}`,
+      {
+        headers: {
+          Authorization: HENRIK_API_KEY,
+        },
+      }
+    );
+
+    const accData = henrikAccountRes.data.data;
+    console.log(
+      '✅ [RSO+Henrik] Henrik account 응답:',
+      JSON.stringify(accData, null, 2)
+    );
+
+    const region = accData.region; // ex) 'ap', 'kr', 'eu'
+    const accountLevel = accData.account_level;
+
+    // 4-3) Henrik MMR (현재 티어 + 시즌별 승/패)
+    const mmrRes = await axios.get(
+      `${HENRIK_BASE}/valorant/v3/mmr/${region}/pc/${encodeURIComponent(
+        gameName
+      )}/${encodeURIComponent(tagLine)}`,
+      {
+        headers: {
+          Authorization: HENRIK_API_KEY,
+        },
+      }
+    );
+
+    const mmrData = mmrRes.data.data;
+    console.log(
+      '✅ [RSO+Henrik] Henrik mmr 응답:',
+      JSON.stringify(mmrData, null, 2)
+    );
+
+    const currentTierName = mmrData.current?.tier?.name || null; // 예: "Diamond 1"
+    const currentRR = mmrData.current?.rr ?? null;               // 예: 38
+
+    const seasonal = Array.isArray(mmrData.seasonal) ? mmrData.seasonal : [];
+    const latestSeason = seasonal[seasonal.length - 1] || null;
+
+    const games = latestSeason?.games ?? 0;
+    const wins = latestSeason?.wins ?? 0;
+    const losses = Math.max(games - wins, 0);
+    const winRate = games > 0 ? Math.round((wins / games) * 100) : null;
+
+    // 4-4) 프론트로 내려줄 요약 데이터
+    const summary = {
+      gameName,
+      tagLine,
+      puuid,
+      region,
+      accountLevel,
+      currentTier: currentTierName,
+      rr: currentRR,
+      games,
+      wins,
+      losses,
+      winRate,
+    };
+
+    console.log('✅ [RSO+Henrik] /auth/stats 응답:', summary);
+    return res.json(summary);
+  } catch (err) {
+    console.error('❌ [RSO+Henrik] /auth/stats 에러:');
+    console.error(err.response?.data || err.message);
+
+    const status =
+      err.response?.status && err.response.status >= 400 && err.response.status < 600
+        ? err.response.status
+        : 500;
+
+    return res.status(status).json({
+      error: 'Failed to fetch stats from Henrik API',
+      detail: err.response?.data || err.message,
+    });
+  }
+});
+
+// 5️⃣ 전적 정보 반환 (/api/auth/matches) – 현재는 더미 데이터
 router.get('/matches', async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
