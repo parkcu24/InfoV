@@ -88,7 +88,7 @@ function MatchHistoryPage() {
 
   const handleLogout = () => {
     localStorage.removeItem('riot_access_token');
-    navigate('/login');
+    navigate('/');
   };
 
   const getDisplayName = (p) => {
@@ -154,7 +154,7 @@ function MatchHistoryPage() {
           ) : (
             <button
               style={styles.loginButton}
-              onClick={() => navigate('/login')}
+              onClick={() => navigate('/')}
             >
               로그인
             </button>
@@ -172,7 +172,7 @@ function MatchHistoryPage() {
             {!hasToken && (
               <button
                 style={styles.primaryButton}
-                onClick={() => navigate('/login')}
+                onClick={() => navigate('/')}
               >
                 로그인 하러 가기
               </button>
