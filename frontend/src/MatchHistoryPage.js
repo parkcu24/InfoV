@@ -124,7 +124,15 @@ function MatchHistoryPage() {
     return '닉네임 정보를 불러오지 못했습니다.';
   };
 
-  const getAgentImageSrc = (agentName) => {
+  // 🔁 에이전트 이미지: Henrik → 없으면 로컬 → 그래도 없으면 default
+  const getAgentImageSrc = (match) => {
+    // 1) 백엔드에서 내려준 Henrik 이미지
+    if (match?.agentImage) {
+      return match.agentImage;
+    }
+
+    // 2) 로컬 /agents 폴더
+    const agentName = match?.agent;
     if (!agentName) return '/agents/default.png';
 
     const file = agentName
@@ -289,26 +297,18 @@ function MatchHistoryPage() {
                       {/* 왼쪽: 에이전트 + 맵/큐 */}
                       <div style={styles.matchLeft}>
                         <img
-                          src={getAgentImageSrc(match.agent)}
+                          src={getAgentImageSrc(match)}
                           alt={match.agent || 'Agent'}
                           style={styles.agentImage}
                           onError={(e) => {
                             console.warn(
-                              '[AgentImageError] 로컬 이미지 로드 실패:',
+                              '[AgentImageError] 이미지 로드 실패:',
                               match.agent,
+                              match.agentImage,
                               e.currentTarget.src
                             );
-
-                            // ⭐ Henrik 에이전트 아이콘이 있으면 그걸로 교체
-                            if (match.agentIcon) {
-                              console.log(
-                                '[AgentImageFallback] Henrik 아이콘으로 교체:',
-                                match.agentIcon
-                              );
-                              e.currentTarget.src = match.agentIcon;
-                            } else {
-                              e.currentTarget.style.display = 'none';
-                            }
+                            // 실패하면 기본 이미지로 교체
+                            e.currentTarget.src = '/agents/default.png';
                           }}
                         />
                         <div style={styles.matchLeftText}>
