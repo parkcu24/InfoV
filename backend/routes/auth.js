@@ -10,59 +10,98 @@ const CLIENT_SECRET = process.env.RIOT_CLIENT_SECRET;
 const REDIRECT_URI = process.env.RIOT_REDIRECT_URI;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://infov.vercel.app';
 
-// ⭐ Henrik API
+// ⭐ Henrik API Key
 const HENRIK_API_KEY = process.env.HENRIK_API_KEY;
-const HENRIK_REGION_ENV = process.env.HENRIK_REGION || null; // 강제 region 설정시 사용
 
-// 나라 코드 → Henrik region 대략 매핑
-function resolveHenrikRegion(countryCodeRaw) {
-  if (HENRIK_REGION_ENV) return HENRIK_REGION_ENV; // 환경변수 우선(ap, kr 등)
+// --------------------------------------------------
+// 헬퍼: 국가 → 대략적인 Henrik 지역 매핑 (fallback 용)
+// --------------------------------------------------
+function resolveHenrikRegion(country, fallbackRegion) {
+  if (fallbackRegion) return fallbackRegion;
 
-  const country = (countryCodeRaw || '').toUpperCase();
+  if (!country) return 'ap';
 
-  // 한국
-  if (country === 'KR') return 'kr';
+  const c = country.toUpperCase();
 
-  // 북미
-  if (['US', 'CA'].includes(country)) return 'na';
+  if (['KR'].includes(c)) return 'kr';
+  if (['US', 'CA', 'MX'].includes(c)) return 'na';
+  if (['BR'].includes(c)) return 'br';
+  if (['AR', 'CL', 'PE', 'CO', 'VE', 'UY', 'PY', 'BO', 'EC'].includes(c)) return 'latam';
+  if (['FR', 'DE', 'ES', 'IT', 'GB', 'UK', 'NL', 'SE', 'NO', 'FI', 'PL', 'CZ'].includes(c)) return 'eu';
 
-  // 남미
-  if (['AR', 'BR', 'CL', 'CO', 'MX', 'PE', 'VE', 'UY', 'PY', 'EC', 'BO'].includes(country)) {
-    return 'latam';
-  }
-
-  // 유럽
-  if (
-    [
-      'DE', 'FR', 'GB', 'ES', 'IT', 'PL', 'SE', 'NO', 'FI', 'DK',
-      'NL', 'BE', 'PT', 'RU', 'TR', 'CZ', 'AT', 'GR', 'HU',
-    ].includes(country)
-  ) {
-    return 'eu';
-  }
-
-  // 그 외 아시아/오세아니아
+  // 그 외 아시아권은 그냥 ap
   return 'ap';
 }
 
-// unix 초 → "17h ago" 같은 포맷
-function formatTimeAgo(unixSeconds) {
-  if (!unixSeconds) return '';
-  const nowMs = Date.now();
-  const tsMs = unixSeconds * 1000;
-  const diffSec = Math.floor((nowMs - tsMs) / 1000);
+// --------------------------------------------------
+// 헬퍼: RSO AccessToken → Riot 계정 정보(gameName, tagLine, puuid, country)
+//  /auth/profile, /auth/stats, /auth/matches 에서 공통으로 사용
+// --------------------------------------------------
+async function getRiotIdentityFromToken(accessToken) {
+  console.log('👤 [RSO DEBUG] getRiotIdentityFromToken 호출');
 
-  const min = Math.floor(diffSec / 60);
-  const hour = Math.floor(min / 60);
-  const day = Math.floor(hour / 24);
+  // 1) 기본 userinfo
+  const userInfoRes = await axios.get('https://auth.riotgames.com/userinfo', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
 
-  if (day > 0) return `${day}d ago`;
-  if (hour > 0) return `${hour}h ago`;
-  if (min > 0) return `${min}m ago`;
-  return '방금 전';
+  const data = userInfoRes.data;
+  console.log('🧾 [RSO DEBUG] userinfo:', JSON.stringify(data, null, 2));
+
+  let gameName = null;
+  let tagLine = null;
+  let puuid = data.sub || null;
+  const country = data.country || null;
+
+  // 2) account-v1 /accounts/me (있으면 여기가 정답)
+  try {
+    console.log('🌍 [RSO DEBUG] account-v1 /accounts/me 호출 시도');
+    const accountRes = await axios.get(
+      'https://asia.api.riotgames.com/riot/account/v1/accounts/me',
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    const accountData = accountRes.data;
+    console.log(
+      '✅ [RSO DEBUG] account-v1 /accounts/me 응답:',
+      JSON.stringify(accountData, null, 2)
+    );
+
+    if (accountData.gameName) gameName = accountData.gameName;
+    if (accountData.tagLine) tagLine = accountData.tagLine;
+    if (accountData.puuid) puuid = accountData.puuid;
+  } catch (accountErr) {
+    console.error('❌ [RSO DEBUG] account-v1 /accounts/me 에러:');
+    console.error(accountErr.response?.data || accountErr.message);
+  }
+
+  // 3) userinfo 안에 acct.* 로 보조
+  const acct = data.acct || {};
+  if (!gameName && acct.game_name) gameName = acct.game_name;
+  if (!tagLine && acct.tag_line) tagLine = acct.tag_line;
+
+  // 4) preferred_username 형식 "name#tag"
+  if (!gameName && typeof data.preferred_username === 'string') {
+    const [gn, tl] = data.preferred_username.split('#');
+    if (!gameName && gn) gameName = gn;
+    if (!tagLine && tl) tagLine = tl;
+  }
+
+  // 5) 기타 백업 필드
+  if (!gameName && typeof data.game_name === 'string') gameName = data.game_name;
+  if (!tagLine && typeof data.tag_line === 'string') tagLine = data.tag_line;
+  if (!gameName && typeof data.name === 'string') gameName = data.name;
+
+  return { gameName, tagLine, puuid, country };
 }
 
+// --------------------------------------------------
 // 1️⃣ 로그인 페이지로 이동
+// --------------------------------------------------
 router.get('/login', (req, res) => {
   const authorizeUrl = `https://auth.riotgames.com/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(
     REDIRECT_URI
@@ -79,7 +118,9 @@ router.get('/login', (req, res) => {
   res.redirect(authorizeUrl);
 });
 
+// --------------------------------------------------
 // 2️⃣ Riot 로그인 성공 후 콜백
+// --------------------------------------------------
 router.get('/callback', async (req, res) => {
   const { code } = req.query;
   if (!code) return res.status(400).send('Authorization code not found');
@@ -121,84 +162,31 @@ router.get('/callback', async (req, res) => {
   }
 });
 
-// 🔐 공통: Authorization 헤더에서 토큰 꺼내기
-function getAccessTokenFromHeader(req, res) {
+// --------------------------------------------------
+// 3️⃣ 프로필 정보 반환 (/api/auth/profile)
+// --------------------------------------------------
+router.get('/profile', async (req, res) => {
   const authHeader = req.headers.authorization;
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     console.log('❌ [RSO DEBUG] Authorization 헤더 없음');
-    res.status(401).json({ error: 'No access token provided' });
-    return null;
+    return res.status(401).json({ error: 'No access token provided' });
   }
-  return authHeader.split(' ')[1];
-}
 
-// 3️⃣ 프로필 정보 반환 (/api/auth/profile)
-router.get('/profile', async (req, res) => {
-  const accessToken = getAccessTokenFromHeader(req, res);
-  if (!accessToken) return;
+  const accessToken = authHeader.split(' ')[1];
 
   try {
     console.log('👤 [RSO DEBUG] /auth/profile 호출');
     console.log('🔑 Access Token 앞자리:', accessToken.slice(0, 20), '...');
 
-    // 3-1) 기본 userinfo
-    const userInfoRes = await axios.get('https://auth.riotgames.com/userinfo', {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-
-    const data = userInfoRes.data;
-    console.log('🧾 [RSO DEBUG] raw userinfo:', JSON.stringify(data, null, 2));
-
-    let gameName = null;
-    let tagLine = null;
-    let puuid = data.sub || null;
-
-    // 3-2) account-v1 /accounts/me (실패해도 전체 흐름은 계속)
-    try {
-      console.log('🌍 [RSO DEBUG] account-v1 /accounts/me 호출 시도');
-      const accountRes = await axios.get(
-        'https://asia.api.riotgames.com/riot/account/v1/accounts/me',
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      const accountData = accountRes.data;
-      console.log(
-        '✅ [RSO DEBUG] account-v1 /accounts/me 응답:',
-        JSON.stringify(accountData, null, 2)
-      );
-
-      gameName = accountData.gameName || null;
-      tagLine = accountData.tagLine || null;
-      if (accountData.puuid) puuid = accountData.puuid;
-    } catch (accountErr) {
-      console.error('❌ [RSO DEBUG] account-v1 /accounts/me 에러:');
-      console.error(accountErr.response?.data || accountErr.message);
-    }
-
-    // 3-3) userinfo에서 보조로 gameName/tagLine 채우기
-    const acct = data.acct || {};
-    if (!gameName && acct.game_name) gameName = acct.game_name;
-    if (!tagLine && acct.tag_line) tagLine = acct.tag_line;
-
-    if (!gameName && typeof data.preferred_username === 'string') {
-      const [gn, tl] = data.preferred_username.split('#');
-      if (!gameName && gn) gameName = gn;
-      if (!tagLine && tl) tagLine = tl;
-    }
-
-    if (!gameName && typeof data.game_name === 'string') gameName = data.game_name;
-    if (!tagLine && typeof data.tag_line === 'string') tagLine = data.tag_line;
-    if (!gameName && typeof data.name === 'string') gameName = data.name;
+    const { gameName, tagLine, puuid, country } =
+      await getRiotIdentityFromToken(accessToken);
 
     const profile = {
       gameName: gameName || null,
       tagLine: tagLine || null,
-      puuid,
-      country: data.country,
+      puuid: puuid || null,
+      country: country || null,
     };
 
     console.log('✅ [RSO DEBUG] /auth/profile 응답:', profile);
@@ -219,96 +207,104 @@ router.get('/profile', async (req, res) => {
   }
 });
 
-// 4️⃣ 요약 스탯 (계정 레벨 / 현재 티어 / 시즌 승률) - Henrik 사용
+// --------------------------------------------------
+// 4️⃣ Henrik 요약 스탯 (/api/auth/stats)
+//     ✅ 여기서는 puuid 안 쓰고 name#tag + region만 사용
+// --------------------------------------------------
 router.get('/stats', async (req, res) => {
-  const accessToken = getAccessTokenFromHeader(req, res);
-  if (!accessToken) return;
-
-  if (!HENRIK_API_KEY) {
-    return res.status(500).json({
-      error: 'Henrik API key not configured',
-    });
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'No access token provided' });
   }
 
+  const accessToken = authHeader.split(' ')[1];
+  console.log(
+    '📊 [Henrik DEBUG] /auth/stats 호출, 토큰 앞 10자리:',
+    accessToken.slice(0, 10),
+    '...'
+  );
+
   try {
-    console.log('📊 [RSO DEBUG] /auth/stats 호출');
+    // 1) Riot 쪽에서 닉네임, 태그, 국가 가져오기
+    const { gameName, tagLine, country } =
+      await getRiotIdentityFromToken(accessToken);
 
-    // 4-1) RSO userinfo → puuid / country
-    const userInfoRes = await axios.get('https://auth.riotgames.com/userinfo', {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    const ui = userInfoRes.data;
-    const puuid = ui.sub;
-    const country = ui.country;
-
-    if (!puuid) {
-      return res.status(400).json({ error: 'No puuid in userinfo' });
+    if (!gameName || !tagLine) {
+      console.log('❌ [Henrik DEBUG] gameName 또는 tagLine 없음');
+      return res.status(400).json({
+        error: 'Missing Riot ID',
+        detail: 'gameName or tagLine not found from Riot userinfo',
+      });
     }
 
-    const region = resolveHenrikRegion(country);
-    console.log('🌎 [RSO DEBUG] Henrik region:', region, 'country:', country);
+    // 2) Henrik 계정 정보 (여기서 region, account_level, puuid 등 얻음)
+    const accountUrl = `https://api.henrikdev.xyz/valorant/v2/account/${encodeURIComponent(
+      gameName
+    )}/${encodeURIComponent(tagLine)}`;
 
-    // 4-2) Henrik 계정 정보 (레벨 / name / tag / region)
-    const accRes = await axios.get(
-      `https://api.henrikdev.xyz/valorant/v2/by-puuid/account/${puuid}`,
-      {
-        headers: {
-          Authorization: HENRIK_API_KEY,
-        },
-      }
+    console.log('🌐 [Henrik DEBUG] account v2 호출:', accountUrl);
+
+    const accountRes = await axios.get(accountUrl, {
+      headers: {
+        Authorization: HENRIK_API_KEY,
+      },
+    });
+
+    const accountData = accountRes.data?.data;
+    console.log(
+      '✅ [Henrik DEBUG] account v2 응답:',
+      JSON.stringify(accountData, null, 2)
     );
 
-    const accBody = accRes.data;
-    const acc = accBody.data || {};
-    const accountLevel = acc.account_level ?? null;
-    const name = acc.name || null;
-    const tag = acc.tag || null;
+    const regionFromHenrik = accountData?.region || null;
+    const region = resolveHenrikRegion(country, regionFromHenrik);
 
-    // 4-3) Henrik MMR (현재 티어 / RR / 시즌 전적)
-    const mmrRes = await axios.get(
-      `https://api.henrikdev.xyz/valorant/v3/by-puuid/mmr/${region}/pc/${puuid}`,
-      {
-        headers: {
-          Authorization: HENRIK_API_KEY,
-        },
-      }
+    // 3) MMR v3 (name#tag 기반, puuid 사용 ❌)
+    const mmrUrl = `https://api.henrikdev.xyz/valorant/v3/mmr/${region}/pc/${encodeURIComponent(
+      accountData.name
+    )}/${encodeURIComponent(accountData.tag)}`;
+
+    console.log('🌐 [Henrik DEBUG] mmr v3 호출:', mmrUrl);
+
+    const mmrRes = await axios.get(mmrUrl, {
+      headers: {
+        Authorization: HENRIK_API_KEY,
+      },
+    });
+
+    const mmrData = mmrRes.data?.data || {};
+    console.log(
+      '✅ [Henrik DEBUG] mmr v3 응답:',
+      JSON.stringify(mmrData, null, 2)
     );
 
-    const mmrBody = mmrRes.data;
-    const mmr = mmrBody.data || {};
-
-    const currentTier = mmr.current?.tier?.name || null;
-    const rr = mmr.current?.rr ?? null;
+    const seasonal = Array.isArray(mmrData.seasonal) ? mmrData.seasonal : [];
+    const latestSeason = seasonal[seasonal.length - 1];
 
     let wins = null;
-    let games = null;
+    let losses = null;
+    let winRate = null;
 
-    if (Array.isArray(mmr.seasonal) && mmr.seasonal.length > 0) {
-      const latest = mmr.seasonal[0]; // 가장 최근 시즌 하나 사용
-      wins = latest.wins ?? null;
-      games = latest.games ?? null;
+    if (latestSeason && typeof latestSeason.wins === 'number' && typeof latestSeason.games === 'number') {
+      wins = latestSeason.wins;
+      const games = latestSeason.games;
+      losses = games - wins;
+      winRate = games > 0 ? Math.round((wins / games) * 100) : null;
     }
 
-    const losses =
-      wins != null && games != null ? Math.max(games - wins, 0) : null;
-    const winRate =
-      wins != null && games > 0 ? Math.round((wins * 100) / games) : null;
-
-    const result = {
-      gameName: name,
-      tagLine: tag,
-      accountLevel,
-      currentTier,
-      rr,
+    const summary = {
+      accountLevel: accountData.account_level ?? null,
+      currentTier: mmrData.current?.tier?.name ?? null,
+      rr: mmrData.current?.rr ?? null,
       wins,
       losses,
       winRate,
     };
 
-    console.log('✅ [RSO DEBUG] /auth/stats 응답:', result);
-    res.json(result);
+    console.log('✅ [Henrik DEBUG] /auth/stats 응답:', summary);
+    return res.json(summary);
   } catch (err) {
-    console.error('❌ [RSO DEBUG] /auth/stats 에러:');
+    console.error('❌ [Henrik DEBUG] /auth/stats 에러:');
     console.error(err.response?.data || err.message);
 
     const status =
@@ -316,199 +312,165 @@ router.get('/stats', async (req, res) => {
         ? err.response.status
         : 500;
 
-    res.status(status).json({
+    return res.status(status).json({
       error: 'Failed to fetch stats from Henrik',
       detail: err.response?.data || err.message,
     });
   }
 });
 
-// 5️⃣ 전적 정보 반환 (/api/auth/matches) – Henrik v3 matches 사용
+// --------------------------------------------------
+// 5️⃣ 최근 경기 정보 반환 (/api/auth/matches)
+//     ✅ 여기서도 마찬가지로 name#tag + region 사용 (by-puuid ❌)
+// --------------------------------------------------
 router.get('/matches', async (req, res) => {
-  const accessToken = getAccessTokenFromHeader(req, res);
-  if (!accessToken) return;
-
-  if (!HENRIK_API_KEY) {
-    return res.status(500).json({
-      error: 'Henrik API key not configured',
-    });
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'No access token provided' });
   }
 
+  const accessToken = authHeader.split(' ')[1];
+  console.log(
+    '🎮 [Henrik DEBUG] /auth/matches 호출, 토큰 앞 10자리:',
+    accessToken.slice(0, 10),
+    '...'
+  );
+
   try {
-    console.log('🎮 [RSO DEBUG] /auth/matches 호출');
+    // 1) Riot 계정 → name, tag, country
+    const { gameName, tagLine, country } =
+      await getRiotIdentityFromToken(accessToken);
 
-    // 5-1) userinfo → puuid
-    const userInfoRes = await axios.get('https://auth.riotgames.com/userinfo', {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    const ui = userInfoRes.data;
-    const puuid = ui.sub;
-
-    if (!puuid) {
-      return res.status(400).json({ error: 'No puuid in userinfo' });
-    }
-
-    // 5-2) Henrik 계정 정보 (puuid → region / name / tag)
-    const accountRes = await axios.get(
-      `https://api.henrikdev.xyz/valorant/v2/by-puuid/account/${puuid}`,
-      {
-        headers: {
-          Authorization: HENRIK_API_KEY,
-        },
-      }
-    );
-
-    const account = accountRes.data?.data;
-    if (!account) {
-      console.error('❌ [HENRIK DEBUG] 계정 정보를 찾지 못했습니다:', accountRes.data);
-      return res
-        .status(404)
-        .json({ error: 'Account not found on Henrik API' });
-    }
-
-    const region = account.region; // eu / na / ap / kr ...
-    const name = account.name;
-    const tag = account.tag;
-
-    console.log('✅ [HENRIK DEBUG] account data:', {
-      region,
-      name,
-      tag,
-      account_level: account.account_level,
-    });
-
-    // 5-3) Henrik 매치 리스트 (v3 matches/{region}/{name}/{tag})
-    const matchesRes = await axios.get(
-      `https://api.henrikdev.xyz/valorant/v3/matches/${region}/${encodeURIComponent(
-        name
-      )}/${encodeURIComponent(tag)}`,
-      {
-        headers: {
-          Authorization: HENRIK_API_KEY,
-        },
-        params: {
-          size: 8, // 최근 8경기
-          mode: 'competitive',
-        },
-      }
-    );
-
-    if (matchesRes.data?.status !== 200) {
-      console.error(
-        '❌ [HENRIK DEBUG] matches 응답 status != 200:',
-        matchesRes.data
-      );
-      return res.status(500).json({
-        error: 'Unexpected response from Henrik matches endpoint',
-        detail: matchesRes.data,
+    if (!gameName || !tagLine) {
+      console.log('❌ [Henrik DEBUG] gameName 또는 tagLine 없음');
+      return res.status(400).json({
+        error: 'Missing Riot ID',
+        detail: 'gameName or tagLine not found from Riot userinfo',
       });
     }
 
-    const henrikMatches = matchesRes.data.data || [];
+    // 2) Henrik 계정 정보에서 puuid, region 확보
+    const accountUrl = `https://api.henrikdev.xyz/valorant/v2/account/${encodeURIComponent(
+      gameName
+    )}/${encodeURIComponent(tagLine)}`;
+
+    console.log('🌐 [Henrik DEBUG] account v2 호출:', accountUrl);
+
+    const accountRes = await axios.get(accountUrl, {
+      headers: {
+        Authorization: HENRIK_API_KEY,
+      },
+    });
+
+    const accountData = accountRes.data?.data;
     console.log(
-      `✅ [HENRIK DEBUG] matches ${henrikMatches.length}개 수신 완료`
+      '✅ [Henrik DEBUG] account v2 응답:',
+      JSON.stringify(accountData, null, 2)
     );
 
-    // 5-4) 프론트용 형태로 매핑
-    const normalizedMatches = henrikMatches.map((m) => {
-      const meta = m.metadata || {};
-      const allPlayers = m.players?.all_players || [];
+    const regionFromHenrik = accountData?.region || null;
+    const region = resolveHenrikRegion(country, regionFromHenrik);
+    const henrikPuuid = accountData?.puuid || null;
 
-      // 현재 유저(나) 찾기
-      const selfPlayer =
-        allPlayers.find((p) => p.puuid === puuid) ||
-        allPlayers.find(
-          (p) => `${p.name}#${p.tag}` === `${name}#${tag}`
-        ) ||
-        allPlayers[0];
+    // 3) v4 matches (name#tag 기준, puuid는 "내 플레이어" 찾을 때만 사용)
+    const matchesUrl = `https://api.henrikdev.xyz/valorant/v4/matches/${region}/pc/${encodeURIComponent(
+      accountData.name
+    )}/${encodeURIComponent(accountData.tag)}`;
+
+    console.log('🌐 [Henrik DEBUG] matches v4 호출:', matchesUrl);
+
+    const matchesRes = await axios.get(matchesUrl, {
+      headers: {
+        Authorization: HENRIK_API_KEY,
+      },
+      params: {
+        size: 8, // 최근 8게임 정도
+      },
+    });
+
+    const rawMatches = matchesRes.data?.data || [];
+    console.log(
+      '✅ [Henrik DEBUG] matches v4 응답 개수:',
+      rawMatches.length
+    );
+
+    // 4) 프론트에서 쓰기 편한 형태로 변환
+    const mapped = rawMatches.map((m) => {
+      const meta = m.metadata || {};
+      const players = m.players || {};
+      const allPlayers = Array.isArray(players.all) ? players.all : [];
+
+      let selfPlayer = null;
+      if (henrikPuuid) {
+        selfPlayer =
+          allPlayers.find((p) => p.puuid === henrikPuuid) || null;
+      }
+      if (!selfPlayer && allPlayers.length > 0) {
+        selfPlayer = allPlayers[0]; // 못 찾으면 그냥 첫 번째
+      }
 
       const stats = selfPlayer?.stats || {};
-      const damageMade = selfPlayer?.damage_made ?? 0;
-      const damageReceived = selfPlayer?.damage_received ?? 0;
+      const teamKey =
+        (selfPlayer?.team || '').toLowerCase() === 'blue' ? 'blue' : 'red';
+      const teams = m.teams || {};
+      const myTeam = teams[teamKey] || {};
+      const enemyTeam = teams[teamKey === 'blue' ? 'red' : 'blue'] || {};
+
+      const roundsWon = myTeam.rounds_won ?? null;
+      const roundsLost = myTeam.rounds_lost ?? null;
+      const hasWon = myTeam.has_won === true;
 
       const kills = stats.kills ?? 0;
       const deaths = stats.deaths ?? 0;
       const assists = stats.assists ?? 0;
 
-      const kd = deaths > 0 ? kills / deaths : kills;
+      const kdRaw = deaths > 0 ? kills / deaths : kills;
+      const kd = Number.isFinite(kdRaw) ? kdRaw : null;
 
-      const totalShots =
-        (stats.headshots ?? 0) +
-        (stats.bodyshots ?? 0) +
-        (stats.legshots ?? 0);
+      const headshots = stats.headshots ?? 0;
+      const bodyshots = stats.bodyshots ?? 0;
+      const legshots = stats.legshots ?? 0;
+      const totalShots = headshots + bodyshots + legshots;
       const hsPercent =
-        totalShots > 0
-          ? Math.round(((stats.headshots ?? 0) / totalShots) * 100)
-          : null;
+        totalShots > 0 ? Math.round((headshots / totalShots) * 100) : null;
 
-      const roundsPlayed = meta.rounds_played || 0;
-      const acs =
-        roundsPlayed > 0 && stats.score != null
-          ? Math.round(stats.score / roundsPlayed)
-          : null;
-      const adr =
-        roundsPlayed > 0 && damageMade > 0
-          ? Math.round(damageMade / roundsPlayed)
-          : null;
-
-      // 팀/스코어/승패 계산
-      const myTeam = selfPlayer?.team; // 'Red' or 'Blue'
-      const red = m.teams?.red || {};
-      const blue = m.teams?.blue || {};
-      let teamScore = null;
-      let enemyScore = null;
-      let win = null;
-
-      if (myTeam === 'Red') {
-        teamScore = red.rounds_won ?? null;
-        enemyScore = blue.rounds_won ?? null;
-        win = !!red.has_won;
-      } else if (myTeam === 'Blue') {
-        teamScore = blue.rounds_won ?? null;
-        enemyScore = red.rounds_won ?? null;
-        win = !!blue.has_won;
-      }
-
-      const agentImage =
-        selfPlayer?.assets?.agent?.bust ||
-        selfPlayer?.assets?.agent?.small ||
-        null;
+      const assets = selfPlayer?.assets || {};
+      const agentAssets = assets.agent || {};
 
       return {
-        matchId: meta.matchid,
-        map: meta.map,
-        queue: meta.mode || meta.queue,
-        timeAgo: formatTimeAgo(meta.game_start),
-        agent: selfPlayer?.character || null,
-        agentImage, // ⭐ 프론트에서 바로 사용
-        teamScore,
-        enemyScore,
+        matchId: meta.matchid || meta.id || '',
+        map: meta.map || 'Unknown Map',
+        queue: meta.mode || meta.queue || 'Mode',
+        timeAgo: meta.started_at || '', // 나중에 백엔드에서 "17h ago" 형식으로 바꿔도 됨
+
+        agent: selfPlayer?.character || 'Unknown',
+        agentIcon:
+          agentAssets.small ||
+          agentAssets.bust ||
+          agentAssets.full ||
+          null,
+
+        teamScore: roundsWon,
+        enemyScore: roundsLost,
+        rankTier: selfPlayer?.currenttier_patched || null,
+        rr: null, // 여기선 RR까지는 안 넣고 stats에서만 처리
+
         kills,
         deaths,
         assists,
-        kd: Number.isFinite(kd) ? Number(kd.toFixed(2)) : null,
-        acs,
-        adr,
+        kd,
+        acs: stats.score ?? null, // 대략적인 값 (ACS랑 다를 수 있음)
+        adr: null, // Henrik matches 응답에 데미지 합계 있으면 나중에 추가 가능
         hsPercent,
-        ddDelta: damageMade - damageReceived,
-        win,
-        placement: null, // Henrik v3에는 순위 정보 없음
+        win: hasWon,
+        placement: null, // 필요하면 나중에 계산
       };
     });
 
-    // 에이전트 이미지 디버그용 로그 하나만
-    if (normalizedMatches[0]) {
-      console.log('🧪 [RSO DEBUG] 첫 경기 agent 디버그:', {
-        agent: normalizedMatches[0].agent,
-        agentImage: normalizedMatches[0].agentImage,
-      });
-    }
-
-    return res.json({ matches: normalizedMatches });
+    return res.json(mapped);
   } catch (err) {
-    console.error('❌ [RSO/HENRIK DEBUG] /auth/matches 에러:');
-    console.error('status:', err.response?.status);
-    console.error('data:', err.response?.data || err.message);
+    console.error('❌ [Henrik DEBUG] /auth/matches 에러:');
+    console.error(err.response?.data || err.message);
 
     const status =
       err.response?.status && err.response.status >= 400 && err.response.status < 600
