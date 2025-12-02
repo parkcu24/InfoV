@@ -255,12 +255,17 @@ function MatchHistoryPage() {
                   const k = match.kills ?? 0;
                   const d = match.deaths ?? 0;
                   const a = match.assists ?? 0;
-                  const kd =
+
+                  const kdRaw =
                     match.kd != null
                       ? match.kd
                       : d > 0
-                      ? (k / d).toFixed(2)
-                      : k.toFixed(2);
+                      ? k / d
+                      : k;
+                  const kd =
+                    typeof kdRaw === 'number'
+                      ? kdRaw.toFixed(2)
+                      : kdRaw;
 
                   const acs = match.acs != null ? match.acs : '-';
                   const adr = match.adr != null ? match.adr : '-';
@@ -288,7 +293,22 @@ function MatchHistoryPage() {
                           alt={match.agent || 'Agent'}
                           style={styles.agentImage}
                           onError={(e) => {
-                            e.currentTarget.style.display = 'none';
+                            console.warn(
+                              '[AgentImageError] 로컬 이미지 로드 실패:',
+                              match.agent,
+                              e.currentTarget.src
+                            );
+
+                            // ⭐ Henrik 에이전트 아이콘이 있으면 그걸로 교체
+                            if (match.agentIcon) {
+                              console.log(
+                                '[AgentImageFallback] Henrik 아이콘으로 교체:',
+                                match.agentIcon
+                              );
+                              e.currentTarget.src = match.agentIcon;
+                            } else {
+                              e.currentTarget.style.display = 'none';
+                            }
                           }}
                         />
                         <div style={styles.matchLeftText}>
@@ -329,7 +349,8 @@ function MatchHistoryPage() {
                           <span
                             style={{
                               ...styles.statValue,
-                              color: kd >= 1 ? '#4CAF50' : '#F44336',
+                              color:
+                                parseFloat(kd) >= 1 ? '#4CAF50' : '#F44336',
                             }}
                           >
                             {kd}
