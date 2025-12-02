@@ -100,7 +100,8 @@ function MatchHistoryPage() {
 
         const matchesData = await matchesRes.json();
         console.log('[DEBUG] matchesData:', matchesData);
-        setMatches(matchesData.matches || matchesData);
+        // 백엔드가 배열을 바로 리턴하므로 그대로 사용
+        setMatches(Array.isArray(matchesData) ? matchesData : matchesData.matches || []);
       } catch (err) {
         console.error(err);
         setError(err.message || '알 수 없는 오류가 발생했습니다.');
@@ -126,12 +127,10 @@ function MatchHistoryPage() {
 
   // 🔁 에이전트 이미지: Henrik → 없으면 로컬 → 그래도 없으면 default
   const getAgentImageSrc = (match) => {
-    // 1) 백엔드에서 내려준 Henrik 이미지
-    if (match?.agentImage) {
-      return match.agentImage;
+    if (match?.agentIcon) {
+      return match.agentIcon;
     }
 
-    // 2) 로컬 /agents 폴더
     const agentName = match?.agent;
     if (!agentName) return '/agents/default.png';
 
@@ -141,6 +140,24 @@ function MatchHistoryPage() {
       .replace(/[^\w]/g, ''); // 특수문자 제거(KAY/O → kayo)
 
     return `/agents/${file}.png`;
+  };
+
+  // 🔁 맵 이름: 문자열이면 그대로, 객체면 .name 사용
+  const getMapName = (match) => {
+    const map = match?.map;
+    if (!map) return 'Unknown Map';
+    if (typeof map === 'string') return map;
+    if (typeof map.name === 'string') return map.name;
+    return 'Unknown Map';
+  };
+
+  // 🔁 모드/큐 이름: 문자열이면 그대로, 객체면 .name 사용
+  const getQueueName = (match) => {
+    const q = match?.queue || match?.mode;
+    if (!q) return 'Mode';
+    if (typeof q === 'string') return q;
+    if (typeof q.name === 'string') return q.name;
+    return 'Mode';
   };
 
   return (
@@ -293,7 +310,7 @@ function MatchHistoryPage() {
                       : match.teamScore > match.enemyScore;
 
                   return (
-                    <div key={match.matchId} style={styles.matchRowCard}>
+                    <div key={match.matchId || match.id} style={styles.matchRowCard}>
                       {/* 왼쪽: 에이전트 + 맵/큐 */}
                       <div style={styles.matchLeft}>
                         <img
@@ -304,19 +321,18 @@ function MatchHistoryPage() {
                             console.warn(
                               '[AgentImageError] 이미지 로드 실패:',
                               match.agent,
-                              match.agentImage,
+                              match.agentIcon,
                               e.currentTarget.src
                             );
-                            // 실패하면 기본 이미지로 교체
                             e.currentTarget.src = '/agents/default.png';
                           }}
                         />
                         <div style={styles.matchLeftText}>
                           <div style={styles.mapName}>
-                            {match.map || 'Unknown Map'}
+                            {getMapName(match)}
                           </div>
                           <div style={styles.queueText}>
-                            {match.queue || 'Mode'} · {match.timeAgo || ''}
+                            {getQueueName(match)} · {match.timeAgo || ''}
                           </div>
                           <div style={styles.scoreBox}>
                             <span
