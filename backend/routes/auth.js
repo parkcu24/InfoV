@@ -12,21 +12,18 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'https://infov.vercel.app';
 
 // ⭐ Henrik API
 const HENRIK_API_KEY = process.env.HENRIK_API_KEY;
-const HENRIK_REGION_ENV = process.env.HENRIK_REGION || null; // 있으면 이 값 우선(ap, kr 등)
+const HENRIK_REGION_ENV = process.env.HENRIK_REGION || null; // 강제 region 설정시 사용
 
-/**
- * 나라 코드 → Henrik region 대략 매핑
- * (env 에 HENRIK_REGION 넣으면 그 값을 최우선으로 사용)
- */
+// 나라 코드 → Henrik region 대략 매핑
 function resolveHenrikRegion(countryCodeRaw) {
-  if (HENRIK_REGION_ENV) return HENRIK_REGION_ENV;
+  if (HENRIK_REGION_ENV) return HENRIK_REGION_ENV; // 환경변수 우선(ap, kr 등)
 
   const country = (countryCodeRaw || '').toUpperCase();
 
-  // 한국은 kr
+  // 한국
   if (country === 'KR') return 'kr';
 
-  // 북미 계열
+  // 북미
   if (['US', 'CA'].includes(country)) return 'na';
 
   // 남미
@@ -34,23 +31,21 @@ function resolveHenrikRegion(countryCodeRaw) {
     return 'latam';
   }
 
-  // 유럽권
+  // 유럽
   if (
     [
       'DE', 'FR', 'GB', 'ES', 'IT', 'PL', 'SE', 'NO', 'FI', 'DK',
-      'NL', 'BE', 'PT', 'RU', 'TR', 'CZ', 'AT', 'GR', 'HU'
+      'NL', 'BE', 'PT', 'RU', 'TR', 'CZ', 'AT', 'GR', 'HU',
     ].includes(country)
   ) {
     return 'eu';
   }
 
-  // 나머지는 일단 ap 로
+  // 그 외 아시아/오세아니아
   return 'ap';
 }
 
-/**
- * unix(초) → "17h ago", "2d ago" 형식
- */
+// unix 초 → "17h ago" 같은 포맷
 function formatTimeAgo(unixSeconds) {
   if (!unixSeconds) return '';
   const nowMs = Date.now();
@@ -65,80 +60,6 @@ function formatTimeAgo(unixSeconds) {
   if (hour > 0) return `${hour}h ago`;
   if (min > 0) return `${min}m ago`;
   return '방금 전';
-}
-
-/**
- * Henrik match 객체 → 프론트에서 쓰기 좋은 형태로 변환
- */
-function mapHenrikMatch(rawMatch, myPuuid) {
-  const meta = rawMatch.metadata || {};
-  const players = rawMatch.players?.all_players || [];
-  const me = players.find((p) => p.puuid === myPuuid) || players[0];
-
-  const teams = rawMatch.teams || {};
-  const myTeamKey = me?.team ? me.team.toLowerCase() : null;
-  const enemyTeamKey =
-    myTeamKey === 'red' ? 'blue' : myTeamKey === 'blue' ? 'red' : null;
-
-  const myTeam = myTeamKey ? teams[myTeamKey] : null;
-  const enemyTeam = enemyTeamKey ? teams[enemyTeamKey] : null;
-
-  const stats = me?.stats || {};
-  const k = stats.kills ?? 0;
-  const d = stats.deaths ?? 0;
-  const a = stats.assists ?? 0;
-
-  const score = stats.score ?? null;
-  const damage = me?.damage_made ?? null;
-  const roundsPlayed =
-    meta.rounds_played ??
-    rawMatch.rounds?.length ??
-    (myTeam && enemyTeam
-      ? (myTeam.rounds_won ?? 0) + (enemyTeam.rounds_won ?? 0)
-      : null);
-
-  const body = stats.bodyshots ?? 0;
-  const head = stats.headshots ?? 0;
-  const leg = stats.legshots ?? 0;
-  const totalShots = body + head + leg;
-  const hsPercent =
-    totalShots > 0 ? Math.round((head * 100) / totalShots) : null;
-
-  const acs =
-    score != null && roundsPlayed
-      ? Math.round(score / roundsPlayed)
-      : null;
-  const adr =
-    damage != null && roundsPlayed
-      ? Math.round(damage / roundsPlayed)
-      : null;
-
-  const teamScore = myTeam?.rounds_won ?? null;
-  const enemyScore = enemyTeam?.rounds_won ?? null;
-  const win = myTeam?.has_won ?? null;
-
-  return {
-    matchId: meta.matchid || meta.match_id || meta.id,
-    map: meta.map || 'Unknown Map',
-    queue: meta.mode || meta.queue || 'Mode',
-    timeAgo: formatTimeAgo(meta.game_start),
-    agent: me?.character || null,
-    agentIcon: me?.assets?.agent?.small || null, // ⭐ 프론트용 원격 아이콘
-    teamScore,
-    enemyScore,
-    rankTier: me?.currenttier_patched || null,
-    rr: null, // 필요하면 mmr-history로 확장 가능
-    placement: null, // Henrik match에는 순위가 따로 없어서 일단 null
-    kills: k,
-    deaths: d,
-    assists: a,
-    kd: d > 0 ? Number((k / d).toFixed(2)) : k,
-    acs,
-    adr,
-    hsPercent,
-    ddDelta: null,
-    win,
-  };
 }
 
 // 1️⃣ 로그인 페이지로 이동
@@ -200,7 +121,7 @@ router.get('/callback', async (req, res) => {
   }
 });
 
-// 🔐 토큰 꺼내는 공통 함수
+// 🔐 공통: Authorization 헤더에서 토큰 꺼내기
 function getAccessTokenFromHeader(req, res) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -363,8 +284,7 @@ router.get('/stats', async (req, res) => {
     let games = null;
 
     if (Array.isArray(mmr.seasonal) && mmr.seasonal.length > 0) {
-      // 가장 최신 시즌 하나 사용
-      const latest = mmr.seasonal[0];
+      const latest = mmr.seasonal[0]; // 가장 최근 시즌 하나 사용
       wins = latest.wins ?? null;
       games = latest.games ?? null;
     }
@@ -372,12 +292,9 @@ router.get('/stats', async (req, res) => {
     const losses =
       wins != null && games != null ? Math.max(games - wins, 0) : null;
     const winRate =
-      wins != null && games > 0
-        ? Math.round((wins * 100) / games)
-        : null;
+      wins != null && games > 0 ? Math.round((wins * 100) / games) : null;
 
     const result = {
-      // 표시용 닉네임 (안 써도 되지만 디버깅용으로 같이 보냄)
       gameName: name,
       tagLine: tag,
       accountLevel,
@@ -406,7 +323,7 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// 5️⃣ 전적 정보 반환 (/api/auth/matches) – Henrik matchlist 사용
+// 5️⃣ 전적 정보 반환 (/api/auth/matches) – Henrik v3 matches 사용
 router.get('/matches', async (req, res) => {
   const accessToken = getAccessTokenFromHeader(req, res);
   if (!accessToken) return;
@@ -420,66 +337,186 @@ router.get('/matches', async (req, res) => {
   try {
     console.log('🎮 [RSO DEBUG] /auth/matches 호출');
 
-    // 5-1) userinfo → puuid / country
+    // 5-1) userinfo → puuid
     const userInfoRes = await axios.get('https://auth.riotgames.com/userinfo', {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     const ui = userInfoRes.data;
     const puuid = ui.sub;
-    const country = ui.country;
 
     if (!puuid) {
       return res.status(400).json({ error: 'No puuid in userinfo' });
     }
 
-    const region = resolveHenrikRegion(country);
-    console.log('🌎 [RSO DEBUG] Henrik region(for matches):', region);
+    // 5-2) Henrik 계정 정보 (puuid → region / name / tag)
+    const accountRes = await axios.get(
+      `https://api.henrikdev.xyz/valorant/v2/by-puuid/account/${puuid}`,
+      {
+        headers: {
+          Authorization: HENRIK_API_KEY,
+        },
+      }
+    );
 
-    // 5-2) Henrik matchlist (by puuid)
-    const matchRes = await axios.get(
-      `https://api.henrikdev.xyz/valorant/v4/by-puuid/matches/${region}/pc/${puuid}`,
+    const account = accountRes.data?.data;
+    if (!account) {
+      console.error('❌ [HENRIK DEBUG] 계정 정보를 찾지 못했습니다:', accountRes.data);
+      return res
+        .status(404)
+        .json({ error: 'Account not found on Henrik API' });
+    }
+
+    const region = account.region; // eu / na / ap / kr ...
+    const name = account.name;
+    const tag = account.tag;
+
+    console.log('✅ [HENRIK DEBUG] account data:', {
+      region,
+      name,
+      tag,
+      account_level: account.account_level,
+    });
+
+    // 5-3) Henrik 매치 리스트 (v3 matches/{region}/{name}/{tag})
+    const matchesRes = await axios.get(
+      `https://api.henrikdev.xyz/valorant/v3/matches/${region}/${encodeURIComponent(
+        name
+      )}/${encodeURIComponent(tag)}`,
       {
         headers: {
           Authorization: HENRIK_API_KEY,
         },
         params: {
-          size: 10,           // 가져올 경기 수
-          mode: 'competitive' // 컴페티티브만
+          size: 8, // 최근 8경기
+          mode: 'competitive',
         },
       }
     );
 
-    const body = matchRes.data;
-    const rawMatches = Array.isArray(body)
-      ? body
-      : Array.isArray(body.data)
-      ? body.data
-      : [];
-
-    console.log('✅ [RSO DEBUG] Henrik matches 개수:', rawMatches.length);
-
-    const mapped = rawMatches.map((m) => mapHenrikMatch(m, puuid));
-
-    // 한 번만 agent 정보 로그로 확인 (이미지 디버그용)
-    if (mapped[0]) {
-      console.log('🧪 [RSO DEBUG] 첫 경기 agent 디버그:', {
-        agent: mapped[0].agent,
-        agentIcon: mapped[0].agentIcon,
+    if (matchesRes.data?.status !== 200) {
+      console.error(
+        '❌ [HENRIK DEBUG] matches 응답 status != 200:',
+        matchesRes.data
+      );
+      return res.status(500).json({
+        error: 'Unexpected response from Henrik matches endpoint',
+        detail: matchesRes.data,
       });
     }
 
-    res.json(mapped);
+    const henrikMatches = matchesRes.data.data || [];
+    console.log(
+      `✅ [HENRIK DEBUG] matches ${henrikMatches.length}개 수신 완료`
+    );
+
+    // 5-4) 프론트용 형태로 매핑
+    const normalizedMatches = henrikMatches.map((m) => {
+      const meta = m.metadata || {};
+      const allPlayers = m.players?.all_players || [];
+
+      // 현재 유저(나) 찾기
+      const selfPlayer =
+        allPlayers.find((p) => p.puuid === puuid) ||
+        allPlayers.find(
+          (p) => `${p.name}#${p.tag}` === `${name}#${tag}`
+        ) ||
+        allPlayers[0];
+
+      const stats = selfPlayer?.stats || {};
+      const damageMade = selfPlayer?.damage_made ?? 0;
+      const damageReceived = selfPlayer?.damage_received ?? 0;
+
+      const kills = stats.kills ?? 0;
+      const deaths = stats.deaths ?? 0;
+      const assists = stats.assists ?? 0;
+
+      const kd = deaths > 0 ? kills / deaths : kills;
+
+      const totalShots =
+        (stats.headshots ?? 0) +
+        (stats.bodyshots ?? 0) +
+        (stats.legshots ?? 0);
+      const hsPercent =
+        totalShots > 0
+          ? Math.round(((stats.headshots ?? 0) / totalShots) * 100)
+          : null;
+
+      const roundsPlayed = meta.rounds_played || 0;
+      const acs =
+        roundsPlayed > 0 && stats.score != null
+          ? Math.round(stats.score / roundsPlayed)
+          : null;
+      const adr =
+        roundsPlayed > 0 && damageMade > 0
+          ? Math.round(damageMade / roundsPlayed)
+          : null;
+
+      // 팀/스코어/승패 계산
+      const myTeam = selfPlayer?.team; // 'Red' or 'Blue'
+      const red = m.teams?.red || {};
+      const blue = m.teams?.blue || {};
+      let teamScore = null;
+      let enemyScore = null;
+      let win = null;
+
+      if (myTeam === 'Red') {
+        teamScore = red.rounds_won ?? null;
+        enemyScore = blue.rounds_won ?? null;
+        win = !!red.has_won;
+      } else if (myTeam === 'Blue') {
+        teamScore = blue.rounds_won ?? null;
+        enemyScore = red.rounds_won ?? null;
+        win = !!blue.has_won;
+      }
+
+      const agentImage =
+        selfPlayer?.assets?.agent?.bust ||
+        selfPlayer?.assets?.agent?.small ||
+        null;
+
+      return {
+        matchId: meta.matchid,
+        map: meta.map,
+        queue: meta.mode || meta.queue,
+        timeAgo: formatTimeAgo(meta.game_start),
+        agent: selfPlayer?.character || null,
+        agentImage, // ⭐ 프론트에서 바로 사용
+        teamScore,
+        enemyScore,
+        kills,
+        deaths,
+        assists,
+        kd: Number.isFinite(kd) ? Number(kd.toFixed(2)) : null,
+        acs,
+        adr,
+        hsPercent,
+        ddDelta: damageMade - damageReceived,
+        win,
+        placement: null, // Henrik v3에는 순위 정보 없음
+      };
+    });
+
+    // 에이전트 이미지 디버그용 로그 하나만
+    if (normalizedMatches[0]) {
+      console.log('🧪 [RSO DEBUG] 첫 경기 agent 디버그:', {
+        agent: normalizedMatches[0].agent,
+        agentImage: normalizedMatches[0].agentImage,
+      });
+    }
+
+    return res.json({ matches: normalizedMatches });
   } catch (err) {
-    console.error('❌ [RSO DEBUG] /auth/matches 에러:');
-    console.error(err.response?.data || err.message);
+    console.error('❌ [RSO/HENRIK DEBUG] /auth/matches 에러:');
+    console.error('status:', err.response?.status);
+    console.error('data:', err.response?.data || err.message);
 
     const status =
       err.response?.status && err.response.status >= 400 && err.response.status < 600
         ? err.response.status
         : 500;
 
-    res.status(status).json({
-      error: 'Failed to fetch matches from Henrik',
+    return res.status(status).json({
+      error: 'Failed to fetch matches',
       detail: err.response?.data || err.message,
     });
   }
