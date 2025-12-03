@@ -9,17 +9,30 @@ function MatchHistoryPage() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [matches, setMatches] = useState([]);
-  const [summary, setSummary] = useState(null); // ⭐ Henrik 요약 스탯
+  const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [hasToken, setHasToken] = useState(false);
+
+  // ⭐ 에이전트 이름을 파일명 규칙에 맞게 자동 변환하는 함수
+  const getAgentImageSrc = (agentName) => {
+    if (!agentName) return '/agents/default.png';
+
+    const normalized = agentName
+      .toLowerCase() // 소문자
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // 악센트 제거
+      .replace(/[^a-z0-9]/g, ''); // 영어/숫자만 남기고 특수문자, 공백, / 제거
+
+    // 예: Phoenix → phoenix, KAY/O → kayo, dead lock → deadlock
+    return `/agents/${normalized}.png`;
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('riot_access_token');
 
     if (!token) {
       setHasToken(false);
-      setError('로그인이 필요합니다. Riot 계정으로 먼저 로그인해 주세요.');
+      setError('로그인이 필요합니다.');
       setLoading(false);
       return;
     }
@@ -31,80 +44,50 @@ function MatchHistoryPage() {
         setError('');
         setLoading(true);
 
-        // 1) 프로필 정보
+        // 1) 프로필
         const profileRes = await fetch(`${API_BASE_URL}/api/auth/profile`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!profileRes.ok) {
-          const errText = await profileRes.text();
-          console.error(
-            '[DEBUG] /api/auth/profile 실패',
-            profileRes.status,
-            errText
-          );
-          throw new Error(
-            `프로필 정보를 불러오지 못했습니다. (status ${profileRes.status})`
-          );
+          throw new Error(`프로필 정보를 불러오지 못했습니다. (status ${profileRes.status})`);
         }
 
         const profileData = await profileRes.json();
         console.log('[DEBUG] profileData:', profileData);
         setProfile(profileData);
 
-        // 2) Henrik 기반 요약 스탯
+        // 2) Henrik 요약 스탯
         try {
           const statsRes = await fetch(`${API_BASE_URL}/api/auth/stats`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
           });
 
-          if (!statsRes.ok) {
-            const errText = await statsRes.text();
-            console.error(
-              '[DEBUG] /api/auth/stats 실패',
-              statsRes.status,
-              errText
-            );
-          } else {
+          if (statsRes.ok) {
             const statsData = await statsRes.json();
             console.log('[DEBUG] statsData:', statsData);
             setSummary(statsData);
           }
-        } catch (statsErr) {
-          console.error('[DEBUG] /api/auth/stats 호출 중 에러:', statsErr);
-          // stats 실패해도 전적은 계속 불러오도록 함
+        } catch (e) {
+          console.error('Stats API 오류:', e);
         }
 
-        // 3) 전적 정보
+        // 3) 전적
         const matchesRes = await fetch(`${API_BASE_URL}/api/auth/matches`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!matchesRes.ok) {
-          const errText = await matchesRes.text();
-          console.error(
-            '[DEBUG] /api/auth/matches 실패',
-            matchesRes.status,
-            errText
-          );
-          throw new Error(
-            `전적 정보를 불러오지 못했습니다. (status ${matchesRes.status})`
-          );
+          throw new Error(`전적 정보를 불러오지 못했습니다. (status ${matchesRes.status})`);
         }
 
         const matchesData = await matchesRes.json();
         console.log('[DEBUG] matchesData:', matchesData);
-        // 백엔드가 배열을 바로 리턴하므로 그대로 사용
+
         setMatches(Array.isArray(matchesData) ? matchesData : matchesData.matches || []);
       } catch (err) {
         console.error(err);
-        setError(err.message || '알 수 없는 오류가 발생했습니다.');
+        setError(err.message);
       } finally {
         setLoading(false);
       }
@@ -121,42 +104,22 @@ function MatchHistoryPage() {
   const getDisplayName = (p) => {
     if (!p) return '';
     if (p.gameName && p.tagLine) return `${p.gameName}#${p.tagLine}`;
-    if (p.gameName) return p.gameName;
-    return '닉네임 정보를 불러오지 못했습니다.';
+    return p.gameName || '';
   };
 
-  // 🔁 에이전트 이미지: Henrik → 없으면 로컬 → 그래도 없으면 default
-  const getAgentImageSrc = (match) => {
-    if (match?.agentIcon) {
-      return match.agentIcon;
-    }
-
-    const agentName = match?.agent;
-    if (!agentName) return '/agents/default.png';
-
-    const file = agentName
-      .toLowerCase()
-      .replace(/\s+/g, '') // 공백 제거
-      .replace(/[^\w]/g, ''); // 특수문자 제거(KAY/O → kayo)
-
-    return `/agents/${file}.png`;
-  };
-
-  // 🔁 맵 이름: 문자열이면 그대로, 객체면 .name 사용
   const getMapName = (match) => {
-    const map = match?.map;
-    if (!map) return 'Unknown Map';
-    if (typeof map === 'string') return map;
-    if (typeof map.name === 'string') return map.name;
+    const m = match.map;
+    if (!m) return 'Unknown Map';
+    if (typeof m === 'string') return m;
+    if (m.name) return m.name;
     return 'Unknown Map';
   };
 
-  // 🔁 모드/큐 이름: 문자열이면 그대로, 객체면 .name 사용
   const getQueueName = (match) => {
-    const q = match?.queue || match?.mode;
+    const q = match.queue || match.mode;
     if (!q) return 'Mode';
     if (typeof q === 'string') return q;
-    if (typeof q.name === 'string') return q.name;
+    if (q.name) return q.name;
     return 'Mode';
   };
 
@@ -174,38 +137,22 @@ function MatchHistoryPage() {
         </div>
 
         <div style={styles.center}>
-          <span style={styles.navItem} onClick={() => navigate('/agents')}>
-            요원
-          </span>
-          <span style={styles.navItem} onClick={() => navigate('/maps')}>
-            맵 로테이션
-          </span>
-          <span style={styles.navItem} onClick={() => navigate('/skins')}>
-            스킨
-          </span>
-          <span style={styles.navItem} onClick={() => navigate('/rank')}>
-            랭킹
-          </span>
-          <span style={styles.navItem} onClick={() => navigate('/esports')}>
-            E-Sports
-          </span>
-          <span style={styles.navItem} onClick={() => navigate('/matches')}>
-            전적
-          </span>
+          <span style={styles.navItem} onClick={() => navigate('/agents')}>요원</span>
+          <span style={styles.navItem} onClick={() => navigate('/maps')}>맵 로테이션</span>
+          <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span>
+          <span style={styles.navItem} onClick={() => navigate('/rank')}>랭킹</span>
+          <span style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
+          <span style={styles.navItem} onClick={() => navigate('/matches')}>전적</span>
         </div>
 
         <div style={styles.right}>
           {profile ? (
             <div style={styles.profileBox}>
               <span style={styles.profileName}>{getDisplayName(profile)}</span>
-              <button style={styles.logoutButton} onClick={handleLogout}>
-                로그아웃
-              </button>
+              <button style={styles.logoutButton} onClick={handleLogout}>로그아웃</button>
             </div>
           ) : (
-            <button style={styles.loginButton} onClick={() => navigate('/')}>
-              로그인
-            </button>
+            <button style={styles.loginButton} onClick={() => navigate('/')}>로그인</button>
           )}
         </div>
       </nav>
@@ -218,10 +165,7 @@ function MatchHistoryPage() {
           <div style={styles.errorBox}>
             <p style={styles.errorText}>{error}</p>
             {!hasToken && (
-              <button
-                style={styles.primaryButton}
-                onClick={() => navigate('/')}
-              >
+              <button style={styles.primaryButton} onClick={() => navigate('/')}>
                 로그인 하러 가기
               </button>
             )}
@@ -235,34 +179,25 @@ function MatchHistoryPage() {
               <div style={styles.profileCard}>
                 <div>
                   <h2 style={styles.profileTitle}>{getDisplayName(profile)}</h2>
-                  {profile.puuid && (
-                    <p style={styles.profileSub}>PUUID: {profile.puuid}</p>
-                  )}
+                  <p style={styles.profileSub}>PUUID: {profile.puuid}</p>
                 </div>
 
-                {/* ⭐ Henrik 요약 스탯 */}
                 {summary && (
                   <div style={styles.summaryRow}>
                     <div style={styles.summaryItem}>
-                      <span style={styles.summaryLabel}>계정 레벨 </span>
+                      <span style={styles.summaryLabel}>계정 레벨</span>
+                      <span style={styles.summaryValue}>{summary.accountLevel}</span>
+                    </div>
+                    <div style={styles.summaryItem}>
+                      <span style={styles.summaryLabel}>현재 티어</span>
                       <span style={styles.summaryValue}>
-                        {summary.accountLevel ?? '-'}
+                        {summary.currentTier} ({summary.rr} RR)
                       </span>
                     </div>
                     <div style={styles.summaryItem}>
-                      <span style={styles.summaryLabel}>현재 티어 </span>
+                      <span style={styles.summaryLabel}>시즌 전적</span>
                       <span style={styles.summaryValue}>
-                        {summary.currentTier || 'Unrated'}
-                        {summary.rr != null ? ` (${summary.rr} RR)` : ''}
-                      </span>
-                    </div>
-                    <div style={styles.summaryItem}>
-                      <span style={styles.summaryLabel}>시즌 전적 </span>
-                      <span style={styles.summaryValue}>
-                        {summary.wins ?? 0}승 {summary.losses ?? 0}패
-                        {summary.winRate != null
-                          ? ` (${summary.winRate}%)`
-                          : ''}
+                        {summary.wins}승 {summary.losses}패 ({summary.winRate}%)
                       </span>
                     </div>
                   </div>
@@ -270,6 +205,7 @@ function MatchHistoryPage() {
               </div>
             )}
 
+            {/* 전적 */}
             <h3 style={styles.sectionTitle}>최근 경기 전적</h3>
 
             {matches.length === 0 ? (
@@ -281,59 +217,43 @@ function MatchHistoryPage() {
                   const d = match.deaths ?? 0;
                   const a = match.assists ?? 0;
 
-                  const kdRaw =
-                    match.kd != null
-                      ? match.kd
-                      : d > 0
-                      ? k / d
-                      : k;
-                  const kd =
-                    typeof kdRaw === 'number'
-                      ? kdRaw.toFixed(2)
-                      : kdRaw;
-
-                  const acs = match.acs != null ? match.acs : '-';
-                  const adr = match.adr != null ? match.adr : '-';
-                  const hs =
-                    match.hsPercent != null ? `${match.hsPercent}%` : '-';
+                  const kd = d > 0 ? (k / d).toFixed(2) : k;
 
                   const scoreText =
-                    match.teamScore != null && match.enemyScore != null
+                    match.teamScore !== undefined && match.enemyScore !== undefined
                       ? `${match.teamScore} : ${match.enemyScore}`
                       : match.win
                       ? '승리'
                       : '패배';
 
                   const isWin =
-                    typeof match.win === 'boolean'
+                    match.win !== undefined
                       ? match.win
                       : match.teamScore > match.enemyScore;
 
                   return (
-                    <div key={match.matchId || match.id} style={styles.matchRowCard}>
-                      {/* 왼쪽: 에이전트 + 맵/큐 */}
+                    <div key={match.matchId} style={styles.matchRowCard}>
                       <div style={styles.matchLeft}>
                         <img
-                          src={getAgentImageSrc(match)}
-                          alt={match.agent || 'Agent'}
+                          src={getAgentImageSrc(match.agent)}
+                          alt={match.agent}
                           style={styles.agentImage}
                           onError={(e) => {
-                            console.warn(
-                              '[AgentImageError] 이미지 로드 실패:',
-                              match.agent,
-                              match.agentIcon,
-                              e.currentTarget.src
-                            );
+                            if (e.currentTarget.dataset.errorHandled === '1') {
+                              e.currentTarget.style.display = 'none';
+                              return;
+                            }
+                            e.currentTarget.dataset.errorHandled = '1';
                             e.currentTarget.src = '/agents/default.png';
                           }}
                         />
+
                         <div style={styles.matchLeftText}>
-                          <div style={styles.mapName}>
-                            {getMapName(match)}
-                          </div>
+                          <div style={styles.mapName}>{getMapName(match)}</div>
                           <div style={styles.queueText}>
-                            {getQueueName(match)} · {match.timeAgo || ''}
+                            {getQueueName(match)} · {match.timeAgo}
                           </div>
+
                           <div style={styles.scoreBox}>
                             <span
                               style={{
@@ -343,46 +263,43 @@ function MatchHistoryPage() {
                             >
                               {scoreText}
                             </span>
-                            {match.placement && (
-                              <span style={styles.placementBadge}>
-                                {match.placement}
-                              </span>
-                            )}
                           </div>
                         </div>
                       </div>
 
-                      {/* 오른쪽: 스탯 라인 */}
                       <div style={styles.statsRow}>
                         <div style={styles.statBlock}>
-                          <span style={styles.statLabel}>K / D / A</span>
-                          <span style={styles.statValue}>
-                            {k} / {d} / {a}
-                          </span>
+                          <span style={styles.statLabel}>K/D/A</span>
+                          <span style={styles.statValue}>{k} / {d} / {a}</span>
                         </div>
+
                         <div style={styles.statBlock}>
                           <span style={styles.statLabel}>K/D</span>
                           <span
                             style={{
                               ...styles.statValue,
-                              color:
-                                parseFloat(kd) >= 1 ? '#4CAF50' : '#F44336',
+                              color: kd >= 1 ? '#4CAF50' : '#F44336',
                             }}
                           >
                             {kd}
                           </span>
                         </div>
+
                         <div style={styles.statBlock}>
                           <span style={styles.statLabel}>ACS</span>
-                          <span style={styles.statValue}>{acs}</span>
+                          <span style={styles.statValue}>{match.acs ?? '-'}</span>
                         </div>
+
                         <div style={styles.statBlock}>
                           <span style={styles.statLabel}>ADR</span>
-                          <span style={styles.statValue}>{adr}</span>
+                          <span style={styles.statValue}>{match.adr ?? '-'}</span>
                         </div>
+
                         <div style={styles.statBlock}>
                           <span style={styles.statLabel}>HS%</span>
-                          <span style={styles.statValue}>{hs}</span>
+                          <span style={styles.statValue}>
+                            {match.hsPercent ? `${match.hsPercent}%` : '-'}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -397,13 +314,14 @@ function MatchHistoryPage() {
   );
 }
 
+/* ====================== 스타일 ====================== */
 const styles = {
   pageWrapper: {
     backgroundColor: '#121212',
     minHeight: '100vh',
     color: '#eee',
-    fontFamily: 'Black Han Sans, sans-serif',
     paddingTop: '72px',
+    fontFamily: 'Black Han Sans, sans-serif',
   },
   navbar: {
     display: 'flex',
@@ -448,8 +366,8 @@ const styles = {
     margin: '0 auto',
   },
   message: {
-    color: '#bbb',
     textAlign: 'center',
+    color: '#bbb',
   },
   errorBox: {
     backgroundColor: '#2b1b1b',
@@ -459,15 +377,8 @@ const styles = {
     textAlign: 'center',
   },
   errorText: { color: '#ff8888' },
-  primaryButton: {
-    padding: '8px 16px',
-    marginTop: '12px',
-    borderRadius: '8px',
-    border: 'none',
-    backgroundColor: '#ff4655',
-    color: '#fff',
-    cursor: 'pointer',
-  },
+
+  /* 프로필 */
   profileCard: {
     backgroundColor: '#1b1b1b',
     padding: '20px',
@@ -483,30 +394,42 @@ const styles = {
     fontSize: '14px',
     color: '#aaa',
   },
-  sectionTitle: {
-    marginTop: '20px',
-    marginBottom: '10px',
-    fontSize: '20px',
+  summaryRow: {
+    marginTop: '10px',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '16px',
   },
+  summaryItem: {
+    display: 'flex',
+    gap: '4px',
+  },
+  summaryLabel: {
+    color: '#999',
+  },
+  summaryValue: {
+    color: '#fff',
+  },
+
+  /* 매치 카드 */
   matchList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '10px',
+    gap: '12px',
   },
   matchRowCard: {
     display: 'flex',
-    alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#181818',
-    padding: '12px 16px',
-    borderRadius: '10px',
+    padding: '14px 18px',
+    borderRadius: '12px',
     border: '1px solid #303030',
+    alignItems: 'center',
   },
   matchLeft: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    minWidth: 0,
   },
   agentImage: {
     width: '48px',
@@ -528,27 +451,18 @@ const styles = {
     color: '#999',
   },
   scoreBox: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
     marginTop: '2px',
   },
   scoreText: {
     fontSize: '14px',
     fontWeight: '600',
   },
-  placementBadge: {
-    fontSize: '11px',
-    padding: '2px 6px',
-    borderRadius: '999px',
-    backgroundColor: '#262626',
-    color: '#ccc',
-  },
+
+  /* 스탯 */
   statsRow: {
     display: 'flex',
     alignItems: 'center',
     gap: '18px',
-    fontSize: '12px',
   },
   statBlock: {
     display: 'flex',
@@ -557,57 +471,30 @@ const styles = {
     minWidth: '60px',
   },
   statLabel: {
-    color: '#777',
     fontSize: '11px',
+    color: '#777',
   },
   statValue: {
-    color: '#eee',
     fontSize: '13px',
-    fontWeight: '500',
+    color: '#fff',
   },
-  profileBox: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-  },
-  profileName: {
-    fontSize: '14px',
-    color: '#ddd',
-  },
+
+  /* 버튼 */
   loginButton: {
-    padding: '6px 14px',
+    padding: '6px 12px',
+    backgroundColor: 'transparent',
     borderRadius: '999px',
     border: '1px solid #555',
-    backgroundColor: 'transparent',
     color: '#eee',
     cursor: 'pointer',
-    fontSize: '14px',
   },
   logoutButton: {
-    padding: '6px 14px',
+    padding: '6px 12px',
+    backgroundColor: 'transparent',
     borderRadius: '999px',
     border: '1px solid #555',
-    backgroundColor: 'transparent',
     color: '#eee',
     cursor: 'pointer',
-    fontSize: '12px',
-  },
-  summaryRow: {
-    marginTop: '10px',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '16px',
-    fontSize: '14px',
-  },
-  summaryItem: {
-    display: 'flex',
-    gap: '4px',
-  },
-  summaryLabel: {
-    color: '#888',
-  },
-  summaryValue: {
-    color: '#f5f5f5',
   },
 };
 
