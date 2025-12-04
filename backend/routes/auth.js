@@ -26,8 +26,27 @@ function resolveHenrikRegion(country, fallbackRegion) {
   if (['KR'].includes(c)) return 'kr';
   if (['US', 'CA', 'MX'].includes(c)) return 'na';
   if (['BR'].includes(c)) return 'br';
-  if (['AR', 'CL', 'PE', 'CO', 'VE', 'UY', 'PY', 'BO', 'EC'].includes(c)) return 'latam';
-  if (['FR', 'DE', 'ES', 'IT', 'GB', 'UK', 'NL', 'SE', 'NO', 'FI', 'PL', 'CZ'].includes(c)) return 'eu';
+  if (
+    ['AR', 'CL', 'PE', 'CO', 'VE', 'UY', 'PY', 'BO', 'EC'].includes(c)
+  )
+    return 'latam';
+  if (
+    [
+      'FR',
+      'DE',
+      'ES',
+      'IT',
+      'GB',
+      'UK',
+      'NL',
+      'SE',
+      'NO',
+      'FI',
+      'PL',
+      'CZ',
+    ].includes(c)
+  )
+    return 'eu';
 
   // 그 외 아시아권은 그냥 ap
   return 'ap';
@@ -35,7 +54,6 @@ function resolveHenrikRegion(country, fallbackRegion) {
 
 // --------------------------------------------------
 // 헬퍼: RSO AccessToken → Riot 계정 정보(gameName, tagLine, puuid, country)
-//  /auth/profile, /auth/stats, /auth/matches 에서 공통으로 사용
 // --------------------------------------------------
 async function getRiotIdentityFromToken(accessToken) {
   console.log('👤 [RSO DEBUG] getRiotIdentityFromToken 호출');
@@ -53,7 +71,7 @@ async function getRiotIdentityFromToken(accessToken) {
   let puuid = data.sub || null;
   const country = data.country || null;
 
-  // 2) account-v1 /accounts/me (있으면 여기가 정답)
+  // 2) account-v1 /accounts/me
   try {
     console.log('🌍 [RSO DEBUG] account-v1 /accounts/me 호출 시도');
     const accountRes = await axios.get(
@@ -209,7 +227,6 @@ router.get('/profile', async (req, res) => {
 
 // --------------------------------------------------
 // 4️⃣ Henrik 요약 스탯 (/api/auth/stats)
-//     ✅ 여기서는 puuid 안 쓰고 name#tag + region만 사용
 // --------------------------------------------------
 router.get('/stats', async (req, res) => {
   const authHeader = req.headers.authorization;
@@ -237,7 +254,7 @@ router.get('/stats', async (req, res) => {
       });
     }
 
-    // 2) Henrik 계정 정보 (여기서 region, account_level, puuid 등 얻음)
+    // 2) Henrik 계정 정보
     const accountUrl = `https://api.henrikdev.xyz/valorant/v2/account/${encodeURIComponent(
       gameName
     )}/${encodeURIComponent(tagLine)}`;
@@ -259,7 +276,7 @@ router.get('/stats', async (req, res) => {
     const regionFromHenrik = accountData?.region || null;
     const region = resolveHenrikRegion(country, regionFromHenrik);
 
-    // 3) MMR v3 (name#tag 기반, puuid 사용 ❌)
+    // 3) MMR v3
     const mmrUrl = `https://api.henrikdev.xyz/valorant/v3/mmr/${region}/pc/${encodeURIComponent(
       accountData.name
     )}/${encodeURIComponent(accountData.tag)}`;
@@ -278,14 +295,28 @@ router.get('/stats', async (req, res) => {
       JSON.stringify(mmrData, null, 2)
     );
 
-    const seasonal = Array.isArray(mmrData.seasonal) ? mmrData.seasonal : [];
-    const latestSeason = seasonal[seasonal.length - 1];
+    // v3 구조 대응: seasonal 배열 or by_season 객체
+    let seasonal = [];
+    if (Array.isArray(mmrData.seasonal)) {
+      seasonal = mmrData.seasonal;
+    } else if (
+      mmrData.by_season &&
+      typeof mmrData.by_season === 'object'
+    ) {
+      seasonal = Object.values(mmrData.by_season);
+    }
+
+    const latestSeason = seasonal[seasonal.length - 1] || null;
 
     let wins = null;
     let losses = null;
     let winRate = null;
 
-    if (latestSeason && typeof latestSeason.wins === 'number' && typeof latestSeason.games === 'number') {
+    if (
+      latestSeason &&
+      typeof latestSeason.wins === 'number' &&
+      typeof latestSeason.games === 'number'
+    ) {
       wins = latestSeason.wins;
       const games = latestSeason.games;
       losses = games - wins;
@@ -321,7 +352,6 @@ router.get('/stats', async (req, res) => {
 
 // --------------------------------------------------
 // 5️⃣ 최근 경기 정보 반환 (/api/auth/matches)
-//     ✅ 여기서도 마찬가지로 name#tag + region 사용 (by-puuid ❌)
 // --------------------------------------------------
 router.get('/matches', async (req, res) => {
   const authHeader = req.headers.authorization;
@@ -372,7 +402,7 @@ router.get('/matches', async (req, res) => {
     const region = resolveHenrikRegion(country, regionFromHenrik);
     const henrikPuuid = accountData?.puuid || null;
 
-    // 3) v4 matches (name#tag 기준, puuid는 "내 플레이어" 찾을 때만 사용)
+    // 3) v4 matches
     const matchesUrl = `https://api.henrikdev.xyz/valorant/v4/matches/${region}/pc/${encodeURIComponent(
       accountData.name
     )}/${encodeURIComponent(accountData.tag)}`;
@@ -384,7 +414,7 @@ router.get('/matches', async (req, res) => {
         Authorization: HENRIK_API_KEY,
       },
       params: {
-        size: 8, // 최근 8게임 정도
+        size: 8, // 최근 8게임
       },
     });
 
@@ -394,45 +424,131 @@ router.get('/matches', async (req, res) => {
       rawMatches.length
     );
 
-    // 4) 프론트에서 쓰기 편한 형태로 변환
     const mapped = rawMatches.map((m) => {
       const meta = m.metadata || {};
-      const players = m.players || {};
-      const allPlayers = Array.isArray(players.all) ? players.all : [];
 
+      // --- players 구조 통합 (v3 / v4 모두 대응) ---
+      const playersRaw = m.players || {};
+      let allPlayers = [];
+
+      // 1) 기존 구조: players.all
+      if (Array.isArray(playersRaw.all)) {
+        allPlayers = playersRaw.all;
+      } else {
+        // 2) 팀별 구조: players.blue.players / players.red.players / players.other.players ...
+        const teamKeys = ['blue', 'red', 'other', 'neutral', 'defending', 'attacking'];
+        teamKeys.forEach((key) => {
+          const team = playersRaw[key];
+          if (team && Array.isArray(team.players)) {
+            allPlayers = allPlayers.concat(team.players);
+          }
+        });
+      }
+
+      // --- 내 플레이어 찾기 ---
       let selfPlayer = null;
-      if (henrikPuuid) {
+
+      if (henrikPuuid && allPlayers.length > 0) {
         selfPlayer =
           allPlayers.find((p) => p.puuid === henrikPuuid) || null;
       }
+
       if (!selfPlayer && allPlayers.length > 0) {
-        selfPlayer = allPlayers[0]; // 못 찾으면 그냥 첫 번째
+        // 이름 / 태그로 한 번 더 시도
+        selfPlayer =
+          allPlayers.find(
+            (p) =>
+              p.name === accountData.name && p.tag === accountData.tag
+          ) || null;
       }
 
-      const stats = selfPlayer?.stats || {};
-      const teamKey =
-        (selfPlayer?.team || '').toLowerCase() === 'blue' ? 'blue' : 'red';
-      const teams = m.teams || {};
-      const myTeam = teams[teamKey] || {};
-      const enemyTeam = teams[teamKey === 'blue' ? 'red' : 'blue'] || {};
+      if (!selfPlayer && allPlayers.length > 0) {
+        // 그래도 없으면 그냥 첫 번째
+        selfPlayer = allPlayers[0];
+      }
 
-      const roundsWon = myTeam.rounds_won ?? null;
-      const roundsLost = myTeam.rounds_lost ?? null;
-      const hasWon = myTeam.has_won === true;
+      const rawStats = selfPlayer?.stats || {};
+      const coreStats = rawStats.core || rawStats; // v4 에서 core 안에 들어올 수 있음
 
-      const kills = stats.kills ?? 0;
-      const deaths = stats.deaths ?? 0;
-      const assists = stats.assists ?? 0;
+      // --- 기본 KDA / 점수 ---
+      let kills =
+        coreStats.kills ??
+        rawStats.kills ??
+        0;
+      let deaths =
+        coreStats.deaths ??
+        rawStats.deaths ??
+        0;
+      let assists =
+        coreStats.assists ??
+        rawStats.assists ??
+        0;
+      let score =
+        coreStats.score ??
+        rawStats.score ??
+        null;
+
+      // --- 명중 부위 (HS%) ---
+      let headshots = coreStats.headshots ?? rawStats.headshots ?? null;
+      let bodyshots = coreStats.bodyshots ?? rawStats.bodyshots ?? null;
+      let legshots = coreStats.legshots ?? rawStats.legshots ?? null;
+
+      // 일부 응답에서는 shots.head / body / leg 로 들어올 수도 있음
+      const shots = coreStats.shots || rawStats.shots;
+      if (shots) {
+        if (headshots == null) headshots = shots.head ?? shots.headshots ?? null;
+        if (bodyshots == null) bodyshots = shots.body ?? shots.bodyshots ?? null;
+        if (legshots == null) legshots = shots.leg ?? shots.legshots ?? null;
+      }
+
+      const totalShots =
+        (headshots || 0) + (bodyshots || 0) + (legshots || 0);
+      const hsPercent =
+        totalShots > 0
+          ? Math.round(((headshots || 0) / totalShots) * 100)
+          : null;
 
       const kdRaw = deaths > 0 ? kills / deaths : kills;
       const kd = Number.isFinite(kdRaw) ? kdRaw : null;
 
-      const headshots = stats.headshots ?? 0;
-      const bodyshots = stats.bodyshots ?? 0;
-      const legshots = stats.legshots ?? 0;
-      const totalShots = headshots + bodyshots + legshots;
-      const hsPercent =
-        totalShots > 0 ? Math.round((headshots / totalShots) * 100) : null;
+      // --- 팀 정보 / 스코어 ---
+      const teams = m.teams || {};
+      const teamIdRaw = (selfPlayer?.team || '').toLowerCase();
+
+      // 기본은 blue/red, 그래도 이상하면 blue로
+      let myTeamKey = null;
+      if (teamIdRaw === 'blue' || teamIdRaw === 'red') {
+        myTeamKey = teamIdRaw;
+      } else if (
+        teamIdRaw === 'defending' ||
+        teamIdRaw === 'defense'
+      ) {
+        myTeamKey = 'defending';
+      } else if (
+        teamIdRaw === 'attacking' ||
+        teamIdRaw === 'attack'
+      ) {
+        myTeamKey = 'attacking';
+      } else {
+        myTeamKey = 'blue';
+      }
+
+      let myTeam = teams[myTeamKey] || {};
+      let enemyTeam = {};
+
+      if (myTeamKey === 'blue') {
+        enemyTeam = teams.red || {};
+      } else if (myTeamKey === 'red') {
+        enemyTeam = teams.blue || {};
+      } else if (myTeamKey === 'defending') {
+        enemyTeam = teams.attacking || {};
+      } else if (myTeamKey === 'attacking') {
+        enemyTeam = teams.defending || {};
+      }
+
+      const roundsWon = myTeam.rounds_won ?? null;
+      const roundsLost = myTeam.rounds_lost ?? null;
+      const hasWon = myTeam.has_won === true;
 
       const assets = selfPlayer?.assets || {};
       const agentAssets = assets.agent || {};
@@ -441,7 +557,7 @@ router.get('/matches', async (req, res) => {
         matchId: meta.matchid || meta.id || '',
         map: meta.map || 'Unknown Map',
         queue: meta.mode || meta.queue || 'Mode',
-        timeAgo: meta.started_at || '', // 나중에 백엔드에서 "17h ago" 형식으로 바꿔도 됨
+        timeAgo: meta.started_at || '',
 
         agent: selfPlayer?.character || 'Unknown',
         agentIcon:
@@ -453,17 +569,17 @@ router.get('/matches', async (req, res) => {
         teamScore: roundsWon,
         enemyScore: roundsLost,
         rankTier: selfPlayer?.currenttier_patched || null,
-        rr: null, // 여기선 RR까지는 안 넣고 stats에서만 처리
+        rr: null,
 
         kills,
         deaths,
         assists,
         kd,
-        acs: stats.score ?? null, // 대략적인 값 (ACS랑 다를 수 있음)
-        adr: null, // Henrik matches 응답에 데미지 합계 있으면 나중에 추가 가능
+        acs: score,
+        adr: null, // 필요하면 나중에 damage 기반으로 추가 가능
         hsPercent,
         win: hasWon,
-        placement: null, // 필요하면 나중에 계산
+        placement: null,
       };
     });
 
