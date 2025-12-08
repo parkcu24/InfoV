@@ -518,9 +518,11 @@ router.get('/matches', async (req, res) => {
       const kd = Number.isFinite(kdRaw) ? kdRaw : null;
 
       // --- 팀 정보 / 스코어 ---
+      // --- 팀 정보 / 스코어 ---
       const teams = m.teams || {};
-      const teamIdRaw = (selfPlayer?.team || '').toLowerCase();
+      const teamIdRaw = (selfPlayer?.team || selfPlayer?.player_team || '').toLowerCase();
 
+      // 기본은 blue/red, 나머지는 defending/attacking 정도까지 처리
       let myTeamKey = null;
       if (teamIdRaw === 'blue' || teamIdRaw === 'red') {
         myTeamKey = teamIdRaw;
@@ -545,12 +547,35 @@ router.get('/matches', async (req, res) => {
         enemyTeam = teams.defending || {};
       }
 
-      const roundsWon = myTeam.rounds_won ?? null;
-      const roundsLost = myTeam.rounds_lost ?? null;
-      const hasWon = myTeam.has_won === true;
+      // 🔹 여기부터 "여러 형식"을 다 대응해서 점수를 뽑는 부분
+      const roundsWon =
+        myTeam.rounds_won ??
+        myTeam.roundsWon ??
+        myTeam.rounds?.won ??
+        myTeam.score ??         // 어떤 버전에서는 score 로 들어오는 경우
+        null;
 
-      const assets = selfPlayer?.assets || {};
-      const agentAssets = assets.agent || {};
+      const roundsLost =
+        myTeam.rounds_lost ??
+        myTeam.roundsLost ??
+        myTeam.rounds?.lost ??
+        enemyTeam.score ??      // 내 점수는 myTeam.score, 상대 점수는 enemyTeam.score 인 경우
+        null;
+
+      const hasWonRaw =
+        myTeam.has_won ??
+        myTeam.hasWon ??
+        myTeam.won ??
+        null;
+
+      const hasWon =
+        typeof hasWonRaw === 'boolean'
+          ? hasWonRaw
+          : (typeof roundsWon === 'number' &&
+            typeof roundsLost === 'number'
+            ? roundsWon > roundsLost
+            : null);
+
 
       return {
         matchId: meta.matchid || meta.id || meta.matchId || '',
