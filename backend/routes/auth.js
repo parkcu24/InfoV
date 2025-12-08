@@ -384,7 +384,9 @@ router.get('/matches', async (req, res) => {
     console.log('🌐 [Henrik DEBUG] account v2 호출:', accountUrl);
 
     const accountRes = await axios.get(accountUrl, {
-      headers: { Authorization: HENRIK_API_KEY },
+      headers: {
+        Authorization: HENRIK_API_KEY,
+      },
     });
 
     const accountData = accountRes.data?.data;
@@ -397,7 +399,7 @@ router.get('/matches', async (req, res) => {
     const region = resolveHenrikRegion(country, regionFromHenrik);
     const henrikPuuid = accountData?.puuid || null;
 
-    // 3) v4 matches (name#tag)
+    // 3) v4 matches
     const matchesUrl = `https://api.henrikdev.xyz/valorant/v4/matches/${region}/pc/${encodeURIComponent(
       accountData.name
     )}/${encodeURIComponent(accountData.tag)}`;
@@ -405,8 +407,12 @@ router.get('/matches', async (req, res) => {
     console.log('🌐 [Henrik DEBUG] matches v4 호출:', matchesUrl);
 
     const matchesRes = await axios.get(matchesUrl, {
-      headers: { Authorization: HENRIK_API_KEY },
-      params: { size: 8 },
+      headers: {
+        Authorization: HENRIK_API_KEY,
+      },
+      params: {
+        size: 8, // 최근 8게임
+      },
     });
 
     const rawMatches = matchesRes.data?.data || [];
@@ -418,76 +424,102 @@ router.get('/matches', async (req, res) => {
     const mapped = rawMatches.map((m, idx) => {
       const meta = m.metadata || {};
 
-      // ✅ v4: players 는 그냥 배열
-      const rawPlayers = Array.isArray(m.players) ? m.players : [];
+      // ==============================
+      // 1) players 파싱 (all / all_players / 팀별)
+      // ==============================
+      const playersRaw = m.players || {};
+      let allPlayers = [];
 
-      // --- 내 플레이어 찾기 ---
-      let selfPlayer = null;
-
-      if (henrikPuuid && rawPlayers.length > 0) {
-        selfPlayer =
-          rawPlayers.find((p) => p.puuid === henrikPuuid) || null;
+      // 1-1) players.all
+      if (Array.isArray(playersRaw.all)) {
+        allPlayers = playersRaw.all;
+      }
+      // 1-2) players.all_players
+      else if (Array.isArray(playersRaw.all_players)) {
+        allPlayers = playersRaw.all_players;
       }
 
-      if (!selfPlayer && rawPlayers.length > 0) {
+      // 1-3) 팀별 players / all_players
+      const teamKeys = [
+        'blue',
+        'red',
+        'other',
+        'neutral',
+        'defending',
+        'attacking',
+      ];
+      teamKeys.forEach((key) => {
+        const team = playersRaw[key];
+        if (!team) return;
+
+        if (Array.isArray(team.players)) {
+          allPlayers = allPlayers.concat(team.players);
+        } else if (Array.isArray(team.all_players)) {
+          allPlayers = allPlayers.concat(team.all_players);
+        }
+      });
+
+      console.log(`🎯 [Henrik DEBUG] match[${idx}] allPlayers 길이:`, allPlayers.length);
+
+      // ==============================
+      // 2) 내 플레이어 찾기
+      // ==============================
+      let selfPlayer = null;
+
+      if (henrikPuuid && allPlayers.length > 0) {
         selfPlayer =
-          rawPlayers.find(
+          allPlayers.find((p) => p.puuid === henrikPuuid) || null;
+      }
+
+      if (!selfPlayer && allPlayers.length > 0) {
+        // 이름/태그 대소문자 무시 비교
+        selfPlayer =
+          allPlayers.find(
             (p) =>
-              p.name === accountData.name &&
-              p.tag === accountData.tag
+              String(p.name || '').toLowerCase() ===
+                String(accountData.name || '').toLowerCase() &&
+              String(p.tag || '').toLowerCase() ===
+                String(accountData.tag || '').toLowerCase()
           ) || null;
       }
 
-      if (!selfPlayer && rawPlayers.length > 0) {
-        selfPlayer = rawPlayers[0]; // 마지막 백업
+      if (!selfPlayer && allPlayers.length > 0) {
+        selfPlayer = allPlayers[0];
       }
 
-      // 디버깅용
       if (!selfPlayer) {
-        console.warn(
-          '⚠️ [Henrik DEBUG] selfPlayer 찾기 실패, idx:',
-          idx,
-          'match metadata:',
-          meta
-        );
+        console.warn(`⚠️ [Henrik DEBUG] match[${idx}] selfPlayer 찾기 실패`);
       }
 
-      const stats = selfPlayer?.stats || {};
-      const coreStats = stats.core || stats;
+      // ==============================
+      // 3) 스탯(core / stats 호환)
+      // ==============================
+      const rawStats = selfPlayer?.stats || {};
+      const coreStats = rawStats.core || rawStats;
 
-      // --- 기본 KDA / 점수 ---
       const kills =
         coreStats.kills ??
-        stats.kills ??
+        rawStats.kills ??
         0;
       const deaths =
         coreStats.deaths ??
-        stats.deaths ??
+        rawStats.deaths ??
         0;
       const assists =
         coreStats.assists ??
-        stats.assists ??
+        rawStats.assists ??
         0;
       const score =
         coreStats.score ??
-        stats.score ??
+        rawStats.score ??
         null;
 
-      // --- 명중 부위 (HS%) ---
-      let headshots =
-        coreStats.headshots ??
-        stats.headshots ??
-        null;
-      let bodyshots =
-        coreStats.bodyshots ??
-        stats.bodyshots ??
-        null;
-      let legshots =
-        coreStats.legshots ??
-        stats.legshots ??
-        null;
+      // HS%
+      let headshots = coreStats.headshots ?? rawStats.headshots ?? null;
+      let bodyshots = coreStats.bodyshots ?? rawStats.bodyshots ?? null;
+      let legshots = coreStats.legshots ?? rawStats.legshots ?? null;
 
-      const shots = coreStats.shots || stats.shots;
+      const shots = coreStats.shots || rawStats.shots;
       if (shots) {
         if (headshots == null) headshots = shots.head ?? shots.headshots ?? null;
         if (bodyshots == null) bodyshots = shots.body ?? shots.bodyshots ?? null;
@@ -504,65 +536,71 @@ router.get('/matches', async (req, res) => {
       const kdRaw = deaths > 0 ? kills / deaths : kills;
       const kd = Number.isFinite(kdRaw) ? kdRaw : null;
 
-      // --- 팀 정보 / 스코어 ---
+      // ==============================
+      // 4) 팀 / 스코어 파싱
+      // ==============================
       const teams = m.teams || {};
-      const teamIdRaw = (selfPlayer?.team_id || selfPlayer?.team || '').toLowerCase();
+      const teamIdRaw = (selfPlayer?.team || '').toLowerCase();
 
-      let myTeam = {};
-      let enemyTeam = {};
-
-      if (Array.isArray(teams)) {
-        // 혹시 teams 도 배열로 온다면 (id: 'Red' / 'Blue')
-        myTeam =
-          teams.find(
-            (t) =>
-              (t.id || t.team_id || '').toLowerCase() === teamIdRaw
-          ) || {};
-        enemyTeam =
-          teams.find(
-            (t) =>
-              (t.id || t.team_id || '').toLowerCase() !== teamIdRaw
-          ) || {};
+      let myTeamKey = null;
+      if (teamIdRaw === 'blue' || teamIdRaw === 'red') {
+        myTeamKey = teamIdRaw;
+      } else if (teamIdRaw === 'defending' || teamIdRaw === 'defense') {
+        myTeamKey = 'defending';
+      } else if (teamIdRaw === 'attacking' || teamIdRaw === 'attack') {
+        myTeamKey = 'attacking';
       } else {
-        // 기존 딕셔너리 구조 (red / blue / attacking / defending ...)
-        let myTeamKey = null;
-        if (teamIdRaw === 'blue' || teamIdRaw === 'red') {
-          myTeamKey = teamIdRaw;
-        } else if (teamIdRaw === 'defending' || teamIdRaw === 'defense') {
-          myTeamKey = 'defending';
-        } else if (teamIdRaw === 'attacking' || teamIdRaw === 'attack') {
-          myTeamKey = 'attacking';
-        } else {
-          myTeamKey = 'blue';
-        }
-
-        myTeam = teams[myTeamKey] || {};
-        if (myTeamKey === 'blue') enemyTeam = teams.red || {};
-        else if (myTeamKey === 'red') enemyTeam = teams.blue || {};
-        else if (myTeamKey === 'defending') enemyTeam = teams.attacking || {};
-        else if (myTeamKey === 'attacking') enemyTeam = teams.defending || {};
+        myTeamKey = 'blue';
       }
 
-      const roundsWon = myTeam.rounds_won ?? null;
-      const roundsLost = myTeam.rounds_lost ?? null;
-      const hasWon = myTeam.has_won === true;
+      let myTeam = teams[myTeamKey] || {};
+      let enemyTeam = {};
 
-      // --- 에이전트 / 아이콘 ---
-      const agentName =
-        selfPlayer?.agent?.name ||
-        selfPlayer?.character ||
-        'Unknown';
+      if (myTeamKey === 'blue') {
+        enemyTeam = teams.red || {};
+      } else if (myTeamKey === 'red') {
+        enemyTeam = teams.blue || {};
+      } else if (myTeamKey === 'defending') {
+        enemyTeam = teams.attacking || {};
+      } else if (myTeamKey === 'attacking') {
+        enemyTeam = teams.defending || {};
+      }
 
+      // rounds 구조가 여러 가지일 수 있음
+      const myRounds = myTeam.rounds || myTeam;
+      const enemyRounds = enemyTeam.rounds || enemyTeam;
+
+      const roundsWon =
+        myRounds.rounds_won ??
+        myRounds.won ??
+        null;
+      const roundsLost =
+        myRounds.rounds_lost ??
+        myRounds.lost ??
+        null;
+
+      const hasWon =
+        typeof myTeam.has_won === 'boolean'
+          ? myTeam.has_won
+          : (roundsWon != null && roundsLost != null
+              ? roundsWon > roundsLost
+              : null);
+
+      // ==============================
+      // 5) 에이전트 / 이미지
+      // ==============================
       const assets = selfPlayer?.assets || {};
       const agentAssets = assets.agent || {};
 
-      return {
-        // ✅ v4: match_id
-        matchId: meta.match_id || meta.matchid || meta.id || '',
+      const agentName =
+        selfPlayer?.character ||
+        selfPlayer?.agent ||
+        'Unknown';
 
-        // map / queue 는 객체 그대로 넘기고, 프론트에서 name 사용
+      return {
+        matchId: meta.matchid || meta.id || '',
         map: meta.map || 'Unknown Map',
-        queue: meta.queue || meta.mode || 'Mode',
+        queue: meta.mode || meta.queue || 'Mode',
         timeAgo: meta.started_at || '',
 
         agent: agentName,
