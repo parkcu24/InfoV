@@ -14,13 +14,29 @@ function MatchHistoryPage() {
   const [error, setError] = useState('');
   const [hasToken, setHasToken] = useState(false);
 
+  // ⭐ 선택된 모드 (필터)
+  const [selectedMode, setSelectedMode] = useState('전체');
+
+  const modeOptions = [
+    '전체',
+    '경쟁전',
+    '일반',
+    '신속',
+    '스파이크 돌격',
+    '사설',
+    '데스매치',
+    '팀 데스매치',
+    '에스컬레이션',
+    '난투',
+  ];
+  
+
   // ⭐ 에이전트 이름을 파일명 규칙에 맞게 자동 변환하는 함수
   const getAgentImageSrc = (agent) => {
     const defaultSrc = '/agents/default.png';
 
     if (!agent) return defaultSrc;
 
-    // agent가 객체로 올 수도 있음 (예: { name: 'Omen', id: 'omen' ... })
     let agentName = agent;
 
     if (typeof agent === 'object') {
@@ -57,9 +73,63 @@ function MatchHistoryPage() {
 
     if (!cardId) return defaultSrc;
 
-    // 카드 UUID 그대로 파일명으로 사용한다고 가정
     return `/playercards/${cardId}.png`;
   };
+
+  // ⭐ 모드 필터 로직
+  const matchPassesModeFilter = (match, mode) => {
+    if (mode === '전체') return true;
+  
+    const q = (match.queue || match.mode || '').toString().toLowerCase();
+  
+    switch (mode) {
+      case '경쟁전':
+        return q.includes('competitive') || q.includes('ranked');
+  
+      case '일반':
+        // 언랭 / 일반전
+        return (
+          q.includes('unrated') ||
+          q.includes('normal') ||
+          q.includes('standard')
+        );
+  
+      case '신속':
+        return q.includes('swift') || q.includes('swiftplay');
+  
+      case '스파이크 돌격':
+        return q.includes('spike') || q.includes('spikerush');
+  
+      case '사설':
+        return q.includes('custom') || q.includes('private');
+  
+      case '데스매치':
+        return (
+          (q.includes('deathmatch') && !q.includes('team')) ||
+          q === 'dm'
+        );
+  
+      case '팀 데스매치':
+        return q.includes('team death') || q.includes('teamdeath');
+  
+      case '에스컬레이션':
+        return q.includes('escalation');
+  
+      case '난투':
+        // 기타 이벤트/난투성 모드들 (필요하면 더 추가)
+        return (
+          q.includes('brawl') ||
+          q.includes('snowball') ||
+          q.includes('replication') ||
+          q.includes('onefa') ||         // 예시: One For All 류
+          q.includes('event')
+        );
+  
+      default:
+        return true;
+    }
+  };
+  
 
   useEffect(() => {
     const token = localStorage.getItem('riot_access_token');
@@ -159,6 +229,11 @@ function MatchHistoryPage() {
 
   const playerCardSrc = getPlayerCardSrc(profile, summary);
 
+  // ⭐ 필터가 적용된 전적 리스트
+  const displayedMatches = matches.filter((m) =>
+    matchPassesModeFilter(m, selectedMode)
+  );
+
   return (
     <div style={styles.pageWrapper}>
       {/* 네비게이션 */}
@@ -183,8 +258,8 @@ function MatchHistoryPage() {
 
         <div style={styles.right}>
           {profile ? (
-            <div style={styles.profileBox}>
-              <span style={styles.profileName}>{getDisplayName(profile)}</span>
+            <div style={styles.profileBoxRight}>
+              <span style={styles.profileNameRight}>{getDisplayName(profile)}</span>
               <button style={styles.logoutButton} onClick={handleLogout}>로그아웃</button>
             </div>
           ) : (
@@ -223,7 +298,7 @@ function MatchHistoryPage() {
                       onError={(e) => {
                         if (e.currentTarget.dataset.errorHandled === '1') return;
                         e.currentTarget.dataset.errorHandled = '1';
-                        e.currentTarget.src = '/agents/default.png';
+                        e.currentTarget.src = '/playercards/default.png';
                       }}
                     />
                   </div>
@@ -246,7 +321,8 @@ function MatchHistoryPage() {
                       <div style={styles.summaryItem}>
                         <span style={styles.summaryLabel}>현재 티어</span>
                         <span style={styles.summaryValue}>
-                          {summary.currentTier || '-'} {summary.rr != null ? `(${summary.rr} RR)` : ''}
+                          {summary.currentTier || '-'}{' '}
+                          {summary.rr != null ? `(${summary.rr} RR)` : ''}
                         </span>
                       </div>
                       <div style={styles.summaryItem}>
@@ -269,14 +345,35 @@ function MatchHistoryPage() {
               </div>
             )}
 
-            {/* 전적 */}
-            <h3 style={styles.sectionTitle}>최근 경기 전적</h3>
+            {/* 전적 섹션 헤더 + 모드 필터 */}
+            <div style={styles.filterRow}>
+              <h3 style={styles.sectionTitle}>최근 경기 전적</h3>
+              <div style={styles.filterButtons}>
+                {modeOptions.map((mode) => (
+                  <button
+                    key={mode}
+                    style={{
+                      ...styles.filterButton,
+                      ...(selectedMode === mode ? styles.filterButtonActive : {}),
+                    }}
+                    onClick={() => setSelectedMode(mode)}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-            {matches.length === 0 ? (
-              <p style={styles.message}>전적이 없습니다.</p>
+            {/* 전적 리스트 */}
+            {displayedMatches.length === 0 ? (
+              <p style={styles.message}>
+                {selectedMode === '전체'
+                  ? '전적이 없습니다.'
+                  : `${selectedMode} 전적이 없습니다.`}
+              </p>
             ) : (
               <div style={styles.matchList}>
-                {matches.map((match) => {
+                {displayedMatches.map((match) => {
                   const k = match.kills ?? 0;
                   const d = match.deaths ?? 0;
                   const a = match.assists ?? 0;
@@ -442,7 +539,7 @@ const styles = {
   },
   errorText: { color: '#ff8888' },
 
-  /* 프로필 */
+  /* 프로필 카드 */
   profileCard: {
     display: 'flex',
     alignItems: 'center',
@@ -530,10 +627,35 @@ const styles = {
     wordBreak: 'break-all',
   },
 
-  /* 섹션 타이틀 */
+  /* 섹션 헤더 + 필터 */
+  filterRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: '12px',
+  },
   sectionTitle: {
     fontSize: '20px',
-    marginBottom: '12px',
+  },
+  filterButtons: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '6px',
+  },
+  filterButton: {
+    padding: '4px 10px',
+    borderRadius: '999px',
+    border: '1px solid #555',
+    backgroundColor: 'transparent',
+    color: '#ccc',
+    fontSize: '11px',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+  filterButtonActive: {
+    backgroundColor: '#f44336',
+    borderColor: '#f44336',
+    color: '#fff',
   },
 
   /* 매치 카드 */
@@ -604,13 +726,13 @@ const styles = {
     color: '#fff',
   },
 
-  /* 상단 프로필 우측 버튼 */
-  profileBox: {
+  /* 상단 우측 프로필 박스 */
+  profileBoxRight: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
   },
-  profileName: {
+  profileNameRight: {
     fontSize: '14px',
   },
 
