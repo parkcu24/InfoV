@@ -26,26 +26,9 @@ function resolveHenrikRegion(country, fallbackRegion) {
   if (['KR'].includes(c)) return 'kr';
   if (['US', 'CA', 'MX'].includes(c)) return 'na';
   if (['BR'].includes(c)) return 'br';
-  if (
-    ['AR', 'CL', 'PE', 'CO', 'VE', 'UY', 'PY', 'BO', 'EC'].includes(c)
-  )
+  if (['AR', 'CL', 'PE', 'CO', 'VE', 'UY', 'PY', 'BO', 'EC'].includes(c))
     return 'latam';
-  if (
-    [
-      'FR',
-      'DE',
-      'ES',
-      'IT',
-      'GB',
-      'UK',
-      'NL',
-      'SE',
-      'NO',
-      'FI',
-      'PL',
-      'CZ',
-    ].includes(c)
-  )
+  if (['FR', 'DE', 'ES', 'IT', 'GB', 'UK', 'NL', 'SE', 'NO', 'FI', 'PL', 'CZ'].includes(c))
     return 'eu';
 
   // 그 외 아시아권은 그냥 ap
@@ -522,8 +505,9 @@ router.get('/matches', async (req, res) => {
 
       // --- 팀 정보 / 스코어 ---
       const teams = m.teams || {};
-      const teamIdRaw = (selfPlayer?.team || '').toLowerCase();
+      const teamIdRaw = (selfPlayer?.team || selfPlayer?.player_team || '').toLowerCase();
 
+      // 기본은 blue/red, 나머지는 defending/attacking 정도까지 처리
       let myTeamKey = null;
       if (teamIdRaw === 'blue' || teamIdRaw === 'red') {
         myTeamKey = teamIdRaw;
@@ -548,9 +532,34 @@ router.get('/matches', async (req, res) => {
         enemyTeam = teams.defending || {};
       }
 
-      const roundsWon = myTeam.rounds_won ?? null;
-      const roundsLost = myTeam.rounds_lost ?? null;
-      const hasWon = myTeam.has_won === true;
+      // 🔹 여러 형식을 모두 커버해서 점수 뽑기
+      const roundsWon =
+        myTeam.rounds_won ??
+        myTeam.roundsWon ??
+        myTeam.rounds?.won ??
+        myTeam.score ??
+        null;
+
+      const roundsLost =
+        myTeam.rounds_lost ??
+        myTeam.roundsLost ??
+        myTeam.rounds?.lost ??
+        enemyTeam.score ??
+        null;
+
+      const hasWonRaw =
+        myTeam.has_won ??
+        myTeam.hasWon ??
+        myTeam.won ??
+        null;
+
+      const hasWon =
+        typeof hasWonRaw === 'boolean'
+          ? hasWonRaw
+          : (typeof roundsWon === 'number' &&
+             typeof roundsLost === 'number'
+            ? roundsWon > roundsLost
+            : null);
 
       const assets = selfPlayer?.assets || {};
       const agentAssets = assets.agent || {};
@@ -601,6 +610,5 @@ router.get('/matches', async (req, res) => {
     });
   }
 });
-
 
 module.exports = router;
