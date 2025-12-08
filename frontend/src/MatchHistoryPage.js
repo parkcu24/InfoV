@@ -15,34 +15,35 @@ function MatchHistoryPage() {
   const [hasToken, setHasToken] = useState(false);
 
   // ⭐ 에이전트 이름을 파일명 규칙에 맞게 자동 변환하는 함수
-  const getAgentImageSrc = (agent) => {
-    const defaultSrc = '/agents/default.png';
-  
-    if (!agent) return defaultSrc;
-  
-    // agent가 객체로 올 수도 있음 (예: { name: 'Omen', id: 'omen' ... })
-    let agentName = agent;
-  
-    if (typeof agent === 'object') {
-      agentName =
-        agent.displayName ||
-        agent.name ||
-        agent.id ||
-        ''; // 그래도 없으면 빈 문자열
-    }
-  
-    if (typeof agentName !== 'string' || agentName.length === 0) {
-      return defaultSrc;
-    }
-  
-    const normalized = agentName
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]/g, '');
-  
-    return normalized ? `/agents/${normalized}.png` : defaultSrc;
-  };
+const getAgentImageSrc = (agent) => {
+  const defaultSrc = '/agents/default.png';
+
+  if (!agent) return defaultSrc;
+
+  // agent가 객체로 올 수도 있음 (예: { name: 'Omen', id: 'omen' ... })
+  let agentName = agent;
+
+  if (typeof agent === 'object') {
+    agentName =
+      agent.displayName ||
+      agent.name ||
+      agent.id ||
+      ''; // 그래도 없으면 빈 문자열
+  }
+
+  if (typeof agentName !== 'string' || agentName.length === 0) {
+    return defaultSrc;
+  }
+
+  const normalized = agentName
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+
+  return normalized ? `/agents/${normalized}.png` : defaultSrc;
+};
+
 
   useEffect(() => {
     const token = localStorage.getItem('riot_access_token');
