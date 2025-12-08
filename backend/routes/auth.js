@@ -518,7 +518,6 @@ router.get('/matches', async (req, res) => {
       const kd = Number.isFinite(kdRaw) ? kdRaw : null;
 
       // --- 팀 정보 / 스코어 ---
-      // --- 팀 정보 / 스코어 ---
       const teams = m.teams || {};
       const teamIdRaw = (selfPlayer?.team || selfPlayer?.player_team || '').toLowerCase();
 
