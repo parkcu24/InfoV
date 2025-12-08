@@ -13,23 +13,7 @@ function MatchHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [hasToken, setHasToken] = useState(false);
-
-  // ⭐ 선택된 모드 (필터)
-  const [selectedMode, setSelectedMode] = useState('전체');
-
-  const modeOptions = [
-    '전체',
-    '경쟁전',
-    '일반',
-    '신속',
-    '스파이크 돌격',
-    '사설',
-    '데스매치',
-    '팀 데스매치',
-    '에스컬레이션',
-    '난투',
-  ];
-  
+  const [queueFilter, setQueueFilter] = useState('all');
 
   // ⭐ 에이전트 이름을 파일명 규칙에 맞게 자동 변환하는 함수
   const getAgentImageSrc = (agent) => {
@@ -37,6 +21,7 @@ function MatchHistoryPage() {
 
     if (!agent) return defaultSrc;
 
+    // agent가 객체로 올 수도 있음 (예: { name: 'Omen', id: 'omen' ... })
     let agentName = agent;
 
     if (typeof agent === 'object') {
@@ -44,7 +29,7 @@ function MatchHistoryPage() {
         agent.displayName ||
         agent.name ||
         agent.id ||
-        '';
+        ''; // 그래도 없으면 빈 문자열
     }
 
     if (typeof agentName !== 'string' || agentName.length === 0) {
@@ -60,76 +45,73 @@ function MatchHistoryPage() {
     return normalized ? `/agents/${normalized}.png` : defaultSrc;
   };
 
-  // ⭐ 플레이어 카드 이미지 경로 계산
-  const getPlayerCardSrc = (profileObj, summaryObj) => {
-    const defaultSrc = '/playercards/default.png';
-    if (!profileObj && !summaryObj) return defaultSrc;
-
-    const cardId =
-      profileObj?.cardId ||
-      profileObj?.card ||
-      summaryObj?.cardId ||
-      null;
-
-    if (!cardId) return defaultSrc;
-
-    return `/playercards/${cardId}.png`;
+  // ⭐ 플레이어 카드 이미지 (현재는 기본값만 사용)
+  const getPlayerCardSrc = () => {
+    // 나중에 summary.playerCardUrl 이 생기면 그걸 우선 사용
+    if (summary && summary.playerCardUrl) {
+      return summary.playerCardUrl;
+    }
+    return '/playercards/default.png';
   };
 
-  // ⭐ 모드 필터 로직
-  const matchPassesModeFilter = (match, mode) => {
-    if (mode === '전체') return true;
-  
-    const q = (match.queue || match.mode || '').toString().toLowerCase();
-  
-    switch (mode) {
-      case '경쟁전':
-        return q.includes('competitive') || q.includes('ranked');
-  
-      case '일반':
-        // 언랭 / 일반전
-        return (
-          q.includes('unrated') ||
-          q.includes('normal') ||
-          q.includes('standard')
-        );
-  
-      case '신속':
-        return q.includes('swift') || q.includes('swiftplay');
-  
-      case '스파이크 돌격':
-        return q.includes('spike') || q.includes('spikerush');
-  
-      case '사설':
-        return q.includes('custom') || q.includes('private');
-  
-      case '데스매치':
-        return (
-          (q.includes('deathmatch') && !q.includes('team')) ||
-          q === 'dm'
-        );
-  
-      case '팀 데스매치':
-        return q.includes('team death') || q.includes('teamdeath');
-  
-      case '에스컬레이션':
-        return q.includes('escalation');
-  
-      case '난투':
-        // 기타 이벤트/난투성 모드들 (필요하면 더 추가)
-        return (
-          q.includes('brawl') ||
-          q.includes('snowball') ||
-          q.includes('replication') ||
-          q.includes('onefa') ||         // 예시: One For All 류
-          q.includes('event')
-        );
-  
+  // ⭐ 큐 이름을 영어 키로 정규화 (필터용)
+  const normalizeQueueKey = (q) => {
+    if (!q) return 'other';
+    const s = String(q).toLowerCase();
+
+    if (s.includes('competitive') || s.includes('rank')) return 'competitive';
+    if (s.includes('unrated') || s.includes('normal')) return 'unrated';
+    if (s.includes('swift') || s.includes('swiftplay')) return 'swiftplay';
+    if (s.includes('spike') || s.includes('spikerush')) return 'spikerush';
+    if (s.includes('deathmatch') && s.includes('team')) return 'team_deathmatch';
+    if (s.includes('deathmatch')) return 'deathmatch';
+    if (s.includes('escalation')) return 'escalation';
+    if (s.includes('swiftplay')) return 'swiftplay';
+    if (s.includes('snowball') || s.includes('sheep')) return 'snowball';
+    if (s.includes('custom')) return 'custom';
+    if (s.includes('brawl') || s.includes('mayhem') || s.includes('swiftpush')) return 'brawl';
+
+    return 'other';
+  };
+
+  // ⭐ 큐 이름을 한국어로 표시
+  const getQueueDisplayName = (match) => {
+    const q = match.queue || match.mode;
+    const key = normalizeQueueKey(q);
+
+    switch (key) {
+      case 'competitive':
+        return '경쟁전';
+      case 'unrated':
+        return '일반';
+      case 'swiftplay':
+        return '신속';
+      case 'spikerush':
+        return '스파이크 돌격';
+      case 'custom':
+        return '사설';
+      case 'deathmatch':
+        return '데스매치';
+      case 'team_deathmatch':
+        return '팀 데스매치';
+      case 'brawl':
+        return '난투';
+      case 'escalation':
+        return '에스컬레이션';
       default:
-        return true;
+        return typeof q === 'string' ? q : '기타 모드';
     }
   };
-  
+
+  // ⭐ 필터에 맞는 전적만 추리기
+  const getFilteredMatches = () => {
+    if (queueFilter === 'all') return matches;
+
+    return matches.filter((m) => {
+      const key = normalizeQueueKey(m.queue || m.mode);
+      return key === queueFilter;
+    });
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('riot_access_token');
@@ -154,7 +136,9 @@ function MatchHistoryPage() {
         });
 
         if (!profileRes.ok) {
-          throw new Error(`프로필 정보를 불러오지 못했습니다. (status ${profileRes.status})`);
+          throw new Error(
+            `프로필 정보를 불러오지 못했습니다. (status ${profileRes.status})`
+          );
         }
 
         const profileData = await profileRes.json();
@@ -182,13 +166,19 @@ function MatchHistoryPage() {
         });
 
         if (!matchesRes.ok) {
-          throw new Error(`전적 정보를 불러오지 못했습니다. (status ${matchesRes.status})`);
+          throw new Error(
+            `전적 정보를 불러오지 못했습니다. (status ${matchesRes.status})`
+          );
         }
 
         const matchesData = await matchesRes.json();
         console.log('[DEBUG] matchesData:', matchesData);
 
-        setMatches(Array.isArray(matchesData) ? matchesData : matchesData.matches || []);
+        setMatches(
+          Array.isArray(matchesData)
+            ? matchesData
+            : matchesData.matches || []
+        );
       } catch (err) {
         console.error(err);
         setError(err.message);
@@ -220,19 +210,10 @@ function MatchHistoryPage() {
   };
 
   const getQueueName = (match) => {
-    const q = match.queue || match.mode;
-    if (!q) return 'Mode';
-    if (typeof q === 'string') return q;
-    if (q.name) return q.name;
-    return 'Mode';
+    return getQueueDisplayName(match);
   };
 
-  const playerCardSrc = getPlayerCardSrc(profile, summary);
-
-  // ⭐ 필터가 적용된 전적 리스트
-  const displayedMatches = matches.filter((m) =>
-    matchPassesModeFilter(m, selectedMode)
-  );
+  const filteredMatches = getFilteredMatches();
 
   return (
     <div style={styles.pageWrapper}>
@@ -248,22 +229,46 @@ function MatchHistoryPage() {
         </div>
 
         <div style={styles.center}>
-          <span style={styles.navItem} onClick={() => navigate('/agents')}>요원</span>
-          <span style={styles.navItem} onClick={() => navigate('/maps')}>맵 로테이션</span>
-          <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span>
-          <span style={styles.navItem} onClick={() => navigate('/rank')}>랭킹</span>
-          <span style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
-          <span style={styles.navItem} onClick={() => navigate('/matches')}>전적</span>
+          <span style={styles.navItem} onClick={() => navigate('/agents')}>
+            요원
+          </span>
+          <span style={styles.navItem} onClick={() => navigate('/maps')}>
+            맵 로테이션
+          </span>
+          <span style={styles.navItem} onClick={() => navigate('/skins')}>
+            스킨
+          </span>
+          <span style={styles.navItem} onClick={() => navigate('/rank')}>
+            랭킹
+          </span>
+          <span style={styles.navItem} onClick={() => navigate('/esports')}>
+            E-Sports
+          </span>
+          <span style={styles.navItem} onClick={() => navigate('/matches')}>
+            전적
+          </span>
         </div>
 
         <div style={styles.right}>
           {profile ? (
-            <div style={styles.profileBoxRight}>
-              <span style={styles.profileNameRight}>{getDisplayName(profile)}</span>
-              <button style={styles.logoutButton} onClick={handleLogout}>로그아웃</button>
+            <div style={styles.profileBoxTopRight}>
+              <span style={styles.profileNameTopRight}>
+                {getDisplayName(profile)}
+              </span>
+              <button
+                style={styles.logoutButton}
+                onClick={handleLogout}
+              >
+                로그아웃
+              </button>
             </div>
           ) : (
-            <button style={styles.loginButton} onClick={() => navigate('/')}>로그인</button>
+            <button
+              style={styles.loginButton}
+              onClick={() => navigate('/')}
+            >
+              로그인
+            </button>
           )}
         </div>
       </nav>
@@ -276,7 +281,10 @@ function MatchHistoryPage() {
           <div style={styles.errorBox}>
             <p style={styles.errorText}>{error}</p>
             {!hasToken && (
-              <button style={styles.primaryButton} onClick={() => navigate('/')}>
+              <button
+                style={styles.primaryButton}
+                onClick={() => navigate('/')}
+              >
                 로그인 하러 가기
               </button>
             )}
@@ -285,95 +293,124 @@ function MatchHistoryPage() {
 
         {!loading && !error && (
           <>
-            {/* 프로필 카드 */}
+            {/* 상단 프로필 카드 */}
             {profile && (
               <div style={styles.profileCard}>
-                {/* 왼쪽: 동그란 플레이어 카드 + 레벨 배지 */}
-                <div style={styles.profileAvatarSection}>
-                  <div style={styles.playerCardCircle}>
+                {/* 왼쪽: 플레이어 카드 동그라미 + 레벨 박스 */}
+                <div style={styles.profileLeft}>
+                  <div style={styles.avatarWrapper}>
                     <img
-                      src={playerCardSrc}
+                      src={getPlayerCardSrc()}
                       alt="Player Card"
                       style={styles.playerCardImage}
                       onError={(e) => {
-                        if (e.currentTarget.dataset.errorHandled === '1') return;
+                        if (e.currentTarget.dataset.errorHandled === '1') {
+                          return;
+                        }
                         e.currentTarget.dataset.errorHandled = '1';
                         e.currentTarget.src = '/playercards/default.png';
                       }}
                     />
+                    <div style={styles.profileImageRing} />
                   </div>
-                  <div style={styles.levelBadge}>
-                    Lv. {summary?.accountLevel ?? '-'}
+                  <div style={styles.levelBadgeWrapper}>
+                    <div style={styles.levelBadge}>
+                      <span style={styles.levelLabel}>LEVEL</span>
+                      <span style={styles.levelValue}>
+                        {summary?.accountLevel ?? '-'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {/* 오른쪽: 닉네임 + 태그 박스, 아래에 요약 스탯 */}
-                <div style={styles.profileInfoSection}>
-                  <div style={styles.nameBox}>
-                    <span style={styles.nameText}>{profile.gameName}</span>
-                    {profile.tagLine && (
-                      <span style={styles.tagText}>#{profile.tagLine}</span>
+                {/* 오른쪽: 닉네임/태그 + 현재 티어/승률 + 시즌 히스토리 */}
+                <div style={styles.profileRight}>
+                  {/* 닉네임 박스 */}
+                  <div style={styles.nameCard}>
+                    <div style={styles.nameRow}>
+                      <span style={styles.nicknameText}>
+                        {profile.gameName}
+                      </span>
+                      {profile.tagLine && (
+                        <span style={styles.tagText}>
+                          #{profile.tagLine}
+                        </span>
+                      )}
+                    </div>
+                    {summary && (
+                      <div style={styles.tierRow}>
+                        <span style={styles.tierText}>
+                          {summary.currentTier
+                            ? summary.currentTier
+                            : '티어 정보 없음'}
+                        </span>
+                        {typeof summary.rr === 'number' && (
+                          <span style={styles.rrText}>
+                            {summary.rr} RR
+                          </span>
+                        )}
+
+                        {typeof summary.winRate === 'number' && (
+                          <span style={styles.winrateText}>
+                            · 시즌 전적 {summary.wins ?? '-'}승{' '}
+                            {summary.losses ?? '-'}패 (
+                            {summary.winRate}%)
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
 
-                  {summary && (
-                    <div style={styles.summaryRow}>
-                      <div style={styles.summaryItem}>
-                        <span style={styles.summaryLabel}>현재 티어</span>
-                        <span style={styles.summaryValue}>
-                          {summary.currentTier || '-'}{' '}
-                          {summary.rr != null ? `(${summary.rr} RR)` : ''}
-                        </span>
-                      </div>
-                      <div style={styles.summaryItem}>
-                        <span style={styles.summaryLabel}>시즌 전적</span>
-                        <span style={styles.summaryValue}>
-                          {summary.wins != null ? `${summary.wins}승` : '-'}{' '}
-                          {summary.losses != null ? `${summary.losses}패` : ''}{' '}
-                          {summary.winRate != null ? `(${summary.winRate}%)` : ''}
-                        </span>
-                      </div>
-                      <div style={styles.summaryItem}>
-                        <span style={styles.summaryLabel}>PUUID</span>
-                        <span style={styles.summaryValueSmall}>
-                          {profile.puuid}
-                        </span>
-                      </div>
+                  {/* 시즌 히스토리 박스들 */}
+                  {summary?.seasonHistory && summary.seasonHistory.length > 0 && (
+                    <div style={styles.seasonHistoryWrapper}>
+                      {summary.seasonHistory.map((s, idx) => (
+                        <div key={`${s.season}-${idx}`} style={styles.seasonBox}>
+                          <div style={styles.seasonName}>
+                            {s.season}
+                          </div>
+                          <div style={styles.seasonTier}>
+                            {s.tier}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            {/* 전적 섹션 헤더 + 모드 필터 */}
-            <div style={styles.filterRow}>
+            {/* 전적 헤더 + 필터 */}
+            <div style={styles.matchesHeaderRow}>
               <h3 style={styles.sectionTitle}>최근 경기 전적</h3>
-              <div style={styles.filterButtons}>
-                {modeOptions.map((mode) => (
-                  <button
-                    key={mode}
-                    style={{
-                      ...styles.filterButton,
-                      ...(selectedMode === mode ? styles.filterButtonActive : {}),
-                    }}
-                    onClick={() => setSelectedMode(mode)}
-                  >
-                    {mode}
-                  </button>
-                ))}
+
+              <div style={styles.filterWrapper}>
+                <label style={styles.filterLabel}>모드 선택</label>
+                <select
+                  style={styles.filterSelect}
+                  value={queueFilter}
+                  onChange={(e) => setQueueFilter(e.target.value)}
+                >
+                  <option value="all">전체</option>
+                  <option value="competitive">경쟁전</option>
+                  <option value="unrated">일반</option>
+                  <option value="swiftplay">신속</option>
+                  <option value="spikerush">스파이크 돌격</option>
+                  <option value="custom">사설</option>
+                  <option value="deathmatch">데스매치</option>
+                  <option value="team_deathmatch">팀 데스매치</option>
+                  <option value="brawl">난투</option>
+                  <option value="escalation">에스컬레이션</option>
+                </select>
               </div>
             </div>
 
             {/* 전적 리스트 */}
-            {displayedMatches.length === 0 ? (
-              <p style={styles.message}>
-                {selectedMode === '전체'
-                  ? '전적이 없습니다.'
-                  : `${selectedMode} 전적이 없습니다.`}
-              </p>
+            {filteredMatches.length === 0 ? (
+              <p style={styles.message}>해당 모드 전적이 없습니다.</p>
             ) : (
               <div style={styles.matchList}>
-                {displayedMatches.map((match) => {
+                {filteredMatches.map((match) => {
                   const k = match.kills ?? 0;
                   const d = match.deaths ?? 0;
                   const a = match.assists ?? 0;
@@ -381,16 +418,24 @@ function MatchHistoryPage() {
                   const kd = d > 0 ? (k / d).toFixed(2) : k;
 
                   const scoreText =
-                    match.teamScore !== undefined && match.enemyScore !== undefined
+                    match.teamScore !== undefined &&
+                    match.teamScore !== null &&
+                    match.enemyScore !== undefined &&
+                    match.enemyScore !== null
                       ? `${match.teamScore} : ${match.enemyScore}`
-                      : match.win
+                      : match.win === true
                       ? '승리'
-                      : '패배';
+                      : match.win === false
+                      ? '패배'
+                      : '-';
 
                   const isWin =
-                    match.win !== undefined
+                    match.win !== undefined && match.win !== null
                       ? match.win
-                      : match.teamScore > match.enemyScore;
+                      : typeof match.teamScore === 'number' &&
+                        typeof match.enemyScore === 'number'
+                      ? match.teamScore > match.enemyScore
+                      : false;
 
                   return (
                     <div key={match.matchId} style={styles.matchRowCard}>
@@ -400,7 +445,9 @@ function MatchHistoryPage() {
                           alt={match.agent}
                           style={styles.agentImage}
                           onError={(e) => {
-                            if (e.currentTarget.dataset.errorHandled === '1') {
+                            if (
+                              e.currentTarget.dataset.errorHandled === '1'
+                            ) {
                               e.currentTarget.style.display = 'none';
                               return;
                             }
@@ -410,7 +457,9 @@ function MatchHistoryPage() {
                         />
 
                         <div style={styles.matchLeftText}>
-                          <div style={styles.mapName}>{getMapName(match)}</div>
+                          <div style={styles.mapName}>
+                            {getMapName(match)}
+                          </div>
                           <div style={styles.queueText}>
                             {getQueueName(match)} · {match.timeAgo}
                           </div>
@@ -430,8 +479,10 @@ function MatchHistoryPage() {
 
                       <div style={styles.statsRow}>
                         <div style={styles.statBlock}>
-                          <span style={styles.statLabel}>K/D/A</span>
-                          <span style={styles.statValue}>{k} / {d} / {a}</span>
+                          <span style={styles.statLabel}>K / D / A</span>
+                          <span style={styles.statValue}>
+                            {k} / {d} / {a}
+                          </span>
                         </div>
 
                         <div style={styles.statBlock}>
@@ -448,12 +499,16 @@ function MatchHistoryPage() {
 
                         <div style={styles.statBlock}>
                           <span style={styles.statLabel}>ACS</span>
-                          <span style={styles.statValue}>{match.acs ?? '-'}</span>
+                          <span style={styles.statValue}>
+                            {match.acs ?? '-'}
+                          </span>
                         </div>
 
                         <div style={styles.statBlock}>
                           <span style={styles.statLabel}>ADR</span>
-                          <span style={styles.statValue}>{match.adr ?? '-'}</span>
+                          <span style={styles.statValue}>
+                            {match.adr ?? '-'}
+                          </span>
                         </div>
 
                         <div style={styles.statBlock}>
@@ -521,11 +576,13 @@ const styles = {
     color: '#DDD',
     cursor: 'pointer',
   },
+
   content: {
     padding: '100px 40px',
     maxWidth: '1200px',
     margin: '0 auto',
   },
+
   message: {
     textAlign: 'center',
     color: '#bbb',
@@ -539,123 +596,185 @@ const styles = {
   },
   errorText: { color: '#ff8888' },
 
-  /* 프로필 카드 */
-  profileCard: {
+  /* 우측 상단 간단 프로필 */
+  profileBoxTopRight: {
     display: 'flex',
     alignItems: 'center',
-    gap: '24px',
-    backgroundColor: '#1b1b1b',
+    gap: '8px',
+  },
+  profileNameTopRight: {
+    fontSize: '14px',
+    color: '#eee',
+  },
+
+  /* 상단 프로필 카드를 좀 더 멋지게 */
+  profileCard: {
+    backgroundColor: '#181818',
     padding: '20px 24px',
     borderRadius: '16px',
     marginBottom: '24px',
     border: '1px solid #333',
+    display: 'flex',
+    gap: '24px',
+    alignItems: 'center',
   },
-  profileAvatarSection: {
+  profileLeft: {
+    width: '140px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: '8px',
-    minWidth: '96px',
+    gap: '10px',
   },
-  playerCardCircle: {
-    width: '80px',
-    height: '80px',
+  avatarWrapper: {
+    position: 'relative',
+    width: '96px',
+    height: '96px',
     borderRadius: '50%',
     overflow: 'hidden',
-    border: '2px solid #444',
-    boxShadow: '0 0 12px rgba(0,0,0,0.6)',
+    boxShadow: '0 0 12px rgba(0,0,0,0.8)',
   },
   playerCardImage: {
     width: '100%',
     height: '100%',
     objectFit: 'cover',
   },
-  levelBadge: {
-    padding: '2px 10px',
-    borderRadius: '8px',
-    backgroundColor: '#2b2b2b',
-    fontSize: '12px',
-    color: '#f5f5f5',
-    border: '1px solid #444',
+  profileImageRing: {
+    position: 'absolute',
+    inset: 0,
+    borderRadius: '50%',
+    boxShadow: '0 0 0 3px rgba(255,255,255,0.08)',
+    pointerEvents: 'none',
   },
-  profileInfoSection: {
+  levelBadgeWrapper: {
+    marginTop: '4px',
+  },
+  levelBadge: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '4px 10px',
+    borderRadius: '999px',
+    background:
+      'linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))',
+    border: '1px solid rgba(255,255,255,0.12)',
+  },
+  levelLabel: {
+    fontSize: '11px',
+    letterSpacing: '0.05em',
+    color: '#aaa',
+  },
+  levelValue: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#fff',
+  },
+
+  profileRight: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
-    gap: '10px',
+    gap: '12px',
+    minWidth: 0,
   },
-  nameBox: {
-    display: 'inline-flex',
+  nameCard: {
+    backgroundColor: '#151515',
+    borderRadius: '12px',
+    padding: '12px 14px',
+    border: '1px solid #303030',
+  },
+  nameRow: {
+    display: 'flex',
     alignItems: 'baseline',
     gap: '6px',
-    padding: '8px 12px',
-    borderRadius: '10px',
-    backgroundColor: '#232323',
-    border: '1px solid #3a3a3a',
+    marginBottom: '4px',
   },
-  nameText: {
-    fontSize: '22px',
-    fontWeight: 700,
+  nicknameText: {
+    fontSize: '20px',
+    fontWeight: '700',
+    color: '#fff',
   },
   tagText: {
     fontSize: '14px',
-    color: '#aaa',
+    color: '#888',
   },
-  summaryRow: {
-    marginTop: '6px',
+  tierRow: {
     display: 'flex',
     flexWrap: 'wrap',
-    gap: '16px',
+    gap: '8px',
+    alignItems: 'center',
+    fontSize: '13px',
   },
-  summaryItem: {
+  tierText: {
+    color: '#f5f5f5',
+  },
+  rrText: {
+    color: '#d0d0ff',
+  },
+  winrateText: {
+    color: '#9fd39f',
+  },
+
+  /* 시즌 히스토리 */
+  seasonHistoryWrapper: {
+    marginTop: '4px',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
+  },
+  seasonBox: {
+    padding: '6px 10px',
+    borderRadius: '10px',
+    backgroundColor: '#151515',
+    border: '1px solid #2d2d2d',
+    minWidth: '120px',
+    maxWidth: '160px',
     display: 'flex',
     flexDirection: 'column',
     gap: '2px',
-    minWidth: '140px',
   },
-  summaryLabel: {
+  seasonName: {
+    fontSize: '12px',
     color: '#999',
-    fontSize: '11px',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
-  summaryValue: {
-    color: '#fff',
+  seasonTier: {
     fontSize: '13px',
-  },
-  summaryValueSmall: {
-    color: '#ccc',
-    fontSize: '11px',
-    wordBreak: 'break-all',
+    color: '#fff',
+    fontWeight: 600,
+    wordBreak: 'keep-all',
   },
 
-  /* 섹션 헤더 + 필터 */
-  filterRow: {
+  /* 전적 헤더 + 필터 */
+  matchesHeaderRow: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: '12px',
+    marginTop: '8px',
+    marginBottom: '8px',
   },
   sectionTitle: {
     fontSize: '20px',
+    margin: 0,
   },
-  filterButtons: {
+  filterWrapper: {
     display: 'flex',
-    flexWrap: 'wrap',
-    gap: '6px',
+    alignItems: 'center',
+    gap: '8px',
   },
-  filterButton: {
-    padding: '4px 10px',
+  filterLabel: {
+    fontSize: '14px',
+    color: '#aaa',
+  },
+  filterSelect: {
+    backgroundColor: '#181818',
+    color: '#eee',
     borderRadius: '999px',
-    border: '1px solid #555',
-    backgroundColor: 'transparent',
-    color: '#ccc',
-    fontSize: '11px',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-  },
-  filterButtonActive: {
-    backgroundColor: '#f44336',
-    borderColor: '#f44336',
-    color: '#fff',
+    border: '1px solid #444',
+    padding: '4px 10px',
+    fontSize: '13px',
+    outline: 'none',
   },
 
   /* 매치 카드 */
@@ -724,16 +843,6 @@ const styles = {
   statValue: {
     fontSize: '13px',
     color: '#fff',
-  },
-
-  /* 상단 우측 프로필 박스 */
-  profileBoxRight: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  profileNameRight: {
-    fontSize: '14px',
   },
 
   /* 버튼 */

@@ -289,7 +289,9 @@ router.get('/stats', async (req, res) => {
       seasonal = Object.values(mmrData.by_season);
     }
 
-    const latestSeason = seasonal[seasonal.length - 1] || null;
+    // 최신 시즌이 왼쪽에 오도록 역순 정렬
+    const seasonalDesc = [...seasonal].reverse();
+    const latestSeason = seasonalDesc[0] || null;
 
     let wins = null;
     let losses = null;
@@ -306,6 +308,18 @@ router.get('/stats', async (req, res) => {
       winRate = games > 0 ? Math.round((wins / games) * 100) : null;
     }
 
+    // 🔹 시즌 히스토리 (이전 시즌 티어들)
+    const seasonHistory = seasonalDesc
+      .map((s) => ({
+        season: s.season || s.id || s.seasonID || null,
+        tier:
+          (s.tier && (s.tier.name || s.tier.patched)) ||
+          s.final_rank ||
+          s.rank ||
+          null,
+      }))
+      .filter((x) => x.season && x.tier);
+
     const summary = {
       accountLevel: accountData.account_level ?? null,
       currentTier: mmrData.current?.tier?.name ?? null,
@@ -313,6 +327,7 @@ router.get('/stats', async (req, res) => {
       wins,
       losses,
       winRate,
+      seasonHistory, // ⭐ 프론트에서 액트/시즌 박스 렌더링에 사용
     };
 
     console.log('✅ [Henrik DEBUG] /auth/stats 응답:', summary);
