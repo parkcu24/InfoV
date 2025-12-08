@@ -24,7 +24,7 @@ function MatchHistoryPage() {
       .replace(/[^a-z0-9]/g, ''); // 영어/숫자만 남기고 특수문자, 공백, / 제거
 
     // 예: Phoenix → phoenix, KAY/O → kayo, dead lock → deadlock
-    return `/agents/${normalized}.png`;
+    return `/public/agents/${normalized}.png`;
   };
 
   useEffect(() => {
