@@ -26,26 +26,9 @@ function resolveHenrikRegion(country, fallbackRegion) {
   if (['KR'].includes(c)) return 'kr';
   if (['US', 'CA', 'MX'].includes(c)) return 'na';
   if (['BR'].includes(c)) return 'br';
-  if (
-    ['AR', 'CL', 'PE', 'CO', 'VE', 'UY', 'PY', 'BO', 'EC'].includes(c)
-  )
+  if (['AR', 'CL', 'PE', 'CO', 'VE', 'UY', 'PY', 'BO', 'EC'].includes(c))
     return 'latam';
-  if (
-    [
-      'FR',
-      'DE',
-      'ES',
-      'IT',
-      'GB',
-      'UK',
-      'NL',
-      'SE',
-      'NO',
-      'FI',
-      'PL',
-      'CZ',
-    ].includes(c)
-  )
+  if (['FR', 'DE', 'ES', 'IT', 'GB', 'UK', 'NL', 'SE', 'NO', 'FI', 'PL', 'CZ'].includes(c))
     return 'eu';
 
   // 그 외 아시아권은 그냥 ap
@@ -299,10 +282,7 @@ router.get('/stats', async (req, res) => {
     let seasonal = [];
     if (Array.isArray(mmrData.seasonal)) {
       seasonal = mmrData.seasonal;
-    } else if (
-      mmrData.by_season &&
-      typeof mmrData.by_season === 'object'
-    ) {
+    } else if (mmrData.by_season && typeof mmrData.by_season === 'object') {
       seasonal = Object.values(mmrData.by_season);
     }
 
@@ -350,6 +330,9 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+// --------------------------------------------------
+// 5️⃣ 최근 경기 정보 반환 (/api/auth/matches)
+// --------------------------------------------------
 router.get('/matches', async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -424,20 +407,15 @@ router.get('/matches', async (req, res) => {
     const mapped = rawMatches.map((m, idx) => {
       const meta = m.metadata || {};
 
-      // --- players 구조 통합 (새/구 버전 모두 대응) ---
+      // --- players 구조 통합 (v3 / v4 모두 대응) ---
       const playersRaw = m.players || {};
       let allPlayers = [];
 
-      // 0) 새 구조: players 가 그냥 배열인 경우
-      if (Array.isArray(playersRaw)) {
-        allPlayers = playersRaw;
-      }
-      // 1) 예전 구조: players.all
-      else if (Array.isArray(playersRaw.all)) {
+      // 1) 기존 구조: players.all
+      if (Array.isArray(playersRaw.all)) {
         allPlayers = playersRaw.all;
-      }
-      // 2) 팀별 구조: players.blue.players / players.red.players ...
-      else {
+      } else {
+        // 2) 팀별 구조: players.blue.players / players.red.players / ...
         const teamKeys = ['blue', 'red', 'other', 'neutral', 'defending', 'attacking'];
         teamKeys.forEach((key) => {
           const team = playersRaw[key];
@@ -470,27 +448,31 @@ router.get('/matches', async (req, res) => {
       }
 
       if (!selfPlayer && allPlayers.length > 0) {
-        console.log(`⚠️ [Henrik DEBUG] match[${idx}] selfPlayer 찾기 실패, 0번 플레이어 사용`);
+        // 그래도 없으면 그냥 첫 번째
         selfPlayer = allPlayers[0];
+      }
+
+      if (!selfPlayer) {
+        console.warn(`⚠️ [Henrik DEBUG] match[${idx}] selfPlayer 찾기 실패`);
       }
 
       const rawStats = selfPlayer?.stats || {};
       const coreStats = rawStats.core || rawStats; // v4 에서 core 안에 들어올 수 있음
 
       // --- 기본 KDA / 점수 ---
-      let kills =
+      const kills =
         coreStats.kills ??
         rawStats.kills ??
         0;
-      let deaths =
+      const deaths =
         coreStats.deaths ??
         rawStats.deaths ??
         0;
-      let assists =
+      const assists =
         coreStats.assists ??
         rawStats.assists ??
         0;
-      let score =
+      const score =
         coreStats.score ??
         rawStats.score ??
         null;
@@ -521,7 +503,7 @@ router.get('/matches', async (req, res) => {
       const teams = m.teams || {};
       const teamIdRaw = (selfPlayer?.team || selfPlayer?.player_team || '').toLowerCase();
 
-      // 기본은 blue/red, 나머지는 defending/attacking 정도까지 처리
+      // 기본은 blue/red, 나머지는 defending/attacking
       let myTeamKey = null;
       if (teamIdRaw === 'blue' || teamIdRaw === 'red') {
         myTeamKey = teamIdRaw;
@@ -546,19 +528,19 @@ router.get('/matches', async (req, res) => {
         enemyTeam = teams.defending || {};
       }
 
-      // 🔹 여기부터 "여러 형식"을 다 대응해서 점수를 뽑는 부분
+      // 🔹 여러 형식을 다 커버해서 점수 뽑기
       const roundsWon =
         myTeam.rounds_won ??
         myTeam.roundsWon ??
         myTeam.rounds?.won ??
-        myTeam.score ??         // 어떤 버전에서는 score 로 들어오는 경우
+        myTeam.score ??
         null;
 
       const roundsLost =
         myTeam.rounds_lost ??
         myTeam.roundsLost ??
         myTeam.rounds?.lost ??
-        enemyTeam.score ??      // 내 점수는 myTeam.score, 상대 점수는 enemyTeam.score 인 경우
+        enemyTeam.score ??
         null;
 
       const hasWonRaw =
@@ -571,10 +553,17 @@ router.get('/matches', async (req, res) => {
         typeof hasWonRaw === 'boolean'
           ? hasWonRaw
           : (typeof roundsWon === 'number' &&
-            typeof roundsLost === 'number'
+             typeof roundsLost === 'number'
             ? roundsWon > roundsLost
             : null);
 
+      const assets = selfPlayer?.assets || {};
+      const agentAssets = assets.agent || {};
+      const agentName =
+        selfPlayer?.character ||
+        selfPlayer?.character_name ||
+        selfPlayer?.agent ||
+        'Unknown';
 
       return {
         matchId: meta.matchid || meta.id || meta.matchId || '',
@@ -582,7 +571,7 @@ router.get('/matches', async (req, res) => {
         queue: meta.mode || meta.queue || 'Mode',
         timeAgo: meta.started_at || meta.startedAt || '',
 
-        agent: selfPlayer?.character || selfPlayer?.agent || 'Unknown',
+        agent: agentName,
         agentIcon:
           agentAssets.small ||
           agentAssets.bust ||
