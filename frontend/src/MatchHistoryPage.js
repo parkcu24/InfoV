@@ -15,35 +15,51 @@ function MatchHistoryPage() {
   const [hasToken, setHasToken] = useState(false);
 
   // ⭐ 에이전트 이름을 파일명 규칙에 맞게 자동 변환하는 함수
-const getAgentImageSrc = (agent) => {
-  const defaultSrc = '/agents/default.png';
+  const getAgentImageSrc = (agent) => {
+    const defaultSrc = '/agents/default.png';
 
-  if (!agent) return defaultSrc;
+    if (!agent) return defaultSrc;
 
-  // agent가 객체로 올 수도 있음 (예: { name: 'Omen', id: 'omen' ... })
-  let agentName = agent;
+    // agent가 객체로 올 수도 있음 (예: { name: 'Omen', id: 'omen' ... })
+    let agentName = agent;
 
-  if (typeof agent === 'object') {
-    agentName =
-      agent.displayName ||
-      agent.name ||
-      agent.id ||
-      ''; // 그래도 없으면 빈 문자열
-  }
+    if (typeof agent === 'object') {
+      agentName =
+        agent.displayName ||
+        agent.name ||
+        agent.id ||
+        '';
+    }
 
-  if (typeof agentName !== 'string' || agentName.length === 0) {
-    return defaultSrc;
-  }
+    if (typeof agentName !== 'string' || agentName.length === 0) {
+      return defaultSrc;
+    }
 
-  const normalized = agentName
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]/g, '');
+    const normalized = agentName
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '');
 
-  return normalized ? `/agents/${normalized}.png` : defaultSrc;
-};
+    return normalized ? `/agents/${normalized}.png` : defaultSrc;
+  };
 
+  // ⭐ 플레이어 카드 이미지 경로 계산
+  const getPlayerCardSrc = (profileObj, summaryObj) => {
+    const defaultSrc = '/playercards/default.png';
+    if (!profileObj && !summaryObj) return defaultSrc;
+
+    const cardId =
+      profileObj?.cardId ||
+      profileObj?.card ||
+      summaryObj?.cardId ||
+      null;
+
+    if (!cardId) return defaultSrc;
+
+    // 카드 UUID 그대로 파일명으로 사용한다고 가정
+    return `/playercards/${cardId}.png`;
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('riot_access_token');
@@ -141,6 +157,8 @@ const getAgentImageSrc = (agent) => {
     return 'Mode';
   };
 
+  const playerCardSrc = getPlayerCardSrc(profile, summary);
+
   return (
     <div style={styles.pageWrapper}>
       {/* 네비게이션 */}
@@ -195,31 +213,59 @@ const getAgentImageSrc = (agent) => {
             {/* 프로필 카드 */}
             {profile && (
               <div style={styles.profileCard}>
-                <div>
-                  <h2 style={styles.profileTitle}>{getDisplayName(profile)}</h2>
-                  <p style={styles.profileSub}>PUUID: {profile.puuid}</p>
+                {/* 왼쪽: 동그란 플레이어 카드 + 레벨 배지 */}
+                <div style={styles.profileAvatarSection}>
+                  <div style={styles.playerCardCircle}>
+                    <img
+                      src={playerCardSrc}
+                      alt="Player Card"
+                      style={styles.playerCardImage}
+                      onError={(e) => {
+                        if (e.currentTarget.dataset.errorHandled === '1') return;
+                        e.currentTarget.dataset.errorHandled = '1';
+                        e.currentTarget.src = '/agents/default.png';
+                      }}
+                    />
+                  </div>
+                  <div style={styles.levelBadge}>
+                    Lv. {summary?.accountLevel ?? '-'}
+                  </div>
                 </div>
 
-                {summary && (
-                  <div style={styles.summaryRow}>
-                    <div style={styles.summaryItem}>
-                      <span style={styles.summaryLabel}>계정 레벨</span>
-                      <span style={styles.summaryValue}>{summary.accountLevel}</span>
-                    </div>
-                    <div style={styles.summaryItem}>
-                      <span style={styles.summaryLabel}>현재 티어</span>
-                      <span style={styles.summaryValue}>
-                        {summary.currentTier} ({summary.rr} RR)
-                      </span>
-                    </div>
-                    <div style={styles.summaryItem}>
-                      <span style={styles.summaryLabel}>시즌 전적</span>
-                      <span style={styles.summaryValue}>
-                        {summary.wins}승 {summary.losses}패 ({summary.winRate}%)
-                      </span>
-                    </div>
+                {/* 오른쪽: 닉네임 + 태그 박스, 아래에 요약 스탯 */}
+                <div style={styles.profileInfoSection}>
+                  <div style={styles.nameBox}>
+                    <span style={styles.nameText}>{profile.gameName}</span>
+                    {profile.tagLine && (
+                      <span style={styles.tagText}>#{profile.tagLine}</span>
+                    )}
                   </div>
-                )}
+
+                  {summary && (
+                    <div style={styles.summaryRow}>
+                      <div style={styles.summaryItem}>
+                        <span style={styles.summaryLabel}>현재 티어</span>
+                        <span style={styles.summaryValue}>
+                          {summary.currentTier || '-'} {summary.rr != null ? `(${summary.rr} RR)` : ''}
+                        </span>
+                      </div>
+                      <div style={styles.summaryItem}>
+                        <span style={styles.summaryLabel}>시즌 전적</span>
+                        <span style={styles.summaryValue}>
+                          {summary.wins != null ? `${summary.wins}승` : '-'}{' '}
+                          {summary.losses != null ? `${summary.losses}패` : ''}{' '}
+                          {summary.winRate != null ? `(${summary.winRate}%)` : ''}
+                        </span>
+                      </div>
+                      <div style={styles.summaryItem}>
+                        <span style={styles.summaryLabel}>PUUID</span>
+                        <span style={styles.summaryValueSmall}>
+                          {profile.puuid}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -398,35 +444,96 @@ const styles = {
 
   /* 프로필 */
   profileCard: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '24px',
     backgroundColor: '#1b1b1b',
-    padding: '20px',
-    borderRadius: '12px',
-    marginBottom: '20px',
+    padding: '20px 24px',
+    borderRadius: '16px',
+    marginBottom: '24px',
     border: '1px solid #333',
   },
-  profileTitle: {
-    fontSize: '24px',
-    margin: 0,
+  profileAvatarSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '8px',
+    minWidth: '96px',
   },
-  profileSub: {
+  playerCardCircle: {
+    width: '80px',
+    height: '80px',
+    borderRadius: '50%',
+    overflow: 'hidden',
+    border: '2px solid #444',
+    boxShadow: '0 0 12px rgba(0,0,0,0.6)',
+  },
+  playerCardImage: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+  },
+  levelBadge: {
+    padding: '2px 10px',
+    borderRadius: '8px',
+    backgroundColor: '#2b2b2b',
+    fontSize: '12px',
+    color: '#f5f5f5',
+    border: '1px solid #444',
+  },
+  profileInfoSection: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+  },
+  nameBox: {
+    display: 'inline-flex',
+    alignItems: 'baseline',
+    gap: '6px',
+    padding: '8px 12px',
+    borderRadius: '10px',
+    backgroundColor: '#232323',
+    border: '1px solid #3a3a3a',
+  },
+  nameText: {
+    fontSize: '22px',
+    fontWeight: 700,
+  },
+  tagText: {
     fontSize: '14px',
     color: '#aaa',
   },
   summaryRow: {
-    marginTop: '10px',
+    marginTop: '6px',
     display: 'flex',
     flexWrap: 'wrap',
     gap: '16px',
   },
   summaryItem: {
     display: 'flex',
-    gap: '4px',
+    flexDirection: 'column',
+    gap: '2px',
+    minWidth: '140px',
   },
   summaryLabel: {
     color: '#999',
+    fontSize: '11px',
   },
   summaryValue: {
     color: '#fff',
+    fontSize: '13px',
+  },
+  summaryValueSmall: {
+    color: '#ccc',
+    fontSize: '11px',
+    wordBreak: 'break-all',
+  },
+
+  /* 섹션 타이틀 */
+  sectionTitle: {
+    fontSize: '20px',
+    marginBottom: '12px',
   },
 
   /* 매치 카드 */
@@ -495,6 +602,16 @@ const styles = {
   statValue: {
     fontSize: '13px',
     color: '#fff',
+  },
+
+  /* 상단 프로필 우측 버튼 */
+  profileBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  profileName: {
+    fontSize: '14px',
   },
 
   /* 버튼 */
