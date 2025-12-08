@@ -424,35 +424,46 @@ router.get('/matches', async (req, res) => {
     const mapped = rawMatches.map((m, idx) => {
       const meta = m.metadata || {};
 
-      // --- players 구조 통합 (새/구 버전 모두 대응) ---
+      // ==============================
+      // 1) players 파싱 (all / all_players / 팀별)
+      // ==============================
       const playersRaw = m.players || {};
       let allPlayers = [];
 
-      // 0) 새 구조: players 가 그냥 배열인 경우
-      if (Array.isArray(playersRaw)) {
-        allPlayers = playersRaw;
-      }
-      // 1) 예전 구조: players.all
-      else if (Array.isArray(playersRaw.all)) {
+      // 1-1) players.all
+      if (Array.isArray(playersRaw.all)) {
         allPlayers = playersRaw.all;
       }
-      // 2) 팀별 구조: players.blue.players / players.red.players ...
-      else {
-        const teamKeys = ['blue', 'red', 'other', 'neutral', 'defending', 'attacking'];
-        teamKeys.forEach((key) => {
-          const team = playersRaw[key];
-          if (team && Array.isArray(team.players)) {
-            allPlayers = allPlayers.concat(team.players);
-          }
-        });
+      // 1-2) players.all_players
+      else if (Array.isArray(playersRaw.all_players)) {
+        allPlayers = playersRaw.all_players;
       }
 
-      console.log(
-        `🎯 [Henrik DEBUG] match[${idx}] allPlayers 길이:`,
-        allPlayers.length
-      );
+      // 1-3) 팀별 players / all_players
+      const teamKeys = [
+        'blue',
+        'red',
+        'other',
+        'neutral',
+        'defending',
+        'attacking',
+      ];
+      teamKeys.forEach((key) => {
+        const team = playersRaw[key];
+        if (!team) return;
 
-      // --- 내 플레이어 찾기 ---
+        if (Array.isArray(team.players)) {
+          allPlayers = allPlayers.concat(team.players);
+        } else if (Array.isArray(team.all_players)) {
+          allPlayers = allPlayers.concat(team.all_players);
+        }
+      });
+
+      console.log(`🎯 [Henrik DEBUG] match[${idx}] allPlayers 길이:`, allPlayers.length);
+
+      // ==============================
+      // 2) 내 플레이어 찾기
+      // ==============================
       let selfPlayer = null;
 
       if (henrikPuuid && allPlayers.length > 0) {
@@ -461,41 +472,49 @@ router.get('/matches', async (req, res) => {
       }
 
       if (!selfPlayer && allPlayers.length > 0) {
-        // 이름 / 태그로 한 번 더 시도
+        // 이름/태그 대소문자 무시 비교
         selfPlayer =
           allPlayers.find(
             (p) =>
-              p.name === accountData.name && p.tag === accountData.tag
+              String(p.name || '').toLowerCase() ===
+                String(accountData.name || '').toLowerCase() &&
+              String(p.tag || '').toLowerCase() ===
+                String(accountData.tag || '').toLowerCase()
           ) || null;
       }
 
       if (!selfPlayer && allPlayers.length > 0) {
-        console.log(`⚠️ [Henrik DEBUG] match[${idx}] selfPlayer 찾기 실패, 0번 플레이어 사용`);
         selfPlayer = allPlayers[0];
       }
 
-      const rawStats = selfPlayer?.stats || {};
-      const coreStats = rawStats.core || rawStats; // v4 에서 core 안에 들어올 수 있음
+      if (!selfPlayer) {
+        console.warn(`⚠️ [Henrik DEBUG] match[${idx}] selfPlayer 찾기 실패`);
+      }
 
-      // --- 기본 KDA / 점수 ---
-      let kills =
+      // ==============================
+      // 3) 스탯(core / stats 호환)
+      // ==============================
+      const rawStats = selfPlayer?.stats || {};
+      const coreStats = rawStats.core || rawStats;
+
+      const kills =
         coreStats.kills ??
         rawStats.kills ??
         0;
-      let deaths =
+      const deaths =
         coreStats.deaths ??
         rawStats.deaths ??
         0;
-      let assists =
+      const assists =
         coreStats.assists ??
         rawStats.assists ??
         0;
-      let score =
+      const score =
         coreStats.score ??
         rawStats.score ??
         null;
 
-      // --- 명중 부위 (HS%) ---
+      // HS%
       let headshots = coreStats.headshots ?? rawStats.headshots ?? null;
       let bodyshots = coreStats.bodyshots ?? rawStats.bodyshots ?? null;
       let legshots = coreStats.legshots ?? rawStats.legshots ?? null;
@@ -517,7 +536,9 @@ router.get('/matches', async (req, res) => {
       const kdRaw = deaths > 0 ? kills / deaths : kills;
       const kd = Number.isFinite(kdRaw) ? kdRaw : null;
 
-      // --- 팀 정보 / 스코어 ---
+      // ==============================
+      // 4) 팀 / 스코어 파싱
+      // ==============================
       const teams = m.teams || {};
       const teamIdRaw = (selfPlayer?.team || '').toLowerCase();
 
@@ -545,20 +566,44 @@ router.get('/matches', async (req, res) => {
         enemyTeam = teams.defending || {};
       }
 
-      const roundsWon = myTeam.rounds_won ?? null;
-      const roundsLost = myTeam.rounds_lost ?? null;
-      const hasWon = myTeam.has_won === true;
+      // rounds 구조가 여러 가지일 수 있음
+      const myRounds = myTeam.rounds || myTeam;
+      const enemyRounds = enemyTeam.rounds || enemyTeam;
 
+      const roundsWon =
+        myRounds.rounds_won ??
+        myRounds.won ??
+        null;
+      const roundsLost =
+        myRounds.rounds_lost ??
+        myRounds.lost ??
+        null;
+
+      const hasWon =
+        typeof myTeam.has_won === 'boolean'
+          ? myTeam.has_won
+          : (roundsWon != null && roundsLost != null
+              ? roundsWon > roundsLost
+              : null);
+
+      // ==============================
+      // 5) 에이전트 / 이미지
+      // ==============================
       const assets = selfPlayer?.assets || {};
       const agentAssets = assets.agent || {};
 
+      const agentName =
+        selfPlayer?.character ||
+        selfPlayer?.agent ||
+        'Unknown';
+
       return {
-        matchId: meta.matchid || meta.id || meta.matchId || '',
+        matchId: meta.matchid || meta.id || '',
         map: meta.map || 'Unknown Map',
         queue: meta.mode || meta.queue || 'Mode',
-        timeAgo: meta.started_at || meta.startedAt || '',
+        timeAgo: meta.started_at || '',
 
-        agent: selfPlayer?.character || selfPlayer?.agent || 'Unknown',
+        agent: agentName,
         agentIcon:
           agentAssets.small ||
           agentAssets.bust ||
