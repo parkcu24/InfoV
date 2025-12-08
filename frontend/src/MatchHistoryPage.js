@@ -15,16 +15,33 @@ function MatchHistoryPage() {
   const [hasToken, setHasToken] = useState(false);
 
   // ⭐ 에이전트 이름을 파일명 규칙에 맞게 자동 변환하는 함수
-  const getAgentImageSrc = (agentName) => {
-    if (!agentName) return '/agents/default.png';
-
+  const getAgentImageSrc = (agent) => {
+    const defaultSrc = '/agents/default.png';
+  
+    if (!agent) return defaultSrc;
+  
+    // agent가 객체로 올 수도 있음 (예: { name: 'Omen', id: 'omen' ... })
+    let agentName = agent;
+  
+    if (typeof agent === 'object') {
+      agentName =
+        agent.displayName ||
+        agent.name ||
+        agent.id ||
+        ''; // 그래도 없으면 빈 문자열
+    }
+  
+    if (typeof agentName !== 'string' || agentName.length === 0) {
+      return defaultSrc;
+    }
+  
     const normalized = agentName
-      .toLowerCase() // 소문자
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // 악센트 제거
-      .replace(/[^a-z0-9]/g, ''); // 영어/숫자만 남기고 특수문자, 공백, / 제거
-
-    // 예: Phoenix → phoenix, KAY/O → kayo, dead lock → deadlock
-    return `/public/agents/${normalized}.png`;
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '');
+  
+    return normalized ? `/agents/${normalized}.png` : defaultSrc;
   };
 
   useEffect(() => {
