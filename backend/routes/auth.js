@@ -505,7 +505,12 @@ router.get('/matches', async (req, res) => {
 
       // --- 팀 정보 / 스코어 ---
       const teams = m.teams || {};
-      const teamIdRaw = (selfPlayer?.team || selfPlayer?.player_team || '').toLowerCase();
+      const teamIdRaw = (
+        selfPlayer?.team ||
+        selfPlayer?.player_team ||
+        selfPlayer?.team_id ||
+        ''
+      ).toLowerCase();
 
       // 기본은 blue/red, 나머지는 defending/attacking 정도까지 처리
       let myTeamKey = null;
@@ -532,26 +537,61 @@ router.get('/matches', async (req, res) => {
         enemyTeam = teams.defending || {};
       }
 
-      // 🔹 여러 형식을 모두 커버해서 점수 뽑기
-      const roundsWon =
+      // 🔹 1차: teams 객체에서 여러 형식 다 커버해서 점수 뽑기
+      let roundsWon =
         myTeam.rounds_won ??
         myTeam.roundsWon ??
-        myTeam.rounds?.won ??
+        (myTeam.rounds && myTeam.rounds.won) ??
         myTeam.score ??
         null;
 
-      const roundsLost =
+      let roundsLost =
         myTeam.rounds_lost ??
         myTeam.roundsLost ??
-        myTeam.rounds?.lost ??
+        (myTeam.rounds && myTeam.rounds.lost) ??
         enemyTeam.score ??
         null;
 
-      const hasWonRaw =
+      let hasWonRaw =
         myTeam.has_won ??
         myTeam.hasWon ??
         myTeam.won ??
         null;
+
+      // 🔹 2차: 그래도 null 이면, 라운드 배열에서 직접 승패 세기
+      if (
+        (roundsWon == null || roundsLost == null) &&
+        Array.isArray(m.rounds) &&
+        m.rounds.length > 0
+      ) {
+        const roundsArr = m.rounds;
+        let blueWins = 0;
+        let redWins = 0;
+
+        roundsArr.forEach((r) => {
+          const winTeam = (r.winning_team || r.winningTeam || '').toLowerCase();
+          if (winTeam === 'blue') blueWins += 1;
+          else if (winTeam === 'red') redWins += 1;
+        });
+
+        // 내 팀이 blue/red 중 어디인지 결정
+        let colorKey = null;
+        if (teamIdRaw === 'blue' || teamIdRaw === 'red') {
+          colorKey = teamIdRaw;
+        } else if (teams.blue && myTeam === teams.blue) {
+          colorKey = 'blue';
+        } else if (teams.red && myTeam === teams.red) {
+          colorKey = 'red';
+        }
+
+        if (colorKey === 'blue') {
+          roundsWon = blueWins;
+          roundsLost = redWins;
+        } else if (colorKey === 'red') {
+          roundsWon = redWins;
+          roundsLost = blueWins;
+        }
+      }
 
       const hasWon =
         typeof hasWonRaw === 'boolean'
@@ -563,14 +603,19 @@ router.get('/matches', async (req, res) => {
 
       const assets = selfPlayer?.assets || {};
       const agentAssets = assets.agent || {};
+      const agentName =
+        selfPlayer?.character ||
+        selfPlayer?.agent?.name ||
+        selfPlayer?.agent ||
+        'Unknown';
 
       return {
-        matchId: meta.matchid || meta.id || meta.matchId || '',
-        map: meta.map || 'Unknown Map',
-        queue: meta.mode || meta.queue || 'Mode',
+        matchId: meta.matchid || meta.match_id || meta.id || meta.matchId || '',
+        map: meta.map?.name || meta.map || 'Unknown Map',
+        queue: meta.queue?.name || meta.mode || meta.queue || 'Mode',
         timeAgo: meta.started_at || meta.startedAt || '',
 
-        agent: selfPlayer?.character || selfPlayer?.agent || 'Unknown',
+        agent: agentName,
         agentIcon:
           agentAssets.small ||
           agentAssets.bust ||
@@ -612,4 +657,3 @@ router.get('/matches', async (req, res) => {
 });
 
 module.exports = router;
-//auth.js
