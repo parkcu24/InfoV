@@ -230,6 +230,9 @@ router.get('/profile', async (req, res) => {
 // --------------------------------------------------
 // 4️⃣ Henrik 요약 스탯 (/api/auth/stats)
 // --------------------------------------------------
+// --------------------------------------------------
+// 4️⃣ Henrik 요약 스탯 (/api/auth/stats)
+// --------------------------------------------------
 router.get('/stats', async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -338,10 +341,12 @@ router.get('/stats', async (req, res) => {
           s.season ||
           s.id ||
           s.seasonID ||
-          s.seasonId || // by_season의 key
+          s.seasonId ||
           null;
 
-        const tierPatched =
+        if (!seasonName) return null;
+
+        let tierPatched =
           s.currenttierpatched ||
           s.currenttier_patched ||
           s.final_rank_patched ||
@@ -350,12 +355,17 @@ router.get('/stats', async (req, res) => {
           s.rank ||
           null;
 
+        // 티어 문자열이 아예 없을 때는 기본 문구
+        if (!tierPatched) {
+          tierPatched = '티어 정보 없음';
+        }
+
         return {
           season: seasonName,
           tier: tierPatched,
         };
       })
-      .filter((x) => x.season && x.tier);
+      .filter(Boolean); // season 이 없는 것만 제거
 
     const summary = {
       accountLevel: accountData.account_level ?? null,
@@ -364,7 +374,7 @@ router.get('/stats', async (req, res) => {
       wins,
       losses,
       winRate,
-      seasonHistory, // ⭐ 프론트에서 액트/시즌 박스 렌더링에 사용
+      seasonHistory,
     };
 
     console.log('✅ [Henrik DEBUG] /auth/stats 응답:', summary);
@@ -386,6 +396,7 @@ router.get('/stats', async (req, res) => {
     });
   }
 });
+
 
 // --------------------------------------------------
 // 5️⃣ 최근 경기 정보 반환 (/api/auth/matches)
