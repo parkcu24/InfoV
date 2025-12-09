@@ -14,11 +14,10 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'https://infov.vercel.app';
 const HENRIK_API_KEY = process.env.HENRIK_API_KEY;
 
 // --------------------------------------------------
-// 헬퍼: 국가 → 대략적인 Henrik 지역 매핑 (fallback 용)
+// 헬퍼: 국가 → Henrik 지역 매핑
 // --------------------------------------------------
 function resolveHenrikRegion(country, fallbackRegion) {
   if (fallbackRegion) return fallbackRegion;
-
   if (!country) return 'ap';
 
   const c = country.toUpperCase();
@@ -26,93 +25,63 @@ function resolveHenrikRegion(country, fallbackRegion) {
   if (['KR'].includes(c)) return 'kr';
   if (['US', 'CA', 'MX'].includes(c)) return 'na';
   if (['BR'].includes(c)) return 'br';
-  if (
-    ['AR', 'CL', 'PE', 'CO', 'VE', 'UY', 'PY', 'BO', 'EC'].includes(c)
-  )
+
+  if (['AR', 'CL', 'PE', 'CO', 'VE', 'UY', 'PY', 'BO', 'EC'].includes(c))
     return 'latam';
+
   if (
-    [
-      'FR',
-      'DE',
-      'ES',
-      'IT',
-      'GB',
-      'UK',
-      'NL',
-      'SE',
-      'NO',
-      'FI',
-      'PL',
-      'CZ',
-    ].includes(c)
+    ['FR', 'DE', 'ES', 'IT', 'GB', 'UK', 'NL', 'SE', 'NO', 'FI', 'PL', 'CZ'].includes(c)
   )
     return 'eu';
 
-  // 그 외 아시아권은 그냥 ap
   return 'ap';
 }
 
 // --------------------------------------------------
-// 헬퍼: RSO AccessToken → Riot 계정 정보(gameName, tagLine, puuid, country)
+// RSO AccessToken → Riot 계정 정보(gameName, tagLine, puuid, country)
 // --------------------------------------------------
 async function getRiotIdentityFromToken(accessToken) {
-  console.log('👤 [RSO DEBUG] getRiotIdentityFromToken 호출');
-
-  // 1) 기본 userinfo
   const userInfoRes = await axios.get('https://auth.riotgames.com/userinfo', {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
   const data = userInfoRes.data;
-  console.log('🧾 [RSO DEBUG] userinfo:', JSON.stringify(data, null, 2));
 
   let gameName = null;
   let tagLine = null;
   let puuid = data.sub || null;
   const country = data.country || null;
 
-  // 2) account-v1 /accounts/me
+  // account-v1 backup
   try {
-    console.log('🌍 [RSO DEBUG] account-v1 /accounts/me 호출 시도');
     const accountRes = await axios.get(
       'https://asia.api.riotgames.com/riot/account/v1/accounts/me',
       {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { Authorization: `Bearer ${accessToken}` },
       }
     );
 
-    const accountData = accountRes.data;
-    console.log(
-      '✅ [RSO DEBUG] account-v1 /accounts/me 응답:',
-      JSON.stringify(accountData, null, 2)
-    );
-
-    if (accountData.gameName) gameName = accountData.gameName;
-    if (accountData.tagLine) tagLine = accountData.tagLine;
-    if (accountData.puuid) puuid = accountData.puuid;
-  } catch (accountErr) {
-    console.error('❌ [RSO DEBUG] account-v1 /accounts/me 에러:');
-    console.error(accountErr.response?.data || accountErr.message);
+    const acc = accountRes.data;
+    if (acc.gameName) gameName = acc.gameName;
+    if (acc.tagLine) tagLine = acc.tagLine;
+    if (acc.puuid) puuid = acc.puuid;
+  } catch (e) {
+    console.error('❌ account-v1 error', e.response?.data);
   }
 
-  // 3) userinfo 안에 acct.* 로 보조
+  // fallback
   const acct = data.acct || {};
   if (!gameName && acct.game_name) gameName = acct.game_name;
   if (!tagLine && acct.tag_line) tagLine = acct.tag_line;
 
-  // 4) preferred_username 형식 "name#tag"
   if (!gameName && typeof data.preferred_username === 'string') {
     const [gn, tl] = data.preferred_username.split('#');
-    if (!gameName && gn) gameName = gn;
-    if (!tagLine && tl) tagLine = tl;
+    if (gn) gameName = gn;
+    if (tl) tagLine = tl;
   }
 
-  // 5) 기타 백업 필드
-  if (!gameName && typeof data.game_name === 'string') gameName = data.game_name;
-  if (!tagLine && typeof data.tag_line === 'string') tagLine = data.tag_line;
-  if (!gameName && typeof data.name === 'string') gameName = data.name;
+  if (!gameName && data.game_name) gameName = data.game_name;
+  if (!tagLine && data.tag_line) tagLine = data.tag_line;
 
   return { gameName, tagLine, puuid, country };
 }
@@ -125,27 +94,17 @@ router.get('/login', (req, res) => {
     REDIRECT_URI
   )}&response_type=code&scope=openid+offline_access`;
 
-  console.log('------------------------------------------');
-  console.log('🧭 [RSO DEBUG] 로그인 요청 발생');
-  console.log('CLIENT_ID:', CLIENT_ID);
-  console.log('REDIRECT_URI:', REDIRECT_URI);
-  console.log('🔗 Redirecting to Riot URL:');
-  console.log(authorizeUrl);
-  console.log('------------------------------------------');
-
   res.redirect(authorizeUrl);
 });
 
 // --------------------------------------------------
-// 2️⃣ Riot 로그인 성공 후 콜백
+// 2️⃣ Riot 로그인 콜백
 // --------------------------------------------------
 router.get('/callback', async (req, res) => {
   const { code } = req.query;
   if (!code) return res.status(400).send('Authorization code not found');
 
   try {
-    console.log('🧾 [RSO DEBUG] 콜백 호출됨, code:', code);
-
     const tokenResponse = await axios.post(
       'https://auth.riotgames.com/token',
       null,
@@ -162,582 +121,243 @@ router.get('/callback', async (req, res) => {
     );
 
     const { access_token } = tokenResponse.data;
-    console.log('✅ [RSO DEBUG] Access Token 획득 완료');
-
-    const userInfo = await axios.get('https://auth.riotgames.com/userinfo', {
-      headers: { Authorization: `Bearer ${access_token}` },
-    });
-    console.log('✅ [RSO DEBUG] 로그인 성공 (userinfo 일부):', {
-      sub: userInfo.data.sub,
-      jti: userInfo.data.jti,
-    });
 
     res.redirect(`${FRONTEND_URL}/callback?access_token=${access_token}`);
   } catch (err) {
-    console.error('❌ [RSO DEBUG] OAuth 처리 중 오류 발생:');
-    console.error(err.response?.data || err.message);
-    res.status(500).send('로그인 중 오류가 발생했습니다.');
+    res.status(500).send('OAuth 처리 중 오류가 발생했습니다.');
   }
 });
 
 // --------------------------------------------------
-// 3️⃣ 프로필 정보 반환 (/api/auth/profile)
+// 3️⃣ 프로필 정보 반환
 // --------------------------------------------------
 router.get('/profile', async (req, res) => {
-  const authHeader = req.headers.authorization;
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: "No Token" });
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.log('❌ [RSO DEBUG] Authorization 헤더 없음');
-    return res.status(401).json({ error: 'No access token provided' });
-  }
-
-  const accessToken = authHeader.split(' ')[1];
+  const accessToken = auth.split(' ')[1];
 
   try {
-    console.log('👤 [RSO DEBUG] /auth/profile 호출');
-    console.log('🔑 Access Token 앞자리:', accessToken.slice(0, 20), '...');
-
-    const { gameName, tagLine, puuid, country } =
-      await getRiotIdentityFromToken(accessToken);
-
-    const profile = {
-      gameName: gameName || null,
-      tagLine: tagLine || null,
-      puuid: puuid || null,
-      country: country || null,
-    };
-
-    console.log('✅ [RSO DEBUG] /auth/profile 응답:', profile);
-    return res.json(profile);
+    const profile = await getRiotIdentityFromToken(accessToken);
+    res.json(profile);
   } catch (err) {
-    console.error('❌ [RSO DEBUG] /auth/profile 에러:');
-    console.error(err.response?.data || err.message);
-
-    const status =
-      err.response?.status &&
-      err.response.status >= 400 &&
-      err.response.status < 600
-        ? err.response.status
-        : 500;
-
-    return res.status(status).json({
-      error: 'Failed to fetch profile from Riot',
+    res.status(500).json({
+      error: 'Failed to fetch profile',
       detail: err.response?.data || err.message,
     });
   }
 });
 
 // --------------------------------------------------
-// 4️⃣ Henrik 요약 스탯 (/api/auth/stats)
-// --------------------------------------------------
-// --------------------------------------------------
-// 4️⃣ Henrik 요약 스탯 (/api/auth/stats)
+// 4️⃣ Henrik 요약 스탯 (/stats)
+//   → 시즌별 최고 티어 포함 버전!!
 // --------------------------------------------------
 router.get('/stats', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'No access token provided' });
-  }
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: "No Token" });
 
-  const accessToken = authHeader.split(' ')[1];
-  console.log(
-    '📊 [Henrik DEBUG] /auth/stats 호출, 토큰 앞 10자리:',
-    accessToken.slice(0, 10),
-    '...'
-  );
+  const accessToken = auth.split(' ')[1];
 
   try {
-    // 1) Riot 쪽에서 닉네임, 태그, 국가 가져오기
-    const { gameName, tagLine, country } =
-      await getRiotIdentityFromToken(accessToken);
+    const { gameName, tagLine, country } = await getRiotIdentityFromToken(accessToken);
 
-    if (!gameName || !tagLine) {
-      console.log('❌ [Henrik DEBUG] gameName 또는 tagLine 없음');
-      return res.status(400).json({
-        error: 'Missing Riot ID',
-        detail: 'gameName or tagLine not found from Riot userinfo',
-      });
-    }
-
-    // 2) Henrik 계정 정보
     const accountUrl = `https://api.henrikdev.xyz/valorant/v2/account/${encodeURIComponent(
       gameName
     )}/${encodeURIComponent(tagLine)}`;
 
-    console.log('🌐 [Henrik DEBUG] account v2 호출:', accountUrl);
-
     const accountRes = await axios.get(accountUrl, {
-      headers: {
-        Authorization: HENRIK_API_KEY,
-      },
+      headers: { Authorization: HENRIK_API_KEY },
     });
 
-    const accountData = accountRes.data?.data;
-    console.log(
-      '✅ [Henrik DEBUG] account v2 응답:',
-      JSON.stringify(accountData, null, 2)
-    );
+    const acc = accountRes.data?.data;
+    const region = resolveHenrikRegion(country, acc?.region);
 
-    const regionFromHenrik = accountData?.region || null;
-    const region = resolveHenrikRegion(country, regionFromHenrik);
+    // 🔥 v3 MMR
+    const mmrUrl = `https://api.henrikdev.xyz/valorant/v3/mmr/${region}/pc/${encodeURIComponent(
+      acc.name
+    )}/${encodeURIComponent(acc.tag)}`;
 
-    // 3) MMR v3
-    // 3) MMR v3
-const mmrUrl = `https://api.henrikdev.xyz/valorant/v3/mmr/${region}/pc/${encodeURIComponent(
-  accountData.name
-)}/${encodeURIComponent(accountData.tag)}`;
+    const mmrRes = await axios.get(mmrUrl, {
+      headers: { Authorization: HENRIK_API_KEY },
+    });
 
-console.log('🌐 [Henrik DEBUG] mmr v3 호출:', mmrUrl);
+    const mmrData = mmrRes.data?.data || {};
 
-const mmrRes = await axios.get(mmrUrl, {
-  headers: {
-    Authorization: HENRIK_API_KEY,
-  },
-});
+    // ---------------------------
+    // 시즌 배열 준비
+    // ---------------------------
+    let seasonal = [];
 
-// 🔹 전체 raw 응답 먼저 찍기
-console.log("📌 [DEBUG] RAW MMR RESPONSE:", JSON.stringify(mmrRes.data, null, 2));
-
-const mmrData = mmrRes.data?.data || {};
-console.log(
-  '✅ [Henrik DEBUG] mmr v3 응답 (data만):',
-  JSON.stringify(mmrData, null, 2)
-);
-
-// v3 구조 대응: seasonal 배열 or by_season 객체
-let seasonal = [];
-if (Array.isArray(mmrData.seasonal)) {
-  seasonal = mmrData.seasonal;
-} else if (mmrData.by_season && typeof mmrData.by_season === 'object') {
-  seasonal = Object.entries(mmrData.by_season).map(([seasonId, s]) => ({
-    seasonId,
-    ...s,
-  }));
-}
-
-console.log("📌 [DEBUG] mmrData.by_season:", mmrData.by_season);
-console.log("📌 [DEBUG] mmrData.seasonal:", mmrData.seasonal);
-
-// 최신 시즌이 왼쪽에 오도록 역순 정렬
-const seasonalDesc = [...seasonal].reverse();
-const latestSeason = seasonalDesc[0] || null;
-
-let wins = null;
-let losses = null;
-let winRate = null;
-
-if (
-  latestSeason &&
-  typeof latestSeason.wins === 'number' &&
-  typeof latestSeason.games === 'number'
-) {
-  wins = latestSeason.wins;
-  const games = latestSeason.games;
-  losses = games - wins;
-  winRate = games > 0 ? Math.round((wins / games) * 100) : null;
-}
-
-// 🔹 시즌 히스토리
-const seasonHistory = seasonalDesc
-  .map((s) => {
-    let seasonName = null;
-
-    if (typeof s.season === 'string') {
-      seasonName = s.season;
-    } else if (s.season && typeof s.season === 'object') {
-      seasonName = s.season.short || s.season.id || null;
+    if (Array.isArray(mmrData.seasonal)) {
+      seasonal = mmrData.seasonal;
+    } else if (mmrData.by_season) {
+      seasonal = Object.entries(mmrData.by_season).map(([id, s]) => ({
+        seasonId: id,
+        ...s,
+      }));
     }
 
-    if (!seasonName) {
-      if (typeof s.seasonId === 'string') seasonName = s.seasonId;
-      else if (typeof s.seasonID === 'string') seasonName = s.seasonID;
-      else if (typeof s.id === 'string') seasonName = s.id;
+    const seasonalDesc = [...seasonal].reverse();
+    const latest = seasonalDesc[0];
+
+    // ---------------------------
+    // 최신 시즌 승률
+    // ---------------------------
+    let wins = null;
+    let losses = null;
+    let winRate = null;
+
+    if (latest?.games) {
+      wins = latest.wins ?? null;
+      losses = latest.games - (latest.wins ?? 0);
+      winRate = latest.games > 0 ? Math.round((wins / latest.games) * 100) : null;
     }
 
-    let tierPatched = null;
-    const pick = (v) => {
-      if (!tierPatched && v) tierPatched = v;
-    };
+    // ------------------------------------------------
+    // 시즌별 최고 티어 찾기
+    // ------------------------------------------------
+    const seasonHistory = seasonalDesc
+      .map((s) => {
+        let seasonName =
+          s.season?.short ||
+          s.season?.id ||
+          s.seasonId ||
+          s.season ||
+          s.id ||
+          null;
 
-    pick(s.final_rank_patched);
-    pick(s.final_tier_patched);
-    pick(s.finaltier_patched);
-    pick(s.currenttierpatched);
-    pick(s.currenttier_patched);
+        if (!seasonName) return null;
 
-    if (s.final_rank && typeof s.final_rank === 'object') {
-      pick(s.final_rank.patched);
-      pick(s.final_rank.name);
-    }
-    if (s.rank && typeof s.rank === 'object') {
-      pick(s.rank.patched);
-      pick(s.rank.name);
-    }
-    if (s.tier && typeof s.tier === 'object') {
-      pick(s.tier.patched);
-      pick(s.tier.name);
-    }
+        // 🟣 후보가 될 수 있는 모든 배열 타입 확인
+        const tierCandidates = [];
+        const possibleArrays = [
+          s.tiers,
+          s.ranks,
+          s.rank_history,
+          s.rankHistory,
+          s.highest_rank,
+          s.peak_rank,
+        ];
 
-    if (!tierPatched && typeof s.final_rank === 'string') pick(s.final_rank);
-    if (!tierPatched && typeof s.rank === 'string') pick(s.rank);
-    if (!tierPatched && typeof s.tier === 'string') pick(s.tier);
+        possibleArrays.forEach((arr) => {
+          if (Array.isArray(arr)) tierCandidates.push(...arr);
+        });
 
-    return {
-      season: seasonName,
-      tier: tierPatched,
-    };
-  })
-  .filter((x) => x.season);
+        // 🟣 id 가장 높은 티어 = peak tier
+        let peakTier = null;
+        tierCandidates.forEach((t) => {
+          if (!t?.id) return;
+          if (!peakTier || t.id > peakTier.id) peakTier = t;
+        });
 
-console.log("📌 [DEBUG] seasonHistory (final):", seasonHistory);
+        let tierName = peakTier?.name || null;
 
-const summary = {
-  accountLevel: accountData.account_level ?? null,
-  currentTier: mmrData.current?.tier?.name ?? null,
-  rr: mmrData.current?.rr ?? null,
-  wins,
-  losses,
-  winRate,
-  seasonHistory,
-};
+        // fallback
+        if (!tierName) {
+          tierName =
+            s.final_rank_patched ||
+            s.final_tier_patched ||
+            s.currenttier_patched ||
+            s.rank?.patched ||
+            s.rank?.name ||
+            s.tier?.name ||
+            s.tier?.patched ||
+            null;
+        }
 
-console.log('✅ [Henrik DEBUG] /auth/stats 응답:', summary);
-return res.json(summary);
+        return {
+          season: seasonName,
+          tier: tierName,
+        };
+      })
+      .filter(Boolean);
 
+    res.json({
+      accountLevel: acc.account_level ?? null,
+      currentTier: mmrData.current?.tier?.name ?? null,
+      rr: mmrData.current?.rr ?? null,
+      wins,
+      losses,
+      winRate,
+      seasonHistory,
+    });
   } catch (err) {
-    console.error('❌ [Henrik DEBUG] /auth/stats 에러:');
     console.error(err.response?.data || err.message);
-
-    const status =
-      err.response?.status &&
-      err.response.status >= 400 &&
-      err.response.status < 600
-        ? err.response.status
-        : 500;
-
-    return res.status(status).json({
-      error: 'Failed to fetch stats from Henrik',
+    res.status(500).json({
+      error: 'Failed to fetch stats',
       detail: err.response?.data || err.message,
     });
   }
 });
 
-
 // --------------------------------------------------
-// 5️⃣ 최근 경기 정보 반환 (/api/auth/matches)
+// 5️⃣ 경기 정보 (/matches)
 // --------------------------------------------------
 router.get('/matches', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'No access token provided' });
-  }
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: "No Token" });
 
-  const accessToken = authHeader.split(' ')[1];
-  console.log(
-    '🎮 [Henrik DEBUG] /auth/matches 호출, 토큰 앞 10자리:',
-    accessToken.slice(0, 10),
-    '...'
-  );
+  const accessToken = auth.split(' ')[1];
 
   try {
-    // 1) Riot 계정 → name, tag, country
-    const { gameName, tagLine, country } =
-      await getRiotIdentityFromToken(accessToken);
+    const { gameName, tagLine, country } = await getRiotIdentityFromToken(accessToken);
 
-    if (!gameName || !tagLine) {
-      console.log('❌ [Henrik DEBUG] gameName 또는 tagLine 없음');
-      return res.status(400).json({
-        error: 'Missing Riot ID',
-        detail: 'gameName or tagLine not found from Riot userinfo',
-      });
-    }
-
-    // 2) Henrik 계정 정보에서 puuid, region 확보
     const accountUrl = `https://api.henrikdev.xyz/valorant/v2/account/${encodeURIComponent(
       gameName
     )}/${encodeURIComponent(tagLine)}`;
 
-    console.log('🌐 [Henrik DEBUG] account v2 호출:', accountUrl);
-
-    const accountRes = await axios.get(accountUrl, {
-      headers: {
-        Authorization: HENRIK_API_KEY,
-      },
+    const accRes = await axios.get(accountUrl, {
+      headers: { Authorization: HENRIK_API_KEY },
     });
 
-    const accountData = accountRes.data?.data;
-    console.log(
-      '✅ [Henrik DEBUG] account v2 응답:',
-      JSON.stringify(accountData, null, 2)
-    );
+    const acc = accRes.data?.data;
+    const region = resolveHenrikRegion(country, acc?.region);
+    const puuid = acc.puuid;
 
-    const regionFromHenrik = accountData?.region || null;
-    const region = resolveHenrikRegion(country, regionFromHenrik);
-    const henrikPuuid = accountData?.puuid || null;
-
-    // 3) v4 matches
+    // v4 matches
     const matchesUrl = `https://api.henrikdev.xyz/valorant/v4/matches/${region}/pc/${encodeURIComponent(
-      accountData.name
-    )}/${encodeURIComponent(accountData.tag)}`;
-
-    console.log('🌐 [Henrik DEBUG] matches v4 호출:', matchesUrl);
+      acc.name
+    )}/${encodeURIComponent(acc.tag)}`;
 
     const matchesRes = await axios.get(matchesUrl, {
-      headers: {
-        Authorization: HENRIK_API_KEY,
-      },
-      params: {
-        size: 8, // 최근 8게임
-      },
+      headers: { Authorization: HENRIK_API_KEY },
+      params: { size: 8 },
     });
 
-    const rawMatches = matchesRes.data?.data || [];
-    console.log(
-      '✅ [Henrik DEBUG] matches v4 응답 개수:',
-      rawMatches.length
-    );
+    const raw = matchesRes.data?.data || [];
 
-    const mapped = rawMatches.map((m, idx) => {
+    const mapped = raw.map((m) => {
       const meta = m.metadata || {};
 
-      // --- players 구조 통합 (새/구 버전 모두 대응) ---
-      const playersRaw = m.players || {};
-      let allPlayers = [];
+      let players = [];
+      if (Array.isArray(m.players)) players = m.players;
+      else if (Array.isArray(m.players?.all)) players = m.players.all;
 
-      // 0) 새 구조: players 가 그냥 배열인 경우
-      if (Array.isArray(playersRaw)) {
-        allPlayers = playersRaw;
-      }
-      // 1) 예전 구조: players.all
-      else if (Array.isArray(playersRaw.all)) {
-        allPlayers = playersRaw.all;
-      }
-      // 2) 팀별 구조: players.blue.players / players.red.players ...
-      else {
-        const teamKeys = [
-          'blue',
-          'red',
-          'other',
-          'neutral',
-          'defending',
-          'attacking',
-        ];
-        teamKeys.forEach((key) => {
-          const team = playersRaw[key];
-          if (team && Array.isArray(team.players)) {
-            allPlayers = allPlayers.concat(team.players);
-          }
-        });
-      }
+      const me =
+        players.find((p) => p.puuid === puuid) ||
+        players.find((p) => p.name === acc.name && p.tag === acc.tag) ||
+        players[0];
 
-      console.log(
-        `🎯 [Henrik DEBUG] match[${idx}] allPlayers 길이:`,
-        allPlayers.length
-      );
-
-      // --- 내 플레이어 찾기 ---
-      let selfPlayer = null;
-
-      if (henrikPuuid && allPlayers.length > 0) {
-        selfPlayer = allPlayers.find((p) => p.puuid === henrikPuuid) || null;
-      }
-
-      if (!selfPlayer && allPlayers.length > 0) {
-        // 이름 / 태그로 한 번 더 시도
-        selfPlayer =
-          allPlayers.find(
-            (p) => p.name === accountData.name && p.tag === accountData.tag
-          ) || null;
-      }
-
-      if (!selfPlayer && allPlayers.length > 0) {
-        console.log(
-          `⚠️ [Henrik DEBUG] match[${idx}] selfPlayer 찾기 실패, 0번 플레이어 사용`
-        );
-        selfPlayer = allPlayers[0];
-      }
-
-      const rawStats = selfPlayer?.stats || {};
-      const coreStats = rawStats.core || rawStats; // v4 에서 core 안에 들어올 수 있음
-
-      // --- 기본 KDA / 점수 ---
-      let kills = coreStats.kills ?? rawStats.kills ?? 0;
-      let deaths = coreStats.deaths ?? rawStats.deaths ?? 0;
-      let assists = coreStats.assists ?? rawStats.assists ?? 0;
-      let score = coreStats.score ?? rawStats.score ?? null;
-
-      // --- 명중 부위 (HS%) ---
-      let headshots = coreStats.headshots ?? rawStats.headshots ?? null;
-      let bodyshots = coreStats.bodyshots ?? rawStats.bodyshots ?? null;
-      let legshots = coreStats.legshots ?? rawStats.legshots ?? null;
-
-      const shots = coreStats.shots || rawStats.shots;
-      if (shots) {
-        if (headshots == null)
-          headshots = shots.head ?? shots.headshots ?? null;
-        if (bodyshots == null)
-          bodyshots = shots.body ?? shots.bodyshots ?? null;
-        if (legshots == null)
-          legshots = shots.leg ?? shots.legshots ?? null;
-      }
-
-      const totalShots =
-        (headshots || 0) + (bodyshots || 0) + (legshots || 0);
-      const hsPercent =
-        totalShots > 0
-          ? Math.round(((headshots || 0) / totalShots) * 100)
-          : null;
-
-      const kdRaw = deaths > 0 ? kills / deaths : kills;
-      const kd = Number.isFinite(kdRaw) ? kdRaw : null;
-
-      // --- 팀 정보 / 스코어 ---
-      const teams = m.teams || {};
-      const teamIdRaw = (
-        selfPlayer?.team ||
-        selfPlayer?.player_team ||
-        selfPlayer?.team_id ||
-        ''
-      ).toLowerCase();
-
-      // 기본은 blue/red, 나머지는 defending/attacking 정도까지 처리
-      let myTeamKey = null;
-      if (teamIdRaw === 'blue' || teamIdRaw === 'red') {
-        myTeamKey = teamIdRaw;
-      } else if (teamIdRaw === 'defending' || teamIdRaw === 'defense') {
-        myTeamKey = 'defending';
-      } else if (teamIdRaw === 'attacking' || teamIdRaw === 'attack') {
-        myTeamKey = 'attacking';
-      } else {
-        myTeamKey = 'blue';
-      }
-
-      let myTeam = teams[myTeamKey] || {};
-      let enemyTeam = {};
-
-      if (myTeamKey === 'blue') {
-        enemyTeam = teams.red || {};
-      } else if (myTeamKey === 'red') {
-        enemyTeam = teams.blue || {};
-      } else if (myTeamKey === 'defending') {
-        enemyTeam = teams.attacking || {};
-      } else if (myTeamKey === 'attacking') {
-        enemyTeam = teams.defending || {};
-      }
-
-      // 🔹 1차: teams 객체에서 여러 형식 다 커버해서 점수 뽑기
-      let roundsWon =
-        myTeam.rounds_won ??
-        myTeam.roundsWon ??
-        (myTeam.rounds && myTeam.rounds.won) ??
-        myTeam.score ??
-        null;
-
-      let roundsLost =
-        myTeam.rounds_lost ??
-        myTeam.roundsLost ??
-        (myTeam.rounds && myTeam.rounds.lost) ??
-        enemyTeam.score ??
-        null;
-
-      let hasWonRaw =
-        myTeam.has_won ?? myTeam.hasWon ?? myTeam.won ?? null;
-
-      // 🔹 2차: 그래도 null 이면, 라운드 배열에서 직접 승패 세기
-      if (
-        (roundsWon == null || roundsLost == null) &&
-        Array.isArray(m.rounds) &&
-        m.rounds.length > 0
-      ) {
-        const roundsArr = m.rounds;
-        let blueWins = 0;
-        let redWins = 0;
-
-        roundsArr.forEach((r) => {
-          const winTeam = (r.winning_team || r.winningTeam || '').toLowerCase();
-          if (winTeam === 'blue') blueWins += 1;
-          else if (winTeam === 'red') redWins += 1;
-        });
-
-        // 내 팀이 blue/red 중 어디인지 결정
-        let colorKey = null;
-        if (teamIdRaw === 'blue' || teamIdRaw === 'red') {
-          colorKey = teamIdRaw;
-        } else if (teams.blue && myTeam === teams.blue) {
-          colorKey = 'blue';
-        } else if (teams.red && myTeam === teams.red) {
-          colorKey = 'red';
-        }
-
-        if (colorKey === 'blue') {
-          roundsWon = blueWins;
-          roundsLost = redWins;
-        } else if (colorKey === 'red') {
-          roundsWon = redWins;
-          roundsLost = blueWins;
-        }
-      }
-
-      const hasWon =
-        typeof hasWonRaw === 'boolean'
-          ? hasWonRaw
-          : typeof roundsWon === 'number' &&
-            typeof roundsLost === 'number'
-          ? roundsWon > roundsLost
-          : null;
-
-      const assets = selfPlayer?.assets || {};
-      const agentAssets = assets.agent || {};
-      const agentName =
-        selfPlayer?.character ||
-        selfPlayer?.agent?.name ||
-        selfPlayer?.agent ||
-        'Unknown';
+      const stats = me?.stats?.core || me?.stats || {};
 
       return {
-        matchId:
-          meta.matchid || meta.match_id || meta.id || meta.matchId || '',
-        map: meta.map?.name || meta.map || 'Unknown Map',
-        queue: meta.queue?.name || meta.mode || meta.queue || 'Mode',
-        timeAgo: meta.started_at || meta.startedAt || '',
+        matchId: meta.id || meta.matchid,
+        map: meta.map?.name || meta.map,
+        queue: meta.queue?.name || meta.queue,
+        timeAgo: meta.started_at,
 
-        agent: agentName,
-        agentIcon:
-          agentAssets.small ||
-          agentAssets.bust ||
-          agentAssets.full ||
-          null,
+        agent: me?.character || me?.agent?.name,
+        agentIcon: me?.assets?.agent?.small,
 
-        teamScore: roundsWon,
-        enemyScore: roundsLost,
-        rankTier: selfPlayer?.currenttier_patched || null,
-        rr: null,
-
-        kills,
-        deaths,
-        assists,
-        kd,
-        acs: score,
-        adr: null,
-        hsPercent,
-        win: hasWon,
-        placement: null,
+        kills: stats.kills,
+        deaths: stats.deaths,
+        assists: stats.assists,
       };
     });
 
-    return res.json(mapped);
+    res.json(mapped);
   } catch (err) {
-    console.error('❌ [Henrik DEBUG] /auth/matches 에러:');
-    console.error(err.response?.data || err.message);
-
-    const status =
-      err.response?.status &&
-      err.response.status >= 400 &&
-      err.response.status < 600
-        ? err.response.status
-        : 500;
-
-    return res.status(status).json({
+    res.status(500).json({
       error: 'Failed to fetch matches',
       detail: err.response?.data || err.message,
     });
