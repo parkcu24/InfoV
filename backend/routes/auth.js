@@ -335,47 +335,74 @@ router.get('/stats', async (req, res) => {
     }
 
     // 🔹 시즌 히스토리 (이전 시즌 티어들)
-    const seasonHistory = seasonalDesc
-      .map((s) => {
-        const seasonName =
-          s.season ||
-          s.id ||
-          s.seasonID ||
-          s.seasonId ||
-          null;
+    // 🔹 시즌 히스토리 (이전 시즌 티어들)
+const seasonHistory = seasonalDesc
+.map((s) => {
+  // 1) 시즌 이름 후보들
+  let seasonNameRaw =
+    s.season ||
+    s.seasonId ||
+    s.seasonID ||
+    s.id ||
+    null;
 
-        if (!seasonName) return null;
+  let seasonName = null;
 
-        let tierPatched =
-          s.currenttierpatched ||
-          s.currenttier_patched ||
-          s.final_rank_patched ||
-          s.final_rank ||
-          s.rank_patched ||
-          s.rank ||
-          null;
+  // 문자열이면 그대로 사용
+  if (typeof seasonNameRaw === 'string') {
+    seasonName = seasonNameRaw;
+  }
+  // 객체 형태면 { id, short } 중에서 골라서 사용
+  else if (seasonNameRaw && typeof seasonNameRaw === 'object') {
+    seasonName =
+      seasonNameRaw.short ||
+      seasonNameRaw.id ||
+      seasonNameRaw.identifier ||
+      null;
+  }
 
-        // 티어 문자열이 아예 없을 때는 기본 문구
-        if (!tierPatched) {
-          tierPatched = '티어 정보 없음';
-        }
+  if (!seasonName) return null;
 
-        return {
-          season: seasonName,
-          tier: tierPatched,
-        };
-      })
-      .filter(Boolean); // season 이 없는 것만 제거
+  // 2) 티어 문자열 후보들
+  let tierPatched =
+    s.currenttierpatched ||
+    s.currenttier_patched ||
+    s.final_rank_patched ||
+    s.final_rank ||
+    s.rank_patched ||
+    s.rank ||
+    null;
 
-    const summary = {
-      accountLevel: accountData.account_level ?? null,
-      currentTier: mmrData.current?.tier?.name ?? null,
-      rr: mmrData.current?.rr ?? null,
-      wins,
-      losses,
-      winRate,
-      seasonHistory,
-    };
+  // 혹시 티어가 객체로 올 경우 방어
+  if (tierPatched && typeof tierPatched === 'object') {
+    tierPatched =
+      tierPatched.patched ||
+      tierPatched.name ||
+      tierPatched.id ||
+      null;
+  }
+
+  // 티어가 없으면 기본 문구
+  if (!tierPatched) {
+    tierPatched = '티어 정보 없음';
+  }
+
+  return {
+    season: seasonName,
+    tier: tierPatched,
+  };
+})
+.filter(Boolean); // null 제거
+
+      const summary = {
+        accountLevel: accountData.account_level ?? null,
+        currentTier: mmrData.current?.tier?.name ?? null,
+        rr: mmrData.current?.rr ?? null,
+        wins,
+        losses,
+        winRate,
+        seasonHistory,
+      };      
 
     console.log('✅ [Henrik DEBUG] /auth/stats 응답:', summary);
     return res.json(summary);
