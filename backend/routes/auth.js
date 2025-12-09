@@ -337,24 +337,36 @@ router.get('/stats', async (req, res) => {
     // 🔹 시즌 히스토리 (이전 시즌 티어들)
     // 🔹 시즌 히스토리 (이전 시즌 티어들)
 // 🔹 시즌 히스토리 (이전 시즌 티어들)
+// 🔹 시즌 히스토리 (이전 시즌 티어들)
 const seasonHistory = seasonalDesc
   .map((s) => {
-    // 시즌 ID / 이름
-    const seasonName =
-      s.season ||
-      s.id ||
-      s.seasonID ||
-      s.seasonId || // by_season의 key가 들어온 경우
-      null;
+    // --- 시즌 이름(코드) 문자열로 뽑기 ---
+    let seasonName = null;
 
-    // 티어 이름 뽑기 헬퍼
+    // case 1: season 자체가 문자열인 경우
+    if (typeof s.season === 'string') {
+      seasonName = s.season;
+    }
+    // case 2: season 이 { id, short } 같은 객체인 경우
+    else if (s.season && typeof s.season === 'object') {
+      seasonName = s.season.short || s.season.id || null;
+    }
+
+    // case 3: 위에서 못 뽑으면 id / seasonId / seasonID 사용
+    if (!seasonName) {
+      if (typeof s.seasonId === 'string') seasonName = s.seasonId;
+      else if (typeof s.seasonID === 'string') seasonName = s.seasonID;
+      else if (typeof s.id === 'string') seasonName = s.id;
+    }
+
+    // --- 티어 이름 뽑기 ---
     let tierPatched = null;
 
     const pick = (v) => {
       if (!tierPatched && v) tierPatched = v;
     };
 
-    // 1) 가장 자주 쓰이는 필드들
+    // 1) 자주 쓰이는 “patched” 필드들
     pick(s.final_rank_patched);
     pick(s.final_tier_patched);
     pick(s.finaltier_patched);
@@ -375,17 +387,18 @@ const seasonHistory = seasonalDesc
       pick(s.tier.name);
     }
 
-    // 3) 혹시 문자열로 바로 들어온 경우
-    if (typeof s.final_rank === 'string') pick(s.final_rank);
-    if (typeof s.rank === 'string') pick(s.rank);
-    if (typeof s.tier === 'string') pick(s.tier);
+    // 3) 혹시 문자열로 바로 온 경우
+    if (!tierPatched && typeof s.final_rank === 'string') pick(s.final_rank);
+    if (!tierPatched && typeof s.rank === 'string') pick(s.rank);
+    if (!tierPatched && typeof s.tier === 'string') pick(s.tier);
 
     return {
       season: seasonName,
-      tier: tierPatched, // 없으면 나중에 '티어 정보 없음' 으로 표시
+      tier: tierPatched, // 없으면 프론트에서 '티어 정보 없음'으로 처리
     };
   })
-  .filter((x) => x.season); // 시즌 ID만 있으면 일단 남기고, tier는 프론트에서 처리
+  // 시즌 ID(이름)만 있으면 남겨두고, tier는 없어도 허용
+  .filter((x) => x.season);
 
 
       const summary = {
