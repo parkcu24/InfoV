@@ -294,6 +294,13 @@ router.get('/stats', async (req, res) => {
       },
     });
 
+    console.log("📌 [DEBUG] RAW MMR RESPONSE:", JSON.stringify(mmrRes.data, null, 2));
+    console.log("📌 [DEBUG] mmrData.by_season:", mmrData.by_season);
+    console.log("📌 [DEBUG] mmrData.seasonal:", mmrData.seasonal);
+    console.log("📌 [DEBUG] seasonHistory (final):", seasonHistory);
+
+
+
     const mmrData = mmrRes.data?.data || {};
     console.log(
       '✅ [Henrik DEBUG] mmr v3 응답:',
