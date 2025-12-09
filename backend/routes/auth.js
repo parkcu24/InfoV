@@ -26,9 +26,26 @@ function resolveHenrikRegion(country, fallbackRegion) {
   if (['KR'].includes(c)) return 'kr';
   if (['US', 'CA', 'MX'].includes(c)) return 'na';
   if (['BR'].includes(c)) return 'br';
-  if (['AR', 'CL', 'PE', 'CO', 'VE', 'UY', 'PY', 'BO', 'EC'].includes(c))
+  if (
+    ['AR', 'CL', 'PE', 'CO', 'VE', 'UY', 'PY', 'BO', 'EC'].includes(c)
+  )
     return 'latam';
-  if (['FR', 'DE', 'ES', 'IT', 'GB', 'UK', 'NL', 'SE', 'NO', 'FI', 'PL', 'CZ'].includes(c))
+  if (
+    [
+      'FR',
+      'DE',
+      'ES',
+      'IT',
+      'GB',
+      'UK',
+      'NL',
+      'SE',
+      'NO',
+      'FI',
+      'PL',
+      'CZ',
+    ].includes(c)
+  )
     return 'eu';
 
   // 그 외 아시아권은 그냥 ap
@@ -197,7 +214,9 @@ router.get('/profile', async (req, res) => {
     console.error(err.response?.data || err.message);
 
     const status =
-      err.response?.status && err.response.status >= 400 && err.response.status < 600
+      err.response?.status &&
+      err.response.status >= 400 &&
+      err.response.status < 600
         ? err.response.status
         : 500;
 
@@ -281,12 +300,16 @@ router.get('/stats', async (req, res) => {
     // v3 구조 대응: seasonal 배열 or by_season 객체
     let seasonal = [];
     if (Array.isArray(mmrData.seasonal)) {
+      // 이미 배열로 오는 경우
       seasonal = mmrData.seasonal;
-    } else if (
-      mmrData.by_season &&
-      typeof mmrData.by_season === 'object'
-    ) {
-      seasonal = Object.values(mmrData.by_season);
+    } else if (mmrData.by_season && typeof mmrData.by_season === 'object') {
+      // by_season: { "e7a3": { ... }, ... }
+      seasonal = Object.entries(mmrData.by_season).map(
+        ([seasonId, s]) => ({
+          seasonId,
+          ...s,
+        })
+      );
     }
 
     // 최신 시즌이 왼쪽에 오도록 역순 정렬
@@ -310,14 +333,28 @@ router.get('/stats', async (req, res) => {
 
     // 🔹 시즌 히스토리 (이전 시즌 티어들)
     const seasonHistory = seasonalDesc
-      .map((s) => ({
-        season: s.season || s.id || s.seasonID || null,
-        tier:
-          (s.tier && (s.tier.name || s.tier.patched)) ||
+      .map((s) => {
+        const seasonName =
+          s.season ||
+          s.id ||
+          s.seasonID ||
+          s.seasonId || // by_season의 key
+          null;
+
+        const tierPatched =
+          s.currenttierpatched ||
+          s.currenttier_patched ||
+          s.final_rank_patched ||
           s.final_rank ||
+          s.rank_patched ||
           s.rank ||
-          null,
-      }))
+          null;
+
+        return {
+          season: seasonName,
+          tier: tierPatched,
+        };
+      })
       .filter((x) => x.season && x.tier);
 
     const summary = {
@@ -337,7 +374,9 @@ router.get('/stats', async (req, res) => {
     console.error(err.response?.data || err.message);
 
     const status =
-      err.response?.status && err.response.status >= 400 && err.response.status < 600
+      err.response?.status &&
+      err.response.status >= 400 &&
+      err.response.status < 600
         ? err.response.status
         : 500;
 
@@ -439,7 +478,14 @@ router.get('/matches', async (req, res) => {
       }
       // 2) 팀별 구조: players.blue.players / players.red.players ...
       else {
-        const teamKeys = ['blue', 'red', 'other', 'neutral', 'defending', 'attacking'];
+        const teamKeys = [
+          'blue',
+          'red',
+          'other',
+          'neutral',
+          'defending',
+          'attacking',
+        ];
         teamKeys.forEach((key) => {
           const team = playersRaw[key];
           if (team && Array.isArray(team.players)) {
@@ -457,21 +503,21 @@ router.get('/matches', async (req, res) => {
       let selfPlayer = null;
 
       if (henrikPuuid && allPlayers.length > 0) {
-        selfPlayer =
-          allPlayers.find((p) => p.puuid === henrikPuuid) || null;
+        selfPlayer = allPlayers.find((p) => p.puuid === henrikPuuid) || null;
       }
 
       if (!selfPlayer && allPlayers.length > 0) {
         // 이름 / 태그로 한 번 더 시도
         selfPlayer =
           allPlayers.find(
-            (p) =>
-              p.name === accountData.name && p.tag === accountData.tag
+            (p) => p.name === accountData.name && p.tag === accountData.tag
           ) || null;
       }
 
       if (!selfPlayer && allPlayers.length > 0) {
-        console.log(`⚠️ [Henrik DEBUG] match[${idx}] selfPlayer 찾기 실패, 0번 플레이어 사용`);
+        console.log(
+          `⚠️ [Henrik DEBUG] match[${idx}] selfPlayer 찾기 실패, 0번 플레이어 사용`
+        );
         selfPlayer = allPlayers[0];
       }
 
@@ -479,22 +525,10 @@ router.get('/matches', async (req, res) => {
       const coreStats = rawStats.core || rawStats; // v4 에서 core 안에 들어올 수 있음
 
       // --- 기본 KDA / 점수 ---
-      let kills =
-        coreStats.kills ??
-        rawStats.kills ??
-        0;
-      let deaths =
-        coreStats.deaths ??
-        rawStats.deaths ??
-        0;
-      let assists =
-        coreStats.assists ??
-        rawStats.assists ??
-        0;
-      let score =
-        coreStats.score ??
-        rawStats.score ??
-        null;
+      let kills = coreStats.kills ?? rawStats.kills ?? 0;
+      let deaths = coreStats.deaths ?? rawStats.deaths ?? 0;
+      let assists = coreStats.assists ?? rawStats.assists ?? 0;
+      let score = coreStats.score ?? rawStats.score ?? null;
 
       // --- 명중 부위 (HS%) ---
       let headshots = coreStats.headshots ?? rawStats.headshots ?? null;
@@ -503,9 +537,12 @@ router.get('/matches', async (req, res) => {
 
       const shots = coreStats.shots || rawStats.shots;
       if (shots) {
-        if (headshots == null) headshots = shots.head ?? shots.headshots ?? null;
-        if (bodyshots == null) bodyshots = shots.body ?? shots.bodyshots ?? null;
-        if (legshots == null) legshots = shots.leg ?? shots.legshots ?? null;
+        if (headshots == null)
+          headshots = shots.head ?? shots.headshots ?? null;
+        if (bodyshots == null)
+          bodyshots = shots.body ?? shots.bodyshots ?? null;
+        if (legshots == null)
+          legshots = shots.leg ?? shots.legshots ?? null;
       }
 
       const totalShots =
@@ -568,10 +605,7 @@ router.get('/matches', async (req, res) => {
         null;
 
       let hasWonRaw =
-        myTeam.has_won ??
-        myTeam.hasWon ??
-        myTeam.won ??
-        null;
+        myTeam.has_won ?? myTeam.hasWon ?? myTeam.won ?? null;
 
       // 🔹 2차: 그래도 null 이면, 라운드 배열에서 직접 승패 세기
       if (
@@ -611,10 +645,10 @@ router.get('/matches', async (req, res) => {
       const hasWon =
         typeof hasWonRaw === 'boolean'
           ? hasWonRaw
-          : (typeof roundsWon === 'number' &&
-             typeof roundsLost === 'number'
-            ? roundsWon > roundsLost
-            : null);
+          : typeof roundsWon === 'number' &&
+            typeof roundsLost === 'number'
+          ? roundsWon > roundsLost
+          : null;
 
       const assets = selfPlayer?.assets || {};
       const agentAssets = assets.agent || {};
@@ -625,7 +659,8 @@ router.get('/matches', async (req, res) => {
         'Unknown';
 
       return {
-        matchId: meta.matchid || meta.match_id || meta.id || meta.matchId || '',
+        matchId:
+          meta.matchid || meta.match_id || meta.id || meta.matchId || '',
         map: meta.map?.name || meta.map || 'Unknown Map',
         queue: meta.queue?.name || meta.mode || meta.queue || 'Mode',
         timeAgo: meta.started_at || meta.startedAt || '',
@@ -660,7 +695,9 @@ router.get('/matches', async (req, res) => {
     console.error(err.response?.data || err.message);
 
     const status =
-      err.response?.status && err.response.status >= 400 && err.response.status < 600
+      err.response?.status &&
+      err.response.status >= 400 &&
+      err.response.status < 600
         ? err.response.status
         : 500;
 
