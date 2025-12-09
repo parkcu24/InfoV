@@ -336,63 +336,57 @@ router.get('/stats', async (req, res) => {
 
     // 🔹 시즌 히스토리 (이전 시즌 티어들)
     // 🔹 시즌 히스토리 (이전 시즌 티어들)
+// 🔹 시즌 히스토리 (이전 시즌 티어들)
 const seasonHistory = seasonalDesc
-.map((s) => {
-  // 1) 시즌 이름 후보들
-  let seasonNameRaw =
-    s.season ||
-    s.seasonId ||
-    s.seasonID ||
-    s.id ||
-    null;
-
-  let seasonName = null;
-
-  // 문자열이면 그대로 사용
-  if (typeof seasonNameRaw === 'string') {
-    seasonName = seasonNameRaw;
-  }
-  // 객체 형태면 { id, short } 중에서 골라서 사용
-  else if (seasonNameRaw && typeof seasonNameRaw === 'object') {
-    seasonName =
-      seasonNameRaw.short ||
-      seasonNameRaw.id ||
-      seasonNameRaw.identifier ||
+  .map((s) => {
+    // 시즌 ID / 이름
+    const seasonName =
+      s.season ||
+      s.id ||
+      s.seasonID ||
+      s.seasonId || // by_season의 key가 들어온 경우
       null;
-  }
 
-  if (!seasonName) return null;
+    // 티어 이름 뽑기 헬퍼
+    let tierPatched = null;
 
-  // 2) 티어 문자열 후보들
-  let tierPatched =
-    s.currenttierpatched ||
-    s.currenttier_patched ||
-    s.final_rank_patched ||
-    s.final_rank ||
-    s.rank_patched ||
-    s.rank ||
-    null;
+    const pick = (v) => {
+      if (!tierPatched && v) tierPatched = v;
+    };
 
-  // 혹시 티어가 객체로 올 경우 방어
-  if (tierPatched && typeof tierPatched === 'object') {
-    tierPatched =
-      tierPatched.patched ||
-      tierPatched.name ||
-      tierPatched.id ||
-      null;
-  }
+    // 1) 가장 자주 쓰이는 필드들
+    pick(s.final_rank_patched);
+    pick(s.final_tier_patched);
+    pick(s.finaltier_patched);
+    pick(s.currenttierpatched);
+    pick(s.currenttier_patched);
 
-  // 티어가 없으면 기본 문구
-  if (!tierPatched) {
-    tierPatched = '티어 정보 없음';
-  }
+    // 2) rank / final_rank / tier 가 객체인 경우
+    if (s.final_rank && typeof s.final_rank === 'object') {
+      pick(s.final_rank.patched);
+      pick(s.final_rank.name);
+    }
+    if (s.rank && typeof s.rank === 'object') {
+      pick(s.rank.patched);
+      pick(s.rank.name);
+    }
+    if (s.tier && typeof s.tier === 'object') {
+      pick(s.tier.patched);
+      pick(s.tier.name);
+    }
 
-  return {
-    season: seasonName,
-    tier: tierPatched,
-  };
-})
-.filter(Boolean); // null 제거
+    // 3) 혹시 문자열로 바로 들어온 경우
+    if (typeof s.final_rank === 'string') pick(s.final_rank);
+    if (typeof s.rank === 'string') pick(s.rank);
+    if (typeof s.tier === 'string') pick(s.tier);
+
+    return {
+      season: seasonName,
+      tier: tierPatched, // 없으면 나중에 '티어 정보 없음' 으로 표시
+    };
+  })
+  .filter((x) => x.season); // 시즌 ID만 있으면 일단 남기고, tier는 프론트에서 처리
+
 
       const summary = {
         accountLevel: accountData.account_level ?? null,
