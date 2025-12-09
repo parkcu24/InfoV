@@ -282,105 +282,89 @@ router.get('/stats', async (req, res) => {
     const region = resolveHenrikRegion(country, regionFromHenrik);
 
     // 3) MMR v3
-    const mmrUrl = `https://api.henrikdev.xyz/valorant/v3/mmr/${region}/pc/${encodeURIComponent(
-      accountData.name
-    )}/${encodeURIComponent(accountData.tag)}`;
+    // 3) MMR v3
+const mmrUrl = `https://api.henrikdev.xyz/valorant/v3/mmr/${region}/pc/${encodeURIComponent(
+  accountData.name
+)}/${encodeURIComponent(accountData.tag)}`;
 
-    console.log('🌐 [Henrik DEBUG] mmr v3 호출:', mmrUrl);
+console.log('🌐 [Henrik DEBUG] mmr v3 호출:', mmrUrl);
 
-    const mmrRes = await axios.get(mmrUrl, {
-      headers: {
-        Authorization: HENRIK_API_KEY,
-      },
-    });
+const mmrRes = await axios.get(mmrUrl, {
+  headers: {
+    Authorization: HENRIK_API_KEY,
+  },
+});
 
-    console.log("📌 [DEBUG] RAW MMR RESPONSE:", JSON.stringify(mmrRes.data, null, 2));
-    console.log("📌 [DEBUG] mmrData.by_season:", mmrData.by_season);
-    console.log("📌 [DEBUG] mmrData.seasonal:", mmrData.seasonal);
-    console.log("📌 [DEBUG] seasonHistory (final):", seasonHistory);
+// 🔹 전체 raw 응답 먼저 찍기
+console.log("📌 [DEBUG] RAW MMR RESPONSE:", JSON.stringify(mmrRes.data, null, 2));
 
+const mmrData = mmrRes.data?.data || {};
+console.log(
+  '✅ [Henrik DEBUG] mmr v3 응답 (data만):',
+  JSON.stringify(mmrData, null, 2)
+);
 
+// v3 구조 대응: seasonal 배열 or by_season 객체
+let seasonal = [];
+if (Array.isArray(mmrData.seasonal)) {
+  seasonal = mmrData.seasonal;
+} else if (mmrData.by_season && typeof mmrData.by_season === 'object') {
+  seasonal = Object.entries(mmrData.by_season).map(([seasonId, s]) => ({
+    seasonId,
+    ...s,
+  }));
+}
 
-    const mmrData = mmrRes.data?.data || {};
-    console.log(
-      '✅ [Henrik DEBUG] mmr v3 응답:',
-      JSON.stringify(mmrData, null, 2)
-    );
+console.log("📌 [DEBUG] mmrData.by_season:", mmrData.by_season);
+console.log("📌 [DEBUG] mmrData.seasonal:", mmrData.seasonal);
 
-    // v3 구조 대응: seasonal 배열 or by_season 객체
-    let seasonal = [];
-    if (Array.isArray(mmrData.seasonal)) {
-      // 이미 배열로 오는 경우
-      seasonal = mmrData.seasonal;
-    } else if (mmrData.by_season && typeof mmrData.by_season === 'object') {
-      // by_season: { "e7a3": { ... }, ... }
-      seasonal = Object.entries(mmrData.by_season).map(
-        ([seasonId, s]) => ({
-          seasonId,
-          ...s,
-        })
-      );
-    }
+// 최신 시즌이 왼쪽에 오도록 역순 정렬
+const seasonalDesc = [...seasonal].reverse();
+const latestSeason = seasonalDesc[0] || null;
 
-    // 최신 시즌이 왼쪽에 오도록 역순 정렬
-    const seasonalDesc = [...seasonal].reverse();
-    const latestSeason = seasonalDesc[0] || null;
+let wins = null;
+let losses = null;
+let winRate = null;
 
-    let wins = null;
-    let losses = null;
-    let winRate = null;
+if (
+  latestSeason &&
+  typeof latestSeason.wins === 'number' &&
+  typeof latestSeason.games === 'number'
+) {
+  wins = latestSeason.wins;
+  const games = latestSeason.games;
+  losses = games - wins;
+  winRate = games > 0 ? Math.round((wins / games) * 100) : null;
+}
 
-    if (
-      latestSeason &&
-      typeof latestSeason.wins === 'number' &&
-      typeof latestSeason.games === 'number'
-    ) {
-      wins = latestSeason.wins;
-      const games = latestSeason.games;
-      losses = games - wins;
-      winRate = games > 0 ? Math.round((wins / games) * 100) : null;
-    }
-
-    // 🔹 시즌 히스토리 (이전 시즌 티어들)
-    // 🔹 시즌 히스토리 (이전 시즌 티어들)
-// 🔹 시즌 히스토리 (이전 시즌 티어들)
-// 🔹 시즌 히스토리 (이전 시즌 티어들)
+// 🔹 시즌 히스토리
 const seasonHistory = seasonalDesc
   .map((s) => {
-    // --- 시즌 이름(코드) 문자열로 뽑기 ---
     let seasonName = null;
 
-    // case 1: season 자체가 문자열인 경우
     if (typeof s.season === 'string') {
       seasonName = s.season;
-    }
-    // case 2: season 이 { id, short } 같은 객체인 경우
-    else if (s.season && typeof s.season === 'object') {
+    } else if (s.season && typeof s.season === 'object') {
       seasonName = s.season.short || s.season.id || null;
     }
 
-    // case 3: 위에서 못 뽑으면 id / seasonId / seasonID 사용
     if (!seasonName) {
       if (typeof s.seasonId === 'string') seasonName = s.seasonId;
       else if (typeof s.seasonID === 'string') seasonName = s.seasonID;
       else if (typeof s.id === 'string') seasonName = s.id;
     }
 
-    // --- 티어 이름 뽑기 ---
     let tierPatched = null;
-
     const pick = (v) => {
       if (!tierPatched && v) tierPatched = v;
     };
 
-    // 1) 자주 쓰이는 “patched” 필드들
     pick(s.final_rank_patched);
     pick(s.final_tier_patched);
     pick(s.finaltier_patched);
     pick(s.currenttierpatched);
     pick(s.currenttier_patched);
 
-    // 2) rank / final_rank / tier 가 객체인 경우
     if (s.final_rank && typeof s.final_rank === 'object') {
       pick(s.final_rank.patched);
       pick(s.final_rank.name);
@@ -394,32 +378,32 @@ const seasonHistory = seasonalDesc
       pick(s.tier.name);
     }
 
-    // 3) 혹시 문자열로 바로 온 경우
     if (!tierPatched && typeof s.final_rank === 'string') pick(s.final_rank);
     if (!tierPatched && typeof s.rank === 'string') pick(s.rank);
     if (!tierPatched && typeof s.tier === 'string') pick(s.tier);
 
     return {
       season: seasonName,
-      tier: tierPatched, // 없으면 프론트에서 '티어 정보 없음'으로 처리
+      tier: tierPatched,
     };
   })
-  // 시즌 ID(이름)만 있으면 남겨두고, tier는 없어도 허용
   .filter((x) => x.season);
 
+console.log("📌 [DEBUG] seasonHistory (final):", seasonHistory);
 
-      const summary = {
-        accountLevel: accountData.account_level ?? null,
-        currentTier: mmrData.current?.tier?.name ?? null,
-        rr: mmrData.current?.rr ?? null,
-        wins,
-        losses,
-        winRate,
-        seasonHistory,
-      };      
+const summary = {
+  accountLevel: accountData.account_level ?? null,
+  currentTier: mmrData.current?.tier?.name ?? null,
+  rr: mmrData.current?.rr ?? null,
+  wins,
+  losses,
+  winRate,
+  seasonHistory,
+};
 
-    console.log('✅ [Henrik DEBUG] /auth/stats 응답:', summary);
-    return res.json(summary);
+console.log('✅ [Henrik DEBUG] /auth/stats 응답:', summary);
+return res.json(summary);
+
   } catch (err) {
     console.error('❌ [Henrik DEBUG] /auth/stats 에러:');
     console.error(err.response?.data || err.message);
