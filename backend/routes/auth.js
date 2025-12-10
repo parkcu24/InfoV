@@ -30,7 +30,9 @@ function resolveHenrikRegion(country, fallbackRegion) {
     return 'latam';
 
   if (
-    ['FR', 'DE', 'ES', 'IT', 'GB', 'UK', 'NL', 'SE', 'NO', 'FI', 'PL', 'CZ'].includes(c)
+    ['FR', 'DE', 'ES', 'IT', 'GB', 'UK', 'NL', 'SE', 'NO', 'FI', 'PL', 'CZ'].includes(
+      c
+    )
   )
     return 'eu';
 
@@ -174,7 +176,10 @@ router.get('/profile', async (req, res) => {
     console.log('✅ [RSO DEBUG] /auth/profile 응답:', profile);
     res.json(profile);
   } catch (err) {
-    console.error('❌ [RSO DEBUG] /auth/profile 에러:', err.response?.data || err.message);
+    console.error(
+      '❌ [RSO DEBUG] /auth/profile 에러:',
+      err.response?.data || err.message
+    );
     const status =
       err.response?.status &&
       err.response.status >= 400 &&
@@ -290,12 +295,6 @@ router.get('/stats', async (req, res) => {
 
     // ------------------------------------------------
     // 시즌별 최고 티어 찾기 (peak tier)
-    // ------------------------------------------------
-        // ------------------------------------------------
-    // 시즌별 최고 티어 찾기 (peak tier)
-    //   - 1순위: end_tier.id / end_tier.name
-    //   - 2순위: act_wins 배열에서 id가 가장 높은 티어
-    //   - 3순위: 기존 generic 필드들 (tiers, ranks, rank_history 등)
     // ------------------------------------------------
     const seasonHistory = seasonalDesc
       .map((s) => {
@@ -417,7 +416,7 @@ router.get('/stats', async (req, res) => {
 
 // --------------------------------------------------
 // 5️⃣ 최근 경기 정보 반환 (/api/auth/matches)
-//   - K/D/A, ACS(라운드 평균), HS%, 스코어, 승패, 라운드 스코어, 팀원 티어
+//   - K/D/A, ACS(라운드 평균), ADR, HS%, KAST, 스코어, 승패, 팀원 티어
 // --------------------------------------------------
 router.get('/matches', async (req, res) => {
   const authHeader = req.headers.authorization;
@@ -535,18 +534,9 @@ router.get('/matches', async (req, res) => {
       const rawStatsSelf = selfPlayer?.stats || {};
       const coreSelf = rawStatsSelf.core || rawStatsSelf;
 
-      const kills =
-        coreSelf.kills ??
-        rawStatsSelf.kills ??
-        0;
-      const deaths =
-        coreSelf.deaths ??
-        rawStatsSelf.deaths ??
-        0;
-      const assists =
-        coreSelf.assists ??
-        rawStatsSelf.assists ??
-        0;
+      const kills = coreSelf.kills ?? rawStatsSelf.kills ?? 0;
+      const deaths = coreSelf.deaths ?? rawStatsSelf.deaths ?? 0;
+      const assists = coreSelf.assists ?? rawStatsSelf.assists ?? 0;
 
       const kdRaw = deaths > 0 ? kills / deaths : kills;
       const kd = Number.isFinite(kdRaw) ? kdRaw : null;
@@ -564,6 +554,24 @@ router.get('/matches', async (req, res) => {
         const parsed = Number(score);
         score = Number.isNaN(parsed) ? null : parsed;
       }
+
+      // ✅ ADR 계산용 데미지
+      let damageMade =
+        coreSelf.damage_made ??
+        coreSelf.damage?.made ??
+        coreSelf.damage?.dealt ??
+        rawStatsSelf.damage_made ??
+        rawStatsSelf.damage?.made ??
+        rawStatsSelf.damage?.dealt ??
+        null;
+
+      // ✅ KAST 원본 값
+      let kastSelf =
+        coreSelf.kast ??
+        coreSelf.kast_rate ??
+        rawStatsSelf.kast ??
+        rawStatsSelf.kast_rate ??
+        null;
 
       // HS% (내 기준)
       let headshots =
@@ -686,12 +694,12 @@ router.get('/matches', async (req, res) => {
       const hasWon =
         typeof hasWonRaw === 'boolean'
           ? hasWonRaw
-          : (typeof roundsWon === 'number' &&
-             typeof roundsLost === 'number'
-            ? roundsWon > roundsLost
-            : null);
+          : typeof roundsWon === 'number' &&
+            typeof roundsLost === 'number'
+          ? roundsWon > roundsLost
+          : null;
 
-      // 🔢 총 라운드 수 (ACS 계산용)
+      // 🔢 총 라운드 수 (ACS / ADR / KAST 계산용)
       let totalRounds = Array.isArray(m.rounds) ? m.rounds.length : null;
       if (
         (totalRounds == null || totalRounds === 0) &&
@@ -701,18 +709,46 @@ router.get('/matches', async (req, res) => {
         totalRounds = roundsWon + roundsLost;
       }
 
+      // 🔥 내 라운드 수
+      const roundsSelf =
+        coreSelf.rounds_played ??
+        rawStatsSelf.rounds_played ??
+        totalRounds;
+
       // 🔥 내 ACS = score / 라운드 수
       let acsSelf = null;
       if (score != null) {
-        const roundsSelf =
-          coreSelf.rounds_played ??
-          rawStatsSelf.rounds_played ??
-          totalRounds;
-
         if (roundsSelf && roundsSelf > 0) {
           acsSelf = Math.round(score / roundsSelf);
         } else {
           acsSelf = Math.round(score);
+        }
+      }
+
+      // 🔥 내 ADR = damageMade / 라운드 수
+      let adrSelf = null;
+      if (damageMade != null) {
+        const dmgNumber = Number(damageMade);
+        if (!Number.isNaN(dmgNumber)) {
+          if (roundsSelf && roundsSelf > 0) {
+            adrSelf = Math.round(dmgNumber / roundsSelf);
+          } else {
+            adrSelf = Math.round(dmgNumber);
+          }
+        }
+      }
+
+      // 🔥 KAST 값(0~1이면 %로, 100단위면 그대로 반올림)
+      if (kastSelf != null) {
+        const kNum = Number(kastSelf);
+        if (!Number.isNaN(kNum)) {
+          if (kNum <= 1) {
+            kastSelf = Math.round(kNum * 100);
+          } else {
+            kastSelf = Math.round(kNum);
+          }
+        } else {
+          kastSelf = null;
         }
       }
 
@@ -847,13 +883,13 @@ router.get('/matches', async (req, res) => {
         deaths,
         assists,
         kd,
-        acs: acsSelf,      // 🔥 이제 라운드 평균 ACS
-        adr: null,
+        acs: acsSelf,      // 🔥 라운드 평균 ACS
+        adr: adrSelf,      // 🔥 라운드 평균 ADR
         hsPercent: hsPercentSelf,
+        kast: kastSelf,    // 🔥 KAST(%)
         win: hasWon,
         placement: null,
 
-        // 🔥 모달용 전체 플레이어
         players: playersMapped,
         myTeam: myTeamKey,
         enemyTeam:
