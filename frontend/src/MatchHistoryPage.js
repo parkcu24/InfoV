@@ -62,12 +62,13 @@ const FORTUNES = [
   '사이트에 들어갈 때 유틸부터 던지고 들어가 보세요.',
   '적이 자주 나오는 각에 크로스헤어를 미리 두어 보세요.',
   '백업을 너무 늦게 가지 않도록 미니맵을 자주 보세요.',
-  '아군 듀얼리스트의 템포를 한 번 맞춰 봐도 좋아요.',
+  '아군 엔트리의 템포를 한 번 맞춰 봐도 좋아요.',
   '오늘은 평소에 안 하던 요원을 도전해 보세요!',
   '연속으로 지고 있다면, 한 판만 숨고르기 하면서 천천히 해보세요.',
   '적 팀의 오퍼레이터 위치를 초반에 체크해 보세요.',
   '라운드 시작 전에 팀과 라운드 플랜을 한마디라도 나눠 보세요.',
   '오늘은 스프레이보다는 점사에 더 힘을 실어보세요.',
+  '상대 감시자를 보고 뒤를 돌아보는 거는 어떨까요?'
 ];
 
 function tierNameToNumber(tierName) {
@@ -143,10 +144,8 @@ function TierChart({ data }) {
       {/* 점 + 시즌 텍스트 */}
       {points.map((p, idx) => {
         const item = data[idx];
-        // 👉 전체 문구 그대로 사용 (에피소드10 엑트1 등)
         const seasonLabel =
           typeof item.season === 'string' ? item.season : `S${idx + 1}`;
-
         const tierLabel =
           typeof item.tier === 'string' ? toKoreanTierName(item.tier) : '';
 
@@ -204,6 +203,9 @@ function MatchHistoryPage() {
 
   const fortuneIntervalRef = useRef(null);
   const fortuneStopTimeoutRef = useRef(null);
+
+  // 📌 전적 "더 보기" 를 위한 개수 상태 (초기 10개)
+  const [visibleCount, setVisibleCount] = useState(10);
 
   // ⭐ 에이전트 이름을 파일명 규칙에 맞게 자동 변환하는 함수
   const getAgentImageSrc = (agent) => {
@@ -357,7 +359,7 @@ function MatchHistoryPage() {
           console.error('Stats API 오류:', e);
         }
 
-        // 3) 전적
+        // 3) 전적 (⚠️ 백엔드에서 size: 100 으로 설정해둘 예정)
         const matchesRes = await fetch(`${API_BASE_URL}/api/auth/matches`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -369,9 +371,10 @@ function MatchHistoryPage() {
         }
 
         const matchesData = await matchesRes.json();
-        setMatches(
-          Array.isArray(matchesData) ? matchesData : matchesData.matches || []
-        );
+        const list = Array.isArray(matchesData)
+          ? matchesData
+          : matchesData.matches || [];
+        setMatches(list);
       } catch (err) {
         console.error(err);
         setError(err.message);
@@ -382,6 +385,11 @@ function MatchHistoryPage() {
 
     fetchData();
   }, []);
+
+  // 🎯 필터가 바뀌거나 전체 전적이 바뀔 때마다 "보이는 개수" 초기화 (10개)
+  useEffect(() => {
+    setVisibleCount(10);
+  }, [queueFilter, matches]);
 
   // 🎰 룰렛 시작 (✅ 한 번 뽑힌 후에는 다시 돌지 않도록 latestFortuneText 체크)
   const startFortuneRolling = () => {
@@ -518,6 +526,7 @@ function MatchHistoryPage() {
   };
 
   const filteredMatches = getFilteredMatches();
+  const visibleMatches = filteredMatches.slice(0, visibleCount);
 
   // 📊 최근 전적 기준 요약 스탯(평균 HS, 평균 KD, 평균 ACS)
   let avgStats = null;
@@ -983,7 +992,10 @@ function MatchHistoryPage() {
                         {avgStats && (
                           <div style={styles.overallStatsRow}>
                             <div style={styles.overallStatItem}>
-                              <span style={styles.overallStatLabel}>
+                              <span
+                                style={styles.overallStatLabel}
+                                title="헤드샷 비율 (HeadShot Percentage)의 평균"
+                              >
                                 평균 HS
                               </span>
                               <span style={styles.overallStatValue}>
@@ -993,7 +1005,10 @@ function MatchHistoryPage() {
                               </span>
                             </div>
                             <div style={styles.overallStatItem}>
-                              <span style={styles.overallStatLabel}>
+                              <span
+                                style={styles.overallStatLabel}
+                                title="전체 경기 기준 킬/데스 비율의 평균"
+                              >
                                 평균 K/D
                               </span>
                               <span style={styles.overallStatValue}>
@@ -1003,7 +1018,10 @@ function MatchHistoryPage() {
                               </span>
                             </div>
                             <div style={styles.overallStatItem}>
-                              <span style={styles.overallStatLabel}>
+                              <span
+                                style={styles.overallStatLabel}
+                                title="Average Combat Score (라운드당 평균 전투 점수)의 평균"
+                              >
                                 평균 ACS
                               </span>
                               <span style={styles.overallStatValue}>
@@ -1092,171 +1110,217 @@ function MatchHistoryPage() {
 
             {/* 전적 리스트 */}
             {filteredMatches.length === 0 ? (
-              <p style={styles.message}>해당 모드 전적이 없습니다.</p>
+              <p style={styles.message}>
+                {queueFilter === 'all'
+                  ? '최근 전적이 없습니다.'
+                  : '최근 100판 기준으로 이 모드를 플레이한 전적이 없습니다.'}
+              </p>
             ) : (
-              <div style={styles.matchList}>
-                {filteredMatches.map((match) => {
-                  const k = match.kills ?? 0;
-                  const d = match.deaths ?? 0;
-                  const a = match.assists ?? 0;
-                  const kd = d > 0 ? (k / d).toFixed(2) : k;
+              <>
+                <div style={styles.matchList}>
+                  {visibleMatches.map((match) => {
+                    const k = match.kills ?? 0;
+                    const d = match.deaths ?? 0;
+                    const a = match.assists ?? 0;
+                    const kd = d > 0 ? (k / d).toFixed(2) : k;
 
-                  const scoreText =
-                    match.teamScore !== undefined &&
-                    match.teamScore !== null &&
-                    match.enemyScore !== undefined &&
-                    match.enemyScore !== null
-                      ? `${match.teamScore} : ${match.enemyScore}`
-                      : match.win === true
-                      ? '승리'
-                      : match.win === false
-                      ? '패배'
-                      : '-';
+                    const scoreText =
+                      match.teamScore !== undefined &&
+                      match.teamScore !== null &&
+                      match.enemyScore !== undefined &&
+                      match.enemyScore !== null
+                        ? `${match.teamScore} : ${match.enemyScore}`
+                        : match.win === true
+                        ? '승리'
+                        : match.win === false
+                        ? '패배'
+                        : '-';
 
-                  const isWin =
-                    match.win !== undefined && match.win !== null
-                      ? match.win
-                      : typeof match.teamScore === 'number' &&
-                        typeof match.enemyScore === 'number'
-                      ? match.teamScore > match.enemyScore
-                      : false;
+                    const isWin =
+                      match.win !== undefined && match.win !== null
+                        ? match.win
+                        : typeof match.teamScore === 'number' &&
+                          typeof match.enemyScore === 'number'
+                        ? match.teamScore > match.enemyScore
+                        : false;
 
-                  return (
-                    <div
-                      key={match.matchId || `${match.map}-${match.queue}-${match.timeAgo}`}
-                      style={{
-                        ...styles.matchRowCard,
-                        cursor: 'pointer',
-                        background: isWin
-                          ? 'linear-gradient(135deg, rgba(21, 101, 192, 0.18), rgba(13, 71, 161, 0.04))'
-                          : 'linear-gradient(135deg, rgba(183, 28, 28, 0.18), rgba(183, 28, 28, 0.04))',
-                        borderColor: isWin ? '#274766' : '#5c1a1a',
-                      }}
-                      onClick={() => handleMatchClick(match)}
-                    >
-                      {/* 🔹 왼쪽: 승리/패배 + ㅣ + 요원 + 맵 정보 */}
-                      <div style={styles.matchLeft}>
-                        {/* 승리 / 패배 텍스트 */}
-                        <div
-                          style={
-                            isWin ? styles.resultFlagWin : styles.resultFlagLose
-                          }
-                        >
-                          {isWin ? '승리' : '패배'}
-                        </div>
-
-                        {/* ㅣ 세로 작대기 */}
-                        <div style={styles.matchLeftDivider} />
-
-                        {/* 요원 이미지 */}
-                        <img
-                          src={getAgentImageSrc(match.agent)}
-                          alt={match.agent}
-                          style={styles.agentImage}
-                          onError={(e) => {
-                            if (e.currentTarget.dataset.errorHandled === '1') {
-                              e.currentTarget.style.display = 'none';
-                              return;
+                    return (
+                      <div
+                        key={
+                          match.matchId ||
+                          `${match.map}-${match.queue}-${match.timeAgo}`
+                        }
+                        style={{
+                          ...styles.matchRowCard,
+                          cursor: 'pointer',
+                          background: isWin
+                            ? 'linear-gradient(135deg, rgba(21, 101, 192, 0.18), rgba(13, 71, 161, 0.04))'
+                            : 'linear-gradient(135deg, rgba(183, 28, 28, 0.18), rgba(183, 28, 28, 0.04))',
+                          borderColor: isWin ? '#274766' : '#5c1a1a',
+                        }}
+                        onClick={() => handleMatchClick(match)}
+                      >
+                        {/* 🔹 왼쪽: 승리/패배 + ㅣ + 요원 + 맵 정보 */}
+                        <div style={styles.matchLeft}>
+                          {/* 승리 / 패배 텍스트 */}
+                          <div
+                            style={
+                              isWin
+                                ? styles.resultFlagWin
+                                : styles.resultFlagLose
                             }
-                            e.currentTarget.dataset.errorHandled = '1';
-                            e.currentTarget.src = '/agents/default.png';
-                          }}
-                        />
-
-                        {/* 맵 / 모드 / 스코어 */}
-                        <div style={styles.matchLeftText}>
-                          <div style={styles.mapName}>
-                            {getMapName(match)}
-                          </div>
-                          <div style={styles.queueText}>
-                            {getQueueName(match)}
+                          >
+                            {isWin ? '승리' : '패배'}
                           </div>
 
-                          <div style={styles.scoreBox}>
-                            <span
-                              style={{
-                                ...styles.scoreText,
-                                color: isWin ? '#81c784' : '#e57373',
-                              }}
-                            >
-                              {scoreText}
-                            </span>
+                          {/* ㅣ 세로 작대기 */}
+                          <div style={styles.matchLeftDivider} />
+
+                          {/* 요원 이미지 */}
+                          <img
+                            src={getAgentImageSrc(match.agent)}
+                            alt={match.agent}
+                            style={styles.agentImage}
+                            onError={(e) => {
+                              if (e.currentTarget.dataset.errorHandled === '1') {
+                                e.currentTarget.style.display = 'none';
+                                return;
+                              }
+                              e.currentTarget.dataset.errorHandled = '1';
+                              e.currentTarget.src = '/agents/default.png';
+                            }}
+                          />
+
+                          {/* 맵 / 모드 / 스코어 */}
+                          <div style={styles.matchLeftText}>
+                            <div style={styles.mapName}>
+                              {getMapName(match)}
+                            </div>
+                            <div style={styles.queueText}>
+                              {getQueueName(match)}
+                            </div>
+
+                            <div style={styles.scoreBox}>
+                              <span
+                                style={{
+                                  ...styles.scoreText,
+                                  color: isWin ? '#81c784' : '#e57373',
+                                }}
+                              >
+                                {scoreText}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 🔹 오른쪽: 날짜/시간 + 스탯 */}
+                        <div style={styles.matchRight}>
+                          <div style={styles.matchMetaBox}>
+                            {match.gameDate && (
+                              <div style={styles.matchDateText}>
+                                {match.gameDate}
+                              </div>
+                            )}
+                            {match.timeAgo && (
+                              <div style={styles.matchTimeAgoText}>
+                                {match.timeAgo}
+                              </div>
+                            )}
+                          </div>
+
+                          <div style={styles.statsRow}>
+                            <div style={styles.statBlock}>
+                              <span
+                                style={styles.statLabel}
+                                title="킬 / 데스 / 어시스트"
+                              >
+                                K / D / A
+                              </span>
+                              <span style={styles.statValue}>
+                                {k} / {d} / {a}
+                              </span>
+                            </div>
+
+                            <div style={styles.statBlock}>
+                              <span
+                                style={styles.statLabel}
+                                title="킬 / 데스 비율"
+                              >
+                                K/D
+                              </span>
+                              <span
+                                style={{
+                                  ...styles.statValue,
+                                  color: kd >= 1 ? '#4CAF50' : '#F44336',
+                                }}
+                              >
+                                {kd}
+                              </span>
+                            </div>
+
+                            <div style={styles.statBlock}>
+                              <span
+                                style={styles.statLabel}
+                                title="Average Combat Score (라운드당 평균 전투 점수)"
+                              >
+                                ACS
+                              </span>
+                              <span style={styles.statValue}>
+                                {match.acs != null ? match.acs : '-'}
+                              </span>
+                            </div>
+
+                            <div style={styles.statBlock}>
+                              <span
+                                style={styles.statLabel}
+                                title="Average Damage per Round (라운드당 평균 피해량)"
+                              >
+                                ADR
+                              </span>
+                              <span style={styles.statValue}>
+                                {match.adr != null ? match.adr : '-'}
+                              </span>
+                            </div>
+
+                            <div style={styles.statBlock}>
+                              <span
+                                style={styles.statLabel}
+                                title="헤드샷 비율 (HeadShot Percentage)"
+                              >
+                                HS%
+                              </span>
+                              <span style={styles.statValue}>
+                                {match.hsPercent != null
+                                  ? `${match.hsPercent}%`
+                                  : '-'}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
+                    );
+                  })}
+                </div>
 
-                      {/* 🔹 오른쪽: 날짜/시간 + 스탯 */}
-                      <div style={styles.matchRight}>
-                        <div style={styles.matchMetaBox}>
-                          {match.gameDate && (
-                            <div style={styles.matchDateText}>
-                              {match.gameDate}
-                            </div>
-                          )}
-                          {match.timeAgo && (
-                            <div style={styles.matchTimeAgoText}>
-                              {match.timeAgo}
-                            </div>
-                          )}
-                        </div>
-
-                        <div style={styles.statsRow}>
-                          <div style={styles.statBlock}>
-                            <span style={styles.statLabel}>K / D / A</span>
-                            <span style={styles.statValue}>
-                              {k} / {d} / {a}
-                            </span>
-                          </div>
-
-                          <div style={styles.statBlock}>
-                            <span style={styles.statLabel}>K/D</span>
-                            <span
-                              style={{
-                                ...styles.statValue,
-                                color: kd >= 1 ? '#4CAF50' : '#F44336',
-                              }}
-                            >
-                              {kd}
-                            </span>
-                          </div>
-
-                          <div style={styles.statBlock}>
-                            <span style={styles.statLabel}>ACS</span>
-                            <span style={styles.statValue}>
-                              {match.acs != null ? match.acs : '-'}
-                            </span>
-                          </div>
-
-                          <div style={styles.statBlock}>
-                            <span style={styles.statLabel}>ADR</span>
-                            <span style={styles.statValue}>
-                              {match.adr != null ? match.adr : '-'}
-                            </span>
-                          </div>
-
-                          <div style={styles.statBlock}>
-                            <span style={styles.statLabel}>HS%</span>
-                            <span style={styles.statValue}>
-                              {match.hsPercent != null
-                                ? `${match.hsPercent}%`
-                                : '-'}
-                            </span>
-                          </div>
-
-                          <div style={styles.statBlock}>
-                            <span style={styles.statLabel}>KAST</span>
-                            <span style={styles.statValue}>
-                              {match.kast != null
-                                ? `${match.kast}%`
-                                : '-'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
+                {/* 전적 더보기 버튼 */}
+                {filteredMatches.length > visibleCount && (
+                  <div style={styles.loadMoreWrapper}>
+                    <button
+                      type="button"
+                      style={styles.loadMoreButton}
+                      onClick={() =>
+                        setVisibleCount((prev) => prev + 10)
+                      }
+                    >
+                      전적 더 보기 (+10)
+                    </button>
+                    <div style={styles.loadMoreSubText}>
+                      최근 최대 100판까지 불러옵니다. (
+                      {visibleMatches.length}/{filteredMatches.length})
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
@@ -1283,7 +1347,7 @@ function MatchHistoryPage() {
                   ...styles.fortuneInner,
                   transform: `translateY(-${fortuneIndex * 40}px)`,
                   transition: isFortuneRolling
-                    ? 'transform 0.05s linear' // 속도에 맞게
+                    ? 'transform 0.05s linear'
                     : 'transform 0.35s ease-out',
                 }}
               >
@@ -1376,6 +1440,17 @@ const styles = {
     textAlign: 'center',
   },
   errorText: { color: '#ff8888' },
+
+  primaryButton: {
+    marginTop: '10px',
+    padding: '8px 16px',
+    borderRadius: '999px',
+    border: '1px solid #2e7d32',
+    backgroundColor: '#388e3c',
+    color: '#fff',
+    fontSize: '13px',
+    cursor: 'pointer',
+  },
 
   profileBoxTopRight: {
     display: 'flex',
@@ -1724,6 +1799,27 @@ const styles = {
     color: '#fff',
   },
 
+  loadMoreWrapper: {
+    marginTop: '10px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '4px',
+  },
+  loadMoreButton: {
+    padding: '6px 20px',
+    borderRadius: '999px',
+    border: '1px solid #4f4f4f',
+    backgroundColor: '#1f1f1f',
+    color: '#eee',
+    fontSize: '13px',
+    cursor: 'pointer',
+  },
+  loadMoreSubText: {
+    fontSize: '11px',
+    color: '#888',
+  },
+
   loginButton: {
     padding: '6px 12px',
     backgroundColor: 'transparent',
@@ -1751,9 +1847,9 @@ const styles = {
     zIndex: 2000,
   },
   modalContent: {
-    width: '90%',
-    maxWidth: '1100px',
-    maxHeight: '80vh',
+    width: '92%',
+    maxWidth: '1300px',
+    maxHeight: '82vh',
     backgroundColor: '#161616',
     borderRadius: '16px',
     border: '1px solid #333',

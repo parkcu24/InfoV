@@ -30,9 +30,7 @@ function resolveHenrikRegion(country, fallbackRegion) {
     return 'latam';
 
   if (
-    ['FR', 'DE', 'ES', 'IT', 'GB', 'UK', 'NL', 'SE', 'NO', 'FI', 'PL', 'CZ'].includes(
-      c
-    )
+    ['FR', 'DE', 'ES', 'IT', 'GB', 'UK', 'NL', 'SE', 'NO', 'FI', 'PL', 'CZ'].includes(c)
   )
     return 'eu';
 
@@ -40,7 +38,7 @@ function resolveHenrikRegion(country, fallbackRegion) {
 }
 
 // --------------------------------------------------
-// RSO AccessToken → Riot 계정 정보(gameName, tagLine, puuid, country)
+// 헬퍼: RSO AccessToken → Riot 계정 정보
 // --------------------------------------------------
 async function getRiotIdentityFromToken(accessToken) {
   console.log('👤 [RSO DEBUG] getRiotIdentityFromToken 호출');
@@ -58,7 +56,7 @@ async function getRiotIdentityFromToken(accessToken) {
   let puuid = data.sub || null;
   const country = data.country || null;
 
-  // 2) account-v1 /accounts/me (백업)
+  // 2) account-v1 /accounts/me
   try {
     console.log('🌍 [RSO DEBUG] account-v1 /accounts/me 호출 시도');
     const accountRes = await axios.get(
@@ -99,6 +97,72 @@ async function getRiotIdentityFromToken(accessToken) {
   if (!gameName && data.name) gameName = data.name;
 
   return { gameName, tagLine, puuid, country };
+}
+
+// --------------------------------------------------
+// 헬퍼: 날짜 포맷 & "몇 시간 전" 계산
+// --------------------------------------------------
+function to2(n) {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+function parseMatchStart(meta) {
+  // Henrik 메타데이터에서 가능한 필드들을 최대한 다 시도
+  const raw =
+    meta.started_at ||
+    meta.startedAt ||
+    meta.game_start ||
+    meta.gameStart ||
+    meta.game_start_patched ||
+    meta.gameStartPatched ||
+    null;
+
+  if (!raw) return null;
+
+  // 숫자(타임스탬프)인지 체크
+  const num = Number(raw);
+  if (!Number.isNaN(num) && num > 100000000000) {
+    const d = new Date(num);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+
+  // ISO 문자열로 가정
+  const d = new Date(raw);
+  if (!Number.isNaN(d.getTime())) return d;
+
+  return null;
+}
+
+function formatGameDate(d) {
+  if (!d) return null;
+  const y = d.getFullYear();
+  const m = to2(d.getMonth() + 1);
+  const day = to2(d.getDate());
+  return `${y}-${m}-${day}`;
+}
+
+function formatKoreanTimeAgo(d) {
+  if (!d) return null;
+  const now = Date.now();
+  const diffMs = now - d.getTime();
+
+  if (diffMs < 0) return '방금 전';
+
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+
+  if (diffMin < 1) return '방금 전';
+  if (diffHour < 1) return `${diffMin}분 전`;
+  if (diffDay < 1) return `${diffHour}시간 전`;
+  if (diffDay < 30) return `${diffDay}일 전`;
+
+  const diffMonth = Math.floor(diffDay / 30);
+  if (diffMonth < 12) return `${diffMonth}개월 전`;
+
+  const diffYear = Math.floor(diffMonth / 12);
+  return `${diffYear}년 전`;
 }
 
 // --------------------------------------------------
@@ -176,10 +240,7 @@ router.get('/profile', async (req, res) => {
     console.log('✅ [RSO DEBUG] /auth/profile 응답:', profile);
     res.json(profile);
   } catch (err) {
-    console.error(
-      '❌ [RSO DEBUG] /auth/profile 에러:',
-      err.response?.data || err.message
-    );
+    console.error('❌ [RSO DEBUG] /auth/profile 에러:', err.response?.data || err.message);
     const status =
       err.response?.status &&
       err.response.status >= 400 &&
@@ -197,6 +258,7 @@ router.get('/profile', async (req, res) => {
 // --------------------------------------------------
 // 4️⃣ Henrik 요약 스탯 (/api/auth/stats)
 //   - 시즌별 최고 티어(peak tier)까지 계산
+//   - playerCardUrl 포함
 // --------------------------------------------------
 router.get('/stats', async (req, res) => {
   const authHeader = req.headers.authorization;
@@ -260,7 +322,7 @@ router.get('/stats', async (req, res) => {
     );
 
     // ---------------------------
-    // 시즌 배열 준비 (seasonal / by_season 둘 다 대응)
+    // 시즌 배열 준비
     // ---------------------------
     let seasonal = [];
 
@@ -273,7 +335,6 @@ router.get('/stats', async (req, res) => {
       }));
     }
 
-    // 최신 시즌이 앞으로 오도록 역순
     const seasonalDesc = [...seasonal].reverse();
     const latest = seasonalDesc[0];
 
@@ -298,7 +359,6 @@ router.get('/stats', async (req, res) => {
     // ------------------------------------------------
     const seasonHistory = seasonalDesc
       .map((s) => {
-        // 1) 시즌 이름/코드
         let seasonName =
           (s.season && typeof s.season === 'object'
             ? s.season.short || s.season.id
@@ -313,13 +373,13 @@ router.get('/stats', async (req, res) => {
         let peakId = null;
         let peakName = null;
 
-        // 2) end_tier 우선 사용
+        // end_tier 우선
         if (s.end_tier && typeof s.end_tier === 'object') {
           if (typeof s.end_tier.id === 'number') peakId = s.end_tier.id;
           if (typeof s.end_tier.name === 'string') peakName = s.end_tier.name;
         }
 
-        // 3) end_tier가 없으면 act_wins 배열에서 최고 티어 찾기
+        // act_wins 에서 최고 티어
         if ((!peakId || !peakName) && Array.isArray(s.act_wins)) {
           s.act_wins.forEach((t) => {
             if (!t || typeof t.id !== 'number') return;
@@ -330,7 +390,7 @@ router.get('/stats', async (req, res) => {
           });
         }
 
-        // 4) 그래도 없으면 기존 candidate 배열들(tiers, ranks, rank_history...) 활용
+        // tiers, ranks, rank_history 등에서 후보 찾기
         if (!peakId && !peakName) {
           const tierCandidates = [];
           const possibleArrays = [
@@ -358,7 +418,6 @@ router.get('/stats', async (req, res) => {
           }
         }
 
-        // 5) 여전히 이름이 없으면 patched 문자열 등으로 보조
         if (!peakName) {
           peakName =
             s.end_tier?.name ||
@@ -384,6 +443,9 @@ router.get('/stats', async (req, res) => {
       })
       .filter(Boolean);
 
+    const playerCardUrl =
+      acc?.card?.wide || acc?.card?.large || acc?.card?.small || null;
+
     const summary = {
       accountLevel: acc.account_level ?? null,
       currentTier: mmrData.current?.tier?.name ?? null,
@@ -392,6 +454,7 @@ router.get('/stats', async (req, res) => {
       losses,
       winRate,
       seasonHistory,
+      playerCardUrl,
     };
 
     console.log('✅ [Henrik DEBUG] /auth/stats 응답:', summary);
@@ -416,7 +479,8 @@ router.get('/stats', async (req, res) => {
 
 // --------------------------------------------------
 // 5️⃣ 최근 경기 정보 반환 (/api/auth/matches)
-//   - K/D/A, ACS(라운드 평균), ADR, HS%, KAST, 스코어, 승패, 팀원 티어
+//   - 최대 100판까지 가져와서 프론트에서 10개씩 "더보기"
+//   - K/D/A, ACS, ADR, HS%, 승패, 팀 스코어, 전체 플레이어 정보 등
 // --------------------------------------------------
 router.get('/matches', async (req, res) => {
   const authHeader = req.headers.authorization;
@@ -464,7 +528,7 @@ router.get('/matches', async (req, res) => {
     const region = resolveHenrikRegion(country, regionFromHenrik);
     const henrikPuuid = accountData?.puuid || null;
 
-    // 2) v4 matches
+    // 2) v4 matches - 최대 100판
     const matchesUrl = `https://api.henrikdev.xyz/valorant/v4/matches/${region}/pc/${encodeURIComponent(
       accountData.name
     )}/${encodeURIComponent(accountData.tag)}`;
@@ -473,7 +537,7 @@ router.get('/matches', async (req, res) => {
 
     const matchesRes = await axios.get(matchesUrl, {
       headers: { Authorization: HENRIK_API_KEY },
-      params: { size: 8 }, // 최근 8게임
+      params: { size: 100 }, // ✅ 최대 100판
     });
 
     const rawMatches = matchesRes.data?.data || [];
@@ -534,9 +598,18 @@ router.get('/matches', async (req, res) => {
       const rawStatsSelf = selfPlayer?.stats || {};
       const coreSelf = rawStatsSelf.core || rawStatsSelf;
 
-      const kills = coreSelf.kills ?? rawStatsSelf.kills ?? 0;
-      const deaths = coreSelf.deaths ?? rawStatsSelf.deaths ?? 0;
-      const assists = coreSelf.assists ?? rawStatsSelf.assists ?? 0;
+      const kills =
+        coreSelf.kills ??
+        rawStatsSelf.kills ??
+        0;
+      const deaths =
+        coreSelf.deaths ??
+        rawStatsSelf.deaths ??
+        0;
+      const assists =
+        coreSelf.assists ??
+        rawStatsSelf.assists ??
+        0;
 
       const kdRaw = deaths > 0 ? kills / deaths : kills;
       const kd = Number.isFinite(kdRaw) ? kdRaw : null;
@@ -554,24 +627,6 @@ router.get('/matches', async (req, res) => {
         const parsed = Number(score);
         score = Number.isNaN(parsed) ? null : parsed;
       }
-
-      // ✅ ADR 계산용 데미지
-      let damageMade =
-        coreSelf.damage_made ??
-        coreSelf.damage?.made ??
-        coreSelf.damage?.dealt ??
-        rawStatsSelf.damage_made ??
-        rawStatsSelf.damage?.made ??
-        rawStatsSelf.damage?.dealt ??
-        null;
-
-      // ✅ KAST 원본 값
-      let kastSelf =
-        coreSelf.kast ??
-        coreSelf.kast_rate ??
-        rawStatsSelf.kast ??
-        rawStatsSelf.kast_rate ??
-        null;
 
       // HS% (내 기준)
       let headshots =
@@ -694,12 +749,12 @@ router.get('/matches', async (req, res) => {
       const hasWon =
         typeof hasWonRaw === 'boolean'
           ? hasWonRaw
-          : typeof roundsWon === 'number' &&
-            typeof roundsLost === 'number'
-          ? roundsWon > roundsLost
-          : null;
+          : (typeof roundsWon === 'number' &&
+             typeof roundsLost === 'number'
+            ? roundsWon > roundsLost
+            : null);
 
-      // 🔢 총 라운드 수 (ACS / ADR / KAST 계산용)
+      // 🔢 총 라운드 수 (ACS, ADR 계산용)
       let totalRounds = Array.isArray(m.rounds) ? m.rounds.length : null;
       if (
         (totalRounds == null || totalRounds === 0) &&
@@ -709,15 +764,14 @@ router.get('/matches', async (req, res) => {
         totalRounds = roundsWon + roundsLost;
       }
 
-      // 🔥 내 라운드 수
-      const roundsSelf =
-        coreSelf.rounds_played ??
-        rawStatsSelf.rounds_played ??
-        totalRounds;
-
       // 🔥 내 ACS = score / 라운드 수
       let acsSelf = null;
       if (score != null) {
+        const roundsSelf =
+          coreSelf.rounds_played ??
+          rawStatsSelf.rounds_played ??
+          totalRounds;
+
         if (roundsSelf && roundsSelf > 0) {
           acsSelf = Math.round(score / roundsSelf);
         } else {
@@ -725,30 +779,58 @@ router.get('/matches', async (req, res) => {
         }
       }
 
-      // 🔥 내 ADR = damageMade / 라운드 수
-      let adrSelf = null;
-      if (damageMade != null) {
-        const dmgNumber = Number(damageMade);
-        if (!Number.isNaN(dmgNumber)) {
-          if (roundsSelf && roundsSelf > 0) {
-            adrSelf = Math.round(dmgNumber / roundsSelf);
-          } else {
-            adrSelf = Math.round(dmgNumber);
-          }
-        }
+      // 🔥 ADR 계산용 총 데미지 추정
+      let totalDamageSelf =
+        coreSelf.damage ??
+        coreSelf.total_damage ??
+        coreSelf.damage_made ??
+        coreSelf.damageMade ??
+        rawStatsSelf.damage ??
+        rawStatsSelf.total_damage ??
+        rawStatsSelf.damage_made ??
+        rawStatsSelf.damageMade ??
+        null;
+
+      // 만약 위 필드들에 없다면 라운드 데이터에서 합산 시도
+      if (totalDamageSelf == null && Array.isArray(m.rounds)) {
+        let dmgSum = 0;
+        let found = false;
+
+        m.rounds.forEach((r) => {
+          const scoreboard = r?.players || r?.player_stats || r?.playerStats;
+          if (!Array.isArray(scoreboard)) return;
+
+          scoreboard.forEach((ps) => {
+            if (ps.puuid && ps.puuid === henrikPuuid) {
+              const s = ps.stats || {};
+              const dmg =
+                s.damage ??
+                s.damage_made ??
+                s.damageMade ??
+                s.total_damage ??
+                null;
+              if (typeof dmg === 'number') {
+                dmgSum += dmg;
+                found = true;
+              }
+            }
+          });
+        });
+
+        if (found) totalDamageSelf = dmgSum;
       }
 
-      // 🔥 KAST 값(0~1이면 %로, 100단위면 그대로 반올림)
-      if (kastSelf != null) {
-        const kNum = Number(kastSelf);
-        if (!Number.isNaN(kNum)) {
-          if (kNum <= 1) {
-            kastSelf = Math.round(kNum * 100);
-          } else {
-            kastSelf = Math.round(kNum);
-          }
+      let adrSelf = null;
+      if (totalDamageSelf != null) {
+        const roundsSelf =
+          coreSelf.rounds_played ??
+          rawStatsSelf.rounds_played ??
+          totalRounds;
+
+        if (roundsSelf && roundsSelf > 0) {
+          adrSelf = Math.round(totalDamageSelf / roundsSelf);
         } else {
-          kastSelf = null;
+          adrSelf = Math.round(totalDamageSelf);
         }
       }
 
@@ -805,13 +887,11 @@ router.get('/matches', async (req, res) => {
         const pAgentName =
           p.character || p.agent?.name || p.agent || 'Unknown';
 
-        // 🔢 플레이어별 라운드 수
         const pRounds =
           pc.rounds_played ??
           ps.rounds_played ??
           totalRounds;
 
-        // 🔥 플레이어별 ACS (라운드 평균)
         let pAcs = null;
         if (pscore != null) {
           if (pRounds && pRounds > 0) {
@@ -821,7 +901,6 @@ router.get('/matches', async (req, res) => {
           }
         }
 
-        // 🔥 경기 당시 티어 (숫자 + 문자열)
         const tierNumber =
           p.currenttier ??
           p.current_tier ??
@@ -860,12 +939,19 @@ router.get('/matches', async (req, res) => {
         };
       });
 
+      // 📅 날짜/시간 포맷
+      const startedAtDate = parseMatchStart(meta);
+      const gameDate = formatGameDate(startedAtDate);   // 예: 2025-12-04
+      const timeAgo = formatKoreanTimeAgo(startedAtDate); // 예: 4시간 전
+
       return {
         matchId:
           meta.matchid || meta.match_id || meta.id || meta.matchId || '',
         map: meta.map?.name || meta.map || 'Unknown Map',
         queue: meta.queue?.name || meta.mode || meta.queue || 'Mode',
-        timeAgo: meta.started_at || meta.startedAt || '',
+
+        gameDate: gameDate || null,
+        timeAgo: timeAgo || null,
 
         agent: agentNameSelf,
         agentIcon:
@@ -883,10 +969,9 @@ router.get('/matches', async (req, res) => {
         deaths,
         assists,
         kd,
-        acs: acsSelf,      // 🔥 라운드 평균 ACS
-        adr: adrSelf,      // 🔥 라운드 평균 ADR
+        acs: acsSelf,
+        adr: adrSelf,
         hsPercent: hsPercentSelf,
-        kast: kastSelf,    // 🔥 KAST(%)
         win: hasWon,
         placement: null,
 
