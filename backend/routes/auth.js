@@ -290,7 +290,7 @@ router.get('/stats', async (req, res) => {
 
     // ------------------------------------------------
     // 시즌별 최고 티어 찾기 (peak tier)
-// ------------------------------------------------
+    // ------------------------------------------------
     const seasonHistory = seasonalDesc
       .map((s) => {
         // 시즌 이름/코드
@@ -384,16 +384,7 @@ router.get('/stats', async (req, res) => {
 
 // --------------------------------------------------
 // 5️⃣ 최근 경기 정보 반환 (/api/auth/matches)
-//   - K/D/A, ACS, HS%, 스코어, 승패, 라운드 스코어 등
-// --------------------------------------------------
-// --------------------------------------------------
-// 5️⃣ 최근 경기 정보 반환 (/api/auth/matches)
-//   - K/D/A, ACS, HS%, 스코어, 승패, 라운드 스코어
-//   - + 전체 플레이어 리스트 (ally/enemy)
-// --------------------------------------------------
-// --------------------------------------------------
-// 5️⃣ 최근 경기 정보 반환 (/api/auth/matches)
-//   - K/D/A, ACS, HS%, 스코어, 승패, 라운드 스코어, 팀원 티어까지
+//   - K/D/A, ACS(라운드 평균), HS%, 스코어, 승패, 라운드 스코어, 팀원 티어
 // --------------------------------------------------
 router.get('/matches', async (req, res) => {
   const authHeader = req.headers.authorization;
@@ -450,7 +441,7 @@ router.get('/matches', async (req, res) => {
 
     const matchesRes = await axios.get(matchesUrl, {
       headers: { Authorization: HENRIK_API_KEY },
-      params: { size: 8 },
+      params: { size: 8 }, // 최근 8게임
     });
 
     const rawMatches = matchesRes.data?.data || [];
@@ -541,7 +532,7 @@ router.get('/matches', async (req, res) => {
         score = Number.isNaN(parsed) ? null : parsed;
       }
 
-      // HS% 계산 (내 것도 필요하면)
+      // HS% (내 기준)
       let headshots =
         coreSelf.headshots ??
         rawStatsSelf.headshots ??
@@ -667,6 +658,31 @@ router.get('/matches', async (req, res) => {
             ? roundsWon > roundsLost
             : null);
 
+      // 🔢 총 라운드 수 (ACS 계산용)
+      let totalRounds = Array.isArray(m.rounds) ? m.rounds.length : null;
+      if (
+        (totalRounds == null || totalRounds === 0) &&
+        typeof roundsWon === 'number' &&
+        typeof roundsLost === 'number'
+      ) {
+        totalRounds = roundsWon + roundsLost;
+      }
+
+      // 🔥 내 ACS = score / 라운드 수
+      let acsSelf = null;
+      if (score != null) {
+        const roundsSelf =
+          coreSelf.rounds_played ??
+          rawStatsSelf.rounds_played ??
+          totalRounds;
+
+        if (roundsSelf && roundsSelf > 0) {
+          acsSelf = Math.round(score / roundsSelf);
+        } else {
+          acsSelf = Math.round(score);
+        }
+      }
+
       const assetsSelf = selfPlayer?.assets || {};
       const agentAssetsSelf = assetsSelf.agent || {};
       const agentNameSelf =
@@ -720,6 +736,22 @@ router.get('/matches', async (req, res) => {
         const pAgentName =
           p.character || p.agent?.name || p.agent || 'Unknown';
 
+        // 🔢 플레이어별 라운드 수
+        const pRounds =
+          pc.rounds_played ??
+          ps.rounds_played ??
+          totalRounds;
+
+        // 🔥 플레이어별 ACS (라운드 평균)
+        let pAcs = null;
+        if (pscore != null) {
+          if (pRounds && pRounds > 0) {
+            pAcs = Math.round(pscore / pRounds);
+          } else {
+            pAcs = Math.round(pscore);
+          }
+        }
+
         // 🔥 경기 당시 티어 (숫자 + 문자열)
         const tierNumber =
           p.currenttier ??
@@ -751,7 +783,7 @@ router.get('/matches', async (req, res) => {
           deaths: pd,
           assists: pa,
           kd: pkd,
-          acs: pscore,
+          acs: pAcs,
           hsPercent: phsPercent,
           tierNumber,
           tierName,
@@ -782,13 +814,13 @@ router.get('/matches', async (req, res) => {
         deaths,
         assists,
         kd,
-        acs: score,
+        acs: acsSelf,      // 🔥 이제 라운드 평균 ACS
         adr: null,
         hsPercent: hsPercentSelf,
         win: hasWon,
         placement: null,
 
-        // 🔥 모달용
+        // 🔥 모달용 전체 플레이어
         players: playersMapped,
         myTeam: myTeamKey,
         enemyTeam:
@@ -818,7 +850,5 @@ router.get('/matches', async (req, res) => {
     });
   }
 });
-
-
 
 module.exports = router;
