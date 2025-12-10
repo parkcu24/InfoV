@@ -110,8 +110,6 @@ function getKoreanMapName(raw) {
   if (!raw || typeof raw !== 'string') return raw || 'Unknown Map';
 
   const name = raw.trim();
-
-  // 혹시 "/Game/Maps/Ascent/Ascent" 같은 형태라면 마지막 토큰만 추출
   const lastToken = name.split('/').pop();
   const lower = lastToken.toLowerCase();
 
@@ -193,9 +191,9 @@ function TierChart({ data }) {
 
   const points = data.map((d, idx) => {
     const x = paddingX + idx * widthPerPoint;
-    const norm = (d.value - minVal) / range; // 0~1
+    const norm = (d.value - minVal) / range;
     const y =
-      height - paddingY - norm * (height - paddingY * 2); // 위로 갈수록 높은 티어
+      height - paddingY - norm * (height - paddingY * 2);
     return { x, y };
   });
 
@@ -203,14 +201,12 @@ function TierChart({ data }) {
 
   return (
     <svg width={width} height={height} style={styles.tierChartSvg}>
-      {/* 라인 */}
       <polyline
         points={polyPoints}
         fill="none"
         stroke="#4CAF50"
         strokeWidth="2"
       />
-      {/* 점 + 시즌 텍스트 */}
       {points.map((p, idx) => {
         const item = data[idx];
         const seasonLabel =
@@ -221,7 +217,6 @@ function TierChart({ data }) {
         return (
           <g key={idx}>
             <circle cx={p.x} cy={p.y} r="3" fill="#ffffff" />
-            {/* 티어 텍스트 (점 위) */}
             <text
               x={p.x}
               y={p.y - 8}
@@ -231,7 +226,6 @@ function TierChart({ data }) {
             >
               {tierLabel}
             </text>
-            {/* 시즌 텍스트 (아래 축) */}
             <text
               x={p.x}
               y={height - 5}
@@ -258,25 +252,21 @@ function MatchHistoryPage() {
   const [hasToken, setHasToken] = useState(false);
   const [queueFilter, setQueueFilter] = useState('all');
 
-  // 🔥 클릭된 경기(스코어보드 모달용)
   const [selectedMatch, setSelectedMatch] = useState(null);
-
-  // 🔥 티어 그래프 토글
   const [showTierChart, setShowTierChart] = useState(false);
 
-  // 🎲 오늘의 운세 모달 & 룰렛 상태
+  // 🎲 오늘의 운세
   const [showFortuneOverlay, setShowFortuneOverlay] = useState(false);
   const [fortuneIndex, setFortuneIndex] = useState(0);
   const [isFortuneRolling, setIsFortuneRolling] = useState(false);
-  const [latestFortuneText, setLatestFortuneText] = useState(null); // ✅ 한 번 뽑힌 운세 저장
+  const [latestFortuneText, setLatestFortuneText] = useState(null);
 
   const fortuneIntervalRef = useRef(null);
   const fortuneStopTimeoutRef = useRef(null);
 
-  // ⭐ 에이전트 이름을 파일명 규칙에 맞게 자동 변환하는 함수
+  // ⭐ 에이전트 이미지
   const getAgentImageSrc = (agent) => {
     const defaultSrc = '/agents/default.png';
-
     if (!agent) return defaultSrc;
 
     let agentName = agent;
@@ -287,7 +277,6 @@ function MatchHistoryPage() {
         agent.id ||
         '';
     }
-
     if (typeof agentName !== 'string' || agentName.length === 0) {
       return defaultSrc;
     }
@@ -301,28 +290,23 @@ function MatchHistoryPage() {
     return normalized ? `/agents/${normalized}.png` : defaultSrc;
   };
 
-  // ⭐ 티어 이미지 (아이언1~레디언트) 경로
+  // ⭐ 티어 이미지
   const getTierImageSrc = (tierNumber, tierName) => {
     if (!tierNumber && !tierName) return null;
 
     let num = tierNumber;
-    if (!num && tierName) {
-      num = tierNameToNumber(tierName);
-    }
-
+    if (!num && tierName) num = tierNameToNumber(tierName);
     if (!num) return null;
     return `/tiers/${num}.png`;
   };
 
-  // ⭐ 플레이어 카드 이미지
+  // ⭐ 플레이어 카드
   const getPlayerCardSrc = () => {
-    if (summary && summary.playerCardUrl) {
-      return summary.playerCardUrl;
-    }
+    if (summary && summary.playerCardUrl) return summary.playerCardUrl;
     return '/playercards/default.png';
   };
 
-  // ⭐ 큐 이름을 영어 키로 정규화
+  // ⭐ 큐 이름 정규화
   const normalizeQueueKey = (q) => {
     if (!q) return 'other';
     const s = String(q).toLowerCase();
@@ -342,7 +326,7 @@ function MatchHistoryPage() {
     return 'other';
   };
 
-  // ⭐ 큐 이름을 한국어로 표시
+  // ⭐ 큐 이름 한국어
   const getQueueDisplayName = (match) => {
     const q = match.queue || match.mode;
     const key = normalizeQueueKey(q);
@@ -371,7 +355,6 @@ function MatchHistoryPage() {
     }
   };
 
-  // ⭐ 필터에 맞는 전적만 추리기
   const getFilteredMatches = () => {
     if (queueFilter === 'all') return matches;
     return matches.filter((m) => {
@@ -401,22 +384,19 @@ function MatchHistoryPage() {
         const profileRes = await fetch(`${API_BASE_URL}/api/auth/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-
         if (!profileRes.ok) {
           throw new Error(
             `프로필 정보를 불러오지 못했습니다. (status ${profileRes.status})`
           );
         }
-
         const profileData = await profileRes.json();
         setProfile(profileData);
 
-        // 2) Henrik 요약 스탯
+        // 2) 요약 스탯
         try {
           const statsRes = await fetch(`${API_BASE_URL}/api/auth/stats`, {
             headers: { Authorization: `Bearer ${token}` },
           });
-
           if (statsRes.ok) {
             const statsData = await statsRes.json();
             setSummary(statsData);
@@ -429,13 +409,11 @@ function MatchHistoryPage() {
         const matchesRes = await fetch(`${API_BASE_URL}/api/auth/matches`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-
         if (!matchesRes.ok) {
           throw new Error(
             `전적 정보를 불러오지 못했습니다. (status ${matchesRes.status})`
           );
         }
-
         const matchesData = await matchesRes.json();
         setMatches(
           Array.isArray(matchesData) ? matchesData : matchesData.matches || []
@@ -451,7 +429,7 @@ function MatchHistoryPage() {
     fetchData();
   }, []);
 
-  // 🎰 룰렛 시작 (✅ 한 번 뽑힌 후에는 다시 돌지 않도록 latestFortuneText 체크)
+  // 🎰 룰렛 시작
   const startFortuneRolling = () => {
     if (isFortuneRolling || latestFortuneText) return;
 
@@ -466,12 +444,10 @@ function MatchHistoryPage() {
       fortuneStopTimeoutRef.current = null;
     }
 
-    // ⏩ 속도 살짝 빠르게 (기존 80ms → 50ms)
     fortuneIntervalRef.current = setInterval(() => {
       setFortuneIndex((prev) => (prev + 1) % FORTUNES.length);
     }, 50);
 
-    // ⏱ 도는 시간도 약간 줄이기 (기존 2200ms → 1600ms)
     fortuneStopTimeoutRef.current = setTimeout(() => {
       if (fortuneIntervalRef.current) {
         clearInterval(fortuneIntervalRef.current);
@@ -481,22 +457,18 @@ function MatchHistoryPage() {
 
       const finalIndex = Math.floor(Math.random() * FORTUNES.length);
       setFortuneIndex(finalIndex);
-      setLatestFortuneText(FORTUNES[finalIndex]); // ✅ 한 번 나온 운세 저장
+      setLatestFortuneText(FORTUNES[finalIndex]);
     }, 1600);
   };
 
-  // 🎰 모달 열기
   const openFortuneOverlay = () => {
     setShowFortuneOverlay(true);
 
-    // ✅ 이미 한 번 운세를 뽑았다면: 다시 굴리지 않고, 그 결과만 보여준다
     if (latestFortuneText) {
       const idx = FORTUNES.indexOf(latestFortuneText);
-      if (idx >= 0) {
-        setFortuneIndex(idx);
-      }
+      if (idx >= 0) setFortuneIndex(idx);
+
       setIsFortuneRolling(false);
-      // 기존 인터벌/타임아웃 안전하게 정리
       if (fortuneIntervalRef.current) {
         clearInterval(fortuneIntervalRef.current);
         fortuneIntervalRef.current = null;
@@ -508,12 +480,10 @@ function MatchHistoryPage() {
       return;
     }
 
-    // 아직 한 번도 안 뽑았다면: 룰렛 한 번 진행
     setFortuneIndex(Math.floor(Math.random() * FORTUNES.length));
     startFortuneRolling();
   };
 
-  // ❌ 모달 닫기 (룰렛 강제 종료)
   const closeFortuneOverlay = () => {
     if (fortuneIntervalRef.current) {
       clearInterval(fortuneIntervalRef.current);
@@ -527,15 +497,12 @@ function MatchHistoryPage() {
     setShowFortuneOverlay(false);
   };
 
-  // 언마운트 시 타이머 정리
   useEffect(() => {
     return () => {
-      if (fortuneIntervalRef.current) {
+      if (fortuneIntervalRef.current)
         clearInterval(fortuneIntervalRef.current);
-      }
-      if (fortuneStopTimeoutRef.current) {
+      if (fortuneStopTimeoutRef.current)
         clearTimeout(fortuneStopTimeoutRef.current);
-      }
     };
   }, []);
 
@@ -558,13 +525,11 @@ function MatchHistoryPage() {
     return 'Unknown Map';
   };
 
-  const getQueueName = (match) => {
-    return getQueueDisplayName(match);
-  };
+  const getQueueName = (match) => getQueueDisplayName(match);
 
   const filteredMatches = getFilteredMatches();
 
-  // 📊 최근 전적 기준 요약 스탯(평균 HS, 평균 KD, 평균 ACS)
+  // 📊 평균 스탯
   let avgStats = null;
   if (matches && matches.length > 0) {
     let totalKills = 0;
@@ -597,7 +562,7 @@ function MatchHistoryPage() {
     avgStats = { avgKd, avgAcs, avgHs };
   }
 
-  // 📈 시즌 히스토리 → 티어 그래프용 데이터
+  // 📈 티어 그래프 데이터
   let tierChartData = [];
   if (summary?.seasonHistory && summary.seasonHistory.length > 0) {
     const chronological = [...summary.seasonHistory].reverse();
@@ -610,10 +575,10 @@ function MatchHistoryPage() {
 
         let seasonLabel = s.season;
         if (typeof seasonLabel === 'string') {
-          const match = seasonLabel.toLowerCase().match(/e(\d+)a(\d+)/);
-          if (match) {
-            const ep = parseInt(match[1], 10);
-            const act = parseInt(match[2], 10);
+          const m = seasonLabel.toLowerCase().match(/e(\d+)a(\d+)/);
+          if (m) {
+            const ep = parseInt(m[1], 10);
+            const act = parseInt(m[2], 10);
             if (!Number.isNaN(ep) && !Number.isNaN(act)) {
               seasonLabel = `에피소드${ep} 엑트${act}`;
             }
@@ -629,14 +594,8 @@ function MatchHistoryPage() {
       .filter(Boolean);
   }
 
-  // 🔥 경기 카드 클릭 시 스코어보드 모달 열기
-  const handleMatchClick = (match) => {
-    setSelectedMatch(match);
-  };
-
-  const handleCloseModal = () => {
-    setSelectedMatch(null);
-  };
+  const handleMatchClick = (match) => setSelectedMatch(match);
+  const handleCloseModal = () => setSelectedMatch(null);
 
   const getModalTeams = (match) => {
     if (!match || !Array.isArray(match.players)) {
@@ -967,7 +926,6 @@ function MatchHistoryPage() {
             {/* 상단 프로필 카드 */}
             {profile && (
               <div style={styles.profileCard}>
-                {/* 왼쪽: 플레이어 카드 동그라미 + 레벨 */}
                 <div style={styles.profileLeft}>
                   <div style={styles.avatarWrapper}>
                     <img
@@ -994,7 +952,6 @@ function MatchHistoryPage() {
                   </div>
                 </div>
 
-                {/* 오른쪽: 닉네임/티어/평균스탯/버튼 */}
                 <div style={styles.profileRight}>
                   <div style={styles.nameCard}>
                     <div style={styles.nameRow}>
@@ -1166,7 +1123,6 @@ function MatchHistoryPage() {
                       ? match.teamScore > match.enemyScore
                       : false;
 
-                  // ✅ ADR / KAST 처리
                   const rawAdr =
                     match.adr ??
                     match.avgDamagePerRound ??
@@ -1191,27 +1147,13 @@ function MatchHistoryPage() {
                       style={{
                         ...styles.matchRowCard,
                         cursor: 'pointer',
-                        background:
-                          isWin
-                            ? 'linear-gradient(135deg, rgba(13,71,161,0.55), rgba(13,71,161,0.2))'
-                            : 'linear-gradient(135deg, rgba(183,28,28,0.55), rgba(183,28,28,0.2))',
+                        background: isWin
+                          ? 'linear-gradient(135deg, rgba(13,71,161,0.55), rgba(13,71,161,0.2))'
+                          : 'linear-gradient(135deg, rgba(183,28,28,0.55), rgba(183,28,28,0.2))',
                         borderColor: isWin ? '#1565c0' : '#b71c1c',
                       }}
                       onClick={() => handleMatchClick(match)}
                     >
-                      {/* 왼쪽 승/패 스트립 */}
-                      <div
-                        style={{
-                          ...styles.resultStrip,
-                          backgroundColor: isWin
-                            ? 'rgba(25,118,210,0.9)'
-                            : 'rgba(211,47,47,0.9)',
-                          borderColor: isWin ? '#82b1ff' : '#ef9a9a',
-                        }}
-                      >
-                        {isWin ? '승리' : '패배'}
-                      </div>
-
                       <div style={styles.matchLeft}>
                         <img
                           src={getAgentImageSrc(match.agent)}
@@ -1234,7 +1176,6 @@ function MatchHistoryPage() {
                           <div style={styles.queueText}>
                             {getQueueName(match)}
                           </div>
-
                           <div style={styles.scoreBox}>
                             <span style={styles.scoreText}>{scoreText}</span>
                           </div>
@@ -1268,7 +1209,6 @@ function MatchHistoryPage() {
                           </span>
                         </div>
 
-                        {/* ✅ ADR: 값이 있을 때만 표시 */}
                         {adr !== null && (
                           <div style={styles.statBlock}>
                             <span style={styles.statLabel}>ADR</span>
@@ -1276,7 +1216,6 @@ function MatchHistoryPage() {
                           </div>
                         )}
 
-                        {/* ✅ KAST: 값이 있을 때만 표시 */}
                         {kast !== null && (
                           <div style={styles.statBlock}>
                             <span style={styles.statLabel}>KAST</span>
@@ -1296,23 +1235,22 @@ function MatchHistoryPage() {
                               : '-'}
                           </span>
                         </div>
-
-                        {/* 날짜 + timeAgo 블록 */}
-                        {(dateText || timeAgoText) && (
-                          <div style={styles.timeBlock}>
-                            {dateText && (
-                              <span style={styles.timeDateText}>
-                                {dateText}
-                              </span>
-                            )}
-                            {timeAgoText && (
-                              <span style={styles.timeAgoText}>
-                                {timeAgoText}
-                              </span>
-                            )}
-                          </div>
-                        )}
                       </div>
+
+                      {(dateText || timeAgoText) && (
+                        <div style={styles.timeBlockOnCard}>
+                          {dateText && (
+                            <span style={styles.timeDateText}>
+                              {dateText}
+                            </span>
+                          )}
+                          {timeAgoText && (
+                            <span style={styles.timeAgoText}>
+                              {timeAgoText}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1326,7 +1264,6 @@ function MatchHistoryPage() {
       {showFortuneOverlay && (
         <div style={styles.fortuneOverlay}>
           <div style={styles.fortuneCard}>
-            {/* 우측 상단 X 버튼 */}
             <button
               style={styles.fortuneCloseButton}
               onClick={closeFortuneOverlay}
@@ -1336,14 +1273,13 @@ function MatchHistoryPage() {
 
             <h3 style={styles.fortuneTitle}>오늘의 발로란트 운세</h3>
 
-            {/* 룰렛 창 */}
             <div style={styles.fortuneWindow}>
               <div
                 style={{
                   ...styles.fortuneInner,
                   transform: `translateY(-${fortuneIndex * 40}px)`,
                   transition: isFortuneRolling
-                    ? 'transform 0.05s linear' // 속도에 맞게
+                    ? 'transform 0.05s linear'
                     : 'transform 0.35s ease-out',
                 }}
               >
@@ -1355,7 +1291,6 @@ function MatchHistoryPage() {
               </div>
             </div>
 
-            {/* 최종 결과 문장 (룰렛 멈춘 후 강조) */}
             {!isFortuneRolling && (
               <div style={styles.fortuneResultText}>
                 {FORTUNES[fortuneIndex]}
@@ -1365,7 +1300,6 @@ function MatchHistoryPage() {
         </div>
       )}
 
-      {/* 🔥 경기 상세 스코어보드 모달 */}
       {renderScoreboardModal()}
     </div>
   );
@@ -1672,6 +1606,7 @@ const styles = {
     gap: '12px',
   },
   matchRowCard: {
+    position: 'relative',
     display: 'flex',
     justifyContent: 'space-between',
     backgroundColor: '#181818',
@@ -1680,20 +1615,6 @@ const styles = {
     border: '1px solid #303030',
     alignItems: 'center',
     gap: '14px',
-  },
-  resultStrip: {
-    minWidth: '60px',
-    padding: '8px 10px',
-    borderRadius: '10px',
-    border: '1px solid transparent',
-    fontSize: '16px',
-    fontWeight: 700,
-    textAlign: 'center',
-    color: '#fff',
-    alignSelf: 'stretch',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   matchLeft: {
     display: 'flex',
@@ -1734,7 +1655,8 @@ const styles = {
     gap: '16px',
     flexWrap: 'wrap',
     justifyContent: 'flex-end',
-    minWidth: '340px',
+    minWidth: '320px',
+    marginRight: '90px', // 👉 오른쪽 날짜 영역만큼 살짝 왼쪽으로 이동
   },
   statBlock: {
     display: 'flex',
@@ -1751,11 +1673,14 @@ const styles = {
     color: '#fff',
   },
 
-  timeBlock: {
+  timeBlockOnCard: {
+    position: 'absolute',
+    top: '10px',
+    right: '16px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'flex-end',
-    minWidth: '80px',
+    gap: '2px',
   },
   timeDateText: {
     fontSize: '11px',
