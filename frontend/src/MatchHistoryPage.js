@@ -68,8 +68,17 @@ const FORTUNES = [
   '적 팀의 오퍼레이터 위치를 초반에 체크해 보세요.',
   '라운드 시작 전에 팀과 라운드 플랜을 한마디라도 나눠 보세요.',
   '오늘은 스프레이보다는 점사에 더 힘을 실어보세요.',
-  '상대 감시자를 보고 뒤를 돌아보는 거는 어떨까요?'
+  '상대 감시자를 보고 뒤를 돌아보는 거는 어떨까요?',
 ];
+
+// 📘 스탯 설명 텍스트 (호버 시 아래 바에 표시)
+const STAT_HELP_TEXT = {
+  kda: 'K / D / A : 한 판에서 올린 킬, 데스, 어시스트 수예요.',
+  kd: 'K/D : 킬을 데스로 나눈 비율이에요. 1.00 이상이면 데스보다 킬이 더 많다는 뜻이에요.',
+  acs: 'ACS : 라운드당 평균 전투 점수(교전 기여도)를 나타내요.',
+  adr: 'ADR : 라운드당 평균 피해량(데미지)입니다.',
+  hs: 'HS% : 전체 명중탄 중에서 머리를 맞힌 비율이에요.',
+};
 
 function tierNameToNumber(tierName) {
   if (!tierName) return null;
@@ -206,6 +215,9 @@ function MatchHistoryPage() {
 
   // 📌 전적 "더 보기" 를 위한 개수 상태 (초기 10개)
   const [visibleCount, setVisibleCount] = useState(10);
+
+  // 📘 어떤 스탯 위에 마우스 올라가 있는지
+  const [hoveredStat, setHoveredStat] = useState(null);
 
   // ⭐ 에이전트 이름을 파일명 규칙에 맞게 자동 변환하는 함수
   const getAgentImageSrc = (agent) => {
@@ -406,12 +418,10 @@ function MatchHistoryPage() {
       fortuneStopTimeoutRef.current = null;
     }
 
-    // ⏩ 속도 살짝 빠르게 (기존 80ms → 50ms)
     fortuneIntervalRef.current = setInterval(() => {
       setFortuneIndex((prev) => (prev + 1) % FORTUNES.length);
     }, 50);
 
-    // ⏱ 도는 시간도 약간 줄이기 (기존 2200ms → 1600ms)
     fortuneStopTimeoutRef.current = setTimeout(() => {
       if (fortuneIntervalRef.current) {
         clearInterval(fortuneIntervalRef.current);
@@ -992,10 +1002,7 @@ function MatchHistoryPage() {
                         {avgStats && (
                           <div style={styles.overallStatsRow}>
                             <div style={styles.overallStatItem}>
-                              <span
-                                style={styles.overallStatLabel}
-                                title="헤드샷 비율 (HeadShot Percentage)의 평균"
-                              >
+                              <span style={styles.overallStatLabel}>
                                 평균 HS
                               </span>
                               <span style={styles.overallStatValue}>
@@ -1005,10 +1012,7 @@ function MatchHistoryPage() {
                               </span>
                             </div>
                             <div style={styles.overallStatItem}>
-                              <span
-                                style={styles.overallStatLabel}
-                                title="전체 경기 기준 킬/데스 비율의 평균"
-                              >
+                              <span style={styles.overallStatLabel}>
                                 평균 K/D
                               </span>
                               <span style={styles.overallStatValue}>
@@ -1018,10 +1022,7 @@ function MatchHistoryPage() {
                               </span>
                             </div>
                             <div style={styles.overallStatItem}>
-                              <span
-                                style={styles.overallStatLabel}
-                                title="Average Combat Score (라운드당 평균 전투 점수)의 평균"
-                              >
+                              <span style={styles.overallStatLabel}>
                                 평균 ACS
                               </span>
                               <span style={styles.overallStatValue}>
@@ -1107,6 +1108,13 @@ function MatchHistoryPage() {
                 </select>
               </div>
             </div>
+
+            {/* 🔍 스탯 설명 바 (KDA, KD 등 위에 마우스 올렸을 때) */}
+            {hoveredStat && (
+              <div style={styles.statTooltipBar}>
+                {STAT_HELP_TEXT[hoveredStat]}
+              </div>
+            )}
 
             {/* 전적 리스트 */}
             {filteredMatches.length === 0 ? (
@@ -1229,11 +1237,13 @@ function MatchHistoryPage() {
                           </div>
 
                           <div style={styles.statsRow}>
-                            <div style={styles.statBlock}>
-                              <span
-                                style={styles.statLabel}
-                                title="킬 / 데스 / 어시스트"
-                              >
+                            {/* KDA */}
+                            <div
+                              style={styles.statBlock}
+                              onMouseEnter={() => setHoveredStat('kda')}
+                              onMouseLeave={() => setHoveredStat(null)}
+                            >
+                              <span style={styles.statLabel}>
                                 K / D / A
                               </span>
                               <span style={styles.statValue}>
@@ -1241,13 +1251,13 @@ function MatchHistoryPage() {
                               </span>
                             </div>
 
-                            <div style={styles.statBlock}>
-                              <span
-                                style={styles.statLabel}
-                                title="킬 / 데스 비율"
-                              >
-                                K/D
-                              </span>
+                            {/* KD */}
+                            <div
+                              style={styles.statBlock}
+                              onMouseEnter={() => setHoveredStat('kd')}
+                              onMouseLeave={() => setHoveredStat(null)}
+                            >
+                              <span style={styles.statLabel}>K/D</span>
                               <span
                                 style={{
                                   ...styles.statValue,
@@ -1258,37 +1268,37 @@ function MatchHistoryPage() {
                               </span>
                             </div>
 
-                            <div style={styles.statBlock}>
-                              <span
-                                style={styles.statLabel}
-                                title="Average Combat Score (라운드당 평균 전투 점수)"
-                              >
-                                ACS
-                              </span>
+                            {/* ACS */}
+                            <div
+                              style={styles.statBlock}
+                              onMouseEnter={() => setHoveredStat('acs')}
+                              onMouseLeave={() => setHoveredStat(null)}
+                            >
+                              <span style={styles.statLabel}>ACS</span>
                               <span style={styles.statValue}>
                                 {match.acs != null ? match.acs : '-'}
                               </span>
                             </div>
 
-                            <div style={styles.statBlock}>
-                              <span
-                                style={styles.statLabel}
-                                title="Average Damage per Round (라운드당 평균 피해량)"
-                              >
-                                ADR
-                              </span>
+                            {/* ADR */}
+                            <div
+                              style={styles.statBlock}
+                              onMouseEnter={() => setHoveredStat('adr')}
+                              onMouseLeave={() => setHoveredStat(null)}
+                            >
+                              <span style={styles.statLabel}>ADR</span>
                               <span style={styles.statValue}>
                                 {match.adr != null ? match.adr : '-'}
                               </span>
                             </div>
 
-                            <div style={styles.statBlock}>
-                              <span
-                                style={styles.statLabel}
-                                title="헤드샷 비율 (HeadShot Percentage)"
-                              >
-                                HS%
-                              </span>
+                            {/* HS% */}
+                            <div
+                              style={styles.statBlock}
+                              onMouseEnter={() => setHoveredStat('hs')}
+                              onMouseLeave={() => setHoveredStat(null)}
+                            >
+                              <span style={styles.statLabel}>HS%</span>
                               <span style={styles.statValue}>
                                 {match.hsPercent != null
                                   ? `${match.hsPercent}%`
@@ -1302,24 +1312,35 @@ function MatchHistoryPage() {
                   })}
                 </div>
 
-                {/* 전적 더보기 버튼 */}
-                {filteredMatches.length > visibleCount && (
-                  <div style={styles.loadMoreWrapper}>
-                    <button
-                      type="button"
-                      style={styles.loadMoreButton}
-                      onClick={() =>
-                        setVisibleCount((prev) => prev + 10)
+                {/* 전적 더보기 버튼 - 항상 노출 */}
+                <div style={styles.loadMoreWrapper}>
+                  <button
+                    type="button"
+                    style={{
+                      ...styles.loadMoreButton,
+                      opacity:
+                        filteredMatches.length > visibleCount ? 1 : 0.4,
+                      cursor:
+                        filteredMatches.length > visibleCount
+                          ? 'pointer'
+                          : 'default',
+                    }}
+                    disabled={filteredMatches.length <= visibleCount}
+                    onClick={() => {
+                      if (filteredMatches.length > visibleCount) {
+                        setVisibleCount((prev) => prev + 10);
                       }
-                    >
-                      전적 더 보기 (+10)
-                    </button>
-                    <div style={styles.loadMoreSubText}>
-                      최근 최대 100판까지 불러옵니다. (
-                      {visibleMatches.length}/{filteredMatches.length})
-                    </div>
+                    }}
+                  >
+                    {filteredMatches.length > visibleCount
+                      ? '전적 더 보기 (+10)'
+                      : '더 볼 전적이 없습니다'}
+                  </button>
+                  <div style={styles.loadMoreSubText}>
+                    최근 최대 100판까지 불러옵니다. (
+                    {visibleMatches.length}/{filteredMatches.length})
                   </div>
-                )}
+                </div>
               </>
             )}
           </>
@@ -1681,6 +1702,17 @@ const styles = {
     outline: 'none',
   },
 
+  // 스탯 설명 바
+  statTooltipBar: {
+    marginBottom: '8px',
+    padding: '8px 12px',
+    borderRadius: '8px',
+    backgroundColor: '#181818',
+    border: '1px solid #333',
+    fontSize: '12px',
+    color: '#ddd',
+  },
+
   matchList: {
     display: 'flex',
     flexDirection: 'column',
@@ -1688,7 +1720,7 @@ const styles = {
   },
   matchRowCard: {
     display: 'flex',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     backgroundColor: '#181818',
     padding: '14px 18px',
     borderRadius: '12px',
@@ -1762,7 +1794,8 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'flex-end',
     gap: '6px',
-    minWidth: '260px',
+    minWidth: '220px',
+    marginLeft: '48px',
   },
   matchMetaBox: {
     display: 'flex',
@@ -1782,7 +1815,7 @@ const styles = {
   statsRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '18px',
+    gap: '14px',
   },
   statBlock: {
     display: 'flex',
