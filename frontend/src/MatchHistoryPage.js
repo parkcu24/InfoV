@@ -15,6 +15,9 @@ function MatchHistoryPage() {
   const [hasToken, setHasToken] = useState(false);
   const [queueFilter, setQueueFilter] = useState('all');
 
+  // 🔥 새로 추가: 클릭된 경기(스코어보드 모달용)
+  const [selectedMatch, setSelectedMatch] = useState(null);
+
   // ⭐ 에이전트 이름을 파일명 규칙에 맞게 자동 변환하는 함수
   const getAgentImageSrc = (agent) => {
     const defaultSrc = '/agents/default.png';
@@ -214,6 +217,252 @@ function MatchHistoryPage() {
   };
 
   const filteredMatches = getFilteredMatches();
+
+  // 🔥 새로 추가: 경기 카드 클릭 시 스코어보드 모달 열기
+  const handleMatchClick = (match) => {
+    setSelectedMatch(match);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedMatch(null);
+  };
+
+  // 🔥 모달 내부에서 팀 분리
+  const getModalTeams = (match) => {
+    if (!match || !Array.isArray(match.players)) {
+      return { allies: [], enemies: [] };
+    }
+    const myTeam = match.myTeam || 'blue';
+    const enemyTeam = match.enemyTeam || (myTeam === 'blue' ? 'red' : 'blue');
+
+    const allies = match.players.filter((p) => p.team === myTeam);
+    const enemies = match.players.filter((p) => p.team === enemyTeam);
+
+    return { allies, enemies, myTeam, enemyTeam };
+  };
+
+  const renderScoreboardModal = () => {
+    if (!selectedMatch) return null;
+
+    const { allies, enemies } = getModalTeams(selectedMatch);
+
+    return (
+      <div style={styles.modalOverlay} onClick={handleCloseModal}>
+        <div
+          style={styles.modalContent}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* 모달 헤더 */}
+          <div style={styles.modalHeader}>
+            <div>
+              <div style={styles.modalTitleRow}>
+                <span style={styles.modalMapName}>
+                  {getMapName(selectedMatch)}
+                </span>
+                <span style={styles.modalQueueName}>
+                  · {getQueueName(selectedMatch)}
+                </span>
+              </div>
+              <div style={styles.modalSubText}>
+                {selectedMatch.timeAgo}
+              </div>
+            </div>
+
+            <div style={styles.modalScoreBox}>
+              <span style={styles.modalScoreText}>
+                {selectedMatch.teamScore ?? '-'} :{' '}
+                {selectedMatch.enemyScore ?? '-'}
+              </span>
+              {selectedMatch.win != null && (
+                <span
+                  style={{
+                    ...styles.modalResultBadge,
+                    backgroundColor: selectedMatch.win ? '#1b5e20' : '#b71c1c',
+                  }}
+                >
+                  {selectedMatch.win ? 'WIN' : 'LOSS'}
+                </span>
+              )}
+              <button
+                style={styles.modalCloseButton}
+                onClick={handleCloseModal}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {/* 두 팀 스코어보드 */}
+          <div style={styles.scoreboardWrapper}>
+            {/* 아군 팀 */}
+            <div style={styles.teamColumn}>
+              <div style={styles.teamHeader}>
+                <span style={styles.teamTitle}>우리 팀</span>
+              </div>
+              <div style={styles.tableHeaderRow}>
+                <span style={styles.thPlayer}>플레이어</span>
+                <span style={styles.thAgent}>요원</span>
+                <span style={styles.thStat}>K / D / A</span>
+                <span style={styles.thStat}>K/D</span>
+                <span style={styles.thStat}>ACS</span>
+                <span style={styles.thStat}>HS%</span>
+              </div>
+              {allies.map((p, idx) => {
+                const k = p.kills ?? 0;
+                const d = p.deaths ?? 0;
+                const a = p.assists ?? 0;
+                const kd = d > 0 ? (k / d).toFixed(2) : k;
+
+                const isSelf = !!p.isSelf;
+
+                return (
+                  <div
+                    key={`${p.puuid || p.name || 'ally'}-${idx}`}
+                    style={{
+                      ...styles.tableRow,
+                      backgroundColor: isSelf
+                        ? 'rgba(76, 175, 80, 0.12)'
+                        : 'transparent',
+                    }}
+                  >
+                    <span style={styles.tdPlayer}>
+                      <span style={styles.playerNameText}>
+                        {p.name}
+                      </span>
+                      {p.tag && (
+                        <span style={styles.playerTagText}>
+                          #{p.tag}
+                        </span>
+                      )}
+                    </span>
+                    <span style={styles.tdAgent}>
+                      <img
+                        src={
+                          p.agentIcon ||
+                          getAgentImageSrc(p.agent || null)
+                        }
+                        alt={p.agent || 'agent'}
+                        style={styles.modalAgentImg}
+                        onError={(e) => {
+                          if (
+                            e.currentTarget.dataset.errorHandled === '1'
+                          ) {
+                            e.currentTarget.style.display = 'none';
+                            return;
+                          }
+                          e.currentTarget.dataset.errorHandled = '1';
+                          e.currentTarget.src = '/agents/default.png';
+                        }}
+                      />
+                      <span style={styles.agentNameText}>
+                        {p.agent}
+                      </span>
+                    </span>
+                    <span style={styles.tdStat}>
+                      {k} / {d} / {a}
+                    </span>
+                    <span
+                      style={{
+                        ...styles.tdStat,
+                        color: kd >= 1 ? '#4CAF50' : '#F44336',
+                      }}
+                    >
+                      {kd}
+                    </span>
+                    <span style={styles.tdStat}>
+                      {p.acs != null ? p.acs : '-'}
+                    </span>
+                    <span style={styles.tdStat}>
+                      {p.hsPercent != null ? `${p.hsPercent}%` : '-'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 상대 팀 */}
+            <div style={styles.teamColumn}>
+              <div style={styles.teamHeader}>
+                <span style={styles.teamTitle}>상대 팀</span>
+              </div>
+              <div style={styles.tableHeaderRow}>
+                <span style={styles.thPlayer}>플레이어</span>
+                <span style={styles.thAgent}>요원</span>
+                <span style={styles.thStat}>K / D / A</span>
+                <span style={styles.thStat}>K/D</span>
+                <span style={styles.thStat}>ACS</span>
+                <span style={styles.thStat}>HS%</span>
+              </div>
+              {enemies.map((p, idx) => {
+                const k = p.kills ?? 0;
+                const d = p.deaths ?? 0;
+                const a = p.assists ?? 0;
+                const kd = d > 0 ? (k / d).toFixed(2) : k;
+
+                return (
+                  <div
+                    key={`${p.puuid || p.name || 'enemy'}-${idx}`}
+                    style={styles.tableRow}
+                  >
+                    <span style={styles.tdPlayer}>
+                      <span style={styles.playerNameText}>
+                        {p.name}
+                      </span>
+                      {p.tag && (
+                        <span style={styles.playerTagText}>
+                          #{p.tag}
+                        </span>
+                      )}
+                    </span>
+                    <span style={styles.tdAgent}>
+                      <img
+                        src={
+                          p.agentIcon ||
+                          getAgentImageSrc(p.agent || null)
+                        }
+                        alt={p.agent || 'agent'}
+                        style={styles.modalAgentImg}
+                        onError={(e) => {
+                          if (
+                            e.currentTarget.dataset.errorHandled === '1'
+                          ) {
+                            e.currentTarget.style.display = 'none';
+                            return;
+                          }
+                          e.currentTarget.dataset.errorHandled = '1';
+                          e.currentTarget.src = '/agents/default.png';
+                        }}
+                      />
+                      <span style={styles.agentNameText}>
+                        {p.agent}
+                      </span>
+                    </span>
+                    <span style={styles.tdStat}>
+                      {k} / {d} / {a}
+                    </span>
+                    <span
+                      style={{
+                        ...styles.tdStat,
+                        color: kd >= 1 ? '#4CAF50' : '#F44336',
+                      }}
+                    >
+                      {kd}
+                    </span>
+                    <span style={styles.tdStat}>
+                      {p.acs != null ? p.acs : '-'}
+                    </span>
+                    <span style={styles.tdStat}>
+                      {p.hsPercent != null ? `${p.hsPercent}%` : '-'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div style={styles.pageWrapper}>
@@ -438,7 +687,14 @@ function MatchHistoryPage() {
                       : false;
 
                   return (
-                    <div key={match.matchId} style={styles.matchRowCard}>
+                    <div
+                      key={match.matchId}
+                      style={{
+                        ...styles.matchRowCard,
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => handleMatchClick(match)}
+                    >
                       <div style={styles.matchLeft}>
                         <img
                           src={getAgentImageSrc(match.agent)}
@@ -514,7 +770,9 @@ function MatchHistoryPage() {
                         <div style={styles.statBlock}>
                           <span style={styles.statLabel}>HS%</span>
                           <span style={styles.statValue}>
-                            {match.hsPercent ? `${match.hsPercent}%` : '-'}
+                            {match.hsPercent != null
+                              ? `${match.hsPercent}%`
+                              : '-'}
                           </span>
                         </div>
                       </div>
@@ -526,6 +784,9 @@ function MatchHistoryPage() {
           </>
         )}
       </div>
+
+      {/* 🔥 경기 상세 스코어보드 모달 */}
+      {renderScoreboardModal()}
     </div>
   );
 }
@@ -607,7 +868,7 @@ const styles = {
     color: '#eee',
   },
 
-  /* 상단 프로필 카드를 좀 더 멋지게 */
+  /* 상단 프로필 카드 */
   profileCard: {
     backgroundColor: '#181818',
     padding: '20px 24px',
@@ -861,6 +1122,149 @@ const styles = {
     border: '1px solid #555',
     color: '#eee',
     cursor: 'pointer',
+  },
+
+  /* 🔥 모달 스타일 */
+  modalOverlay: {
+    position: 'fixed',
+    inset: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2000,
+  },
+  modalContent: {
+    width: '90%',
+    maxWidth: '1100px',
+    maxHeight: '80vh',
+    backgroundColor: '#161616',
+    borderRadius: '16px',
+    border: '1px solid #333',
+    padding: '18px 20px',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '12px',
+  },
+  modalTitleRow: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '6px',
+  },
+  modalMapName: {
+    fontSize: '18px',
+    fontWeight: 700,
+  },
+  modalQueueName: {
+    fontSize: '14px',
+    color: '#aaa',
+  },
+  modalSubText: {
+    marginTop: '4px',
+    fontSize: '12px',
+    color: '#888',
+  },
+  modalScoreBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  modalScoreText: {
+    fontSize: '18px',
+    fontWeight: 700,
+  },
+  modalResultBadge: {
+    fontSize: '12px',
+    padding: '4px 8px',
+    borderRadius: '999px',
+    color: '#fff',
+  },
+  modalCloseButton: {
+    marginLeft: '8px',
+    background: 'transparent',
+    border: 'none',
+    color: '#ccc',
+    fontSize: '18px',
+    cursor: 'pointer',
+  },
+
+  scoreboardWrapper: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '16px',
+    overflow: 'auto',
+    paddingTop: '4px',
+  },
+  teamColumn: {
+    backgroundColor: '#151515',
+    borderRadius: '12px',
+    border: '1px solid #303030',
+    padding: '10px',
+  },
+  teamHeader: {
+    marginBottom: '6px',
+  },
+  teamTitle: {
+    fontSize: '14px',
+    fontWeight: 600,
+  },
+  tableHeaderRow: {
+    display: 'grid',
+    gridTemplateColumns: '2fr 1.4fr 1.2fr 0.8fr 0.9fr 0.9fr',
+    fontSize: '11px',
+    color: '#999',
+    borderBottom: '1px solid #333',
+    paddingBottom: '4px',
+    marginBottom: '4px',
+  },
+  thPlayer: { textAlign: 'left' },
+  thAgent: { textAlign: 'left' },
+  thStat: { textAlign: 'right' },
+
+  tableRow: {
+    display: 'grid',
+    gridTemplateColumns: '2fr 1.4fr 1.2fr 0.8fr 0.9fr 0.9fr',
+    fontSize: '12px',
+    padding: '4px 0',
+    alignItems: 'center',
+  },
+  tdPlayer: {
+    textAlign: 'left',
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '4px',
+  },
+  tdAgent: {
+    textAlign: 'left',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+  },
+  tdStat: {
+    textAlign: 'right',
+  },
+  playerNameText: {
+    fontWeight: 500,
+  },
+  playerTagText: {
+    fontSize: '10px',
+    color: '#888',
+  },
+  modalAgentImg: {
+    width: '22px',
+    height: '22px',
+    borderRadius: '3px',
+    objectFit: 'cover',
+  },
+  agentNameText: {
+    fontSize: '11px',
+    color: '#ddd',
   },
 };
 

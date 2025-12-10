@@ -386,6 +386,11 @@ router.get('/stats', async (req, res) => {
 // 5️⃣ 최근 경기 정보 반환 (/api/auth/matches)
 //   - K/D/A, ACS, HS%, 스코어, 승패, 라운드 스코어 등
 // --------------------------------------------------
+// --------------------------------------------------
+// 5️⃣ 최근 경기 정보 반환 (/api/auth/matches)
+//   - K/D/A, ACS, HS%, 스코어, 승패, 라운드 스코어
+//   - + 전체 플레이어 리스트 (ally/enemy)
+// --------------------------------------------------
 router.get('/matches', async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -433,6 +438,16 @@ router.get('/matches', async (req, res) => {
     const region = resolveHenrikRegion(country, regionFromHenrik);
     const henrikPuuid = accountData?.puuid || null;
 
+    // 팀 문자열 정규화 헬퍼 (blue/red/attacking/defending 등)
+    const normalizeTeam = (raw) => {
+      const t = (raw || '').toLowerCase();
+      if (t === 'blue' || t === 'red') return t;
+      if (t === 'defense') return 'defending';
+      if (t === 'attack') return 'attacking';
+      if (t === 'defending' || t === 'attacking') return t;
+      return '';
+    };
+
     // 3) v4 matches
     const matchesUrl = `https://api.henrikdev.xyz/valorant/v4/matches/${region}/pc/${encodeURIComponent(
       accountData.name
@@ -450,23 +465,6 @@ router.get('/matches', async (req, res) => {
       '✅ [Henrik DEBUG] matches v4 응답 개수:',
       rawMatches.length
     );
-
-    if (rawMatches[0]) {
-      console.log(
-        '📌 [DEBUG] sample match metadata:',
-        JSON.stringify(rawMatches[0].metadata, null, 2)
-      );
-      console.log(
-        '📌 [DEBUG] sample match player[0] stats:',
-        JSON.stringify(
-          Array.isArray(rawMatches[0].players?.all)
-            ? rawMatches[0].players.all[0]?.stats
-            : rawMatches[0].players,
-          null,
-          2
-        )
-      );
-    }
 
     const mapped = rawMatches.map((m, idx) => {
       const meta = m.metadata || {};
@@ -520,92 +518,19 @@ router.get('/matches', async (req, res) => {
         selfPlayer = allPlayers[0];
       }
 
-      const rawStats = selfPlayer?.stats || {};
-      const coreStats = rawStats.core || rawStats; // v4 에서 core 안에 들어올 수 있음
+      const selfTeamIdRaw =
+        selfPlayer?.team || selfPlayer?.player_team || selfPlayer?.team_id || '';
+      const myTeamKey = normalizeTeam(selfTeamIdRaw);
 
-      // --- 기본 KDA ---
-      const kills =
-        coreStats.kills ??
-        rawStats.kills ??
-        0;
-      const deaths =
-        coreStats.deaths ??
-        rawStats.deaths ??
-        0;
-      const assists =
-        coreStats.assists ??
-        rawStats.assists ??
-        0;
-
-      const kdRaw = deaths > 0 ? kills / deaths : kills;
-      const kd = Number.isFinite(kdRaw) ? kdRaw : null;
-
-      // --- ACS (combat score) ---
-      let score =
-        coreStats.score ??
-        coreStats.average_score ??
-        coreStats.combat_score ??
-        rawStats.score ??
-        rawStats.average_score ??
-        rawStats.combat_score ??
-        null;
-
-      if (typeof score === 'string') {
-        const parsed = Number(score);
-        score = Number.isNaN(parsed) ? null : parsed;
-      }
-
-      // --- HS% ---
-      let headshots =
-        coreStats.headshots ??
-        rawStats.headshots ??
-        null;
-      let bodyshots =
-        coreStats.bodyshots ??
-        rawStats.bodyshots ??
-        null;
-      let legshots =
-        coreStats.legshots ??
-        rawStats.legshots ??
-        null;
-
-      const shots = coreStats.shots || rawStats.shots;
-      if (shots) {
-        if (headshots == null)
-          headshots = shots.head ?? shots.headshots ?? null;
-        if (bodyshots == null)
-          bodyshots = shots.body ?? shots.bodyshots ?? null;
-        if (legshots == null)
-          legshots = shots.leg ?? shots.legshots ?? null;
-      }
-
-      const totalShots =
-        (headshots || 0) + (bodyshots || 0) + (legshots || 0);
-      const hsPercent =
-        totalShots > 0
-          ? Math.round(((headshots || 0) / totalShots) * 100)
-          : null;
+      // 적 팀 키
+      let enemyTeamKey = null;
+      if (myTeamKey === 'blue') enemyTeamKey = 'red';
+      else if (myTeamKey === 'red') enemyTeamKey = 'blue';
+      else if (myTeamKey === 'defending') enemyTeamKey = 'attacking';
+      else if (myTeamKey === 'attacking') enemyTeamKey = 'defending';
 
       // --- 팀 정보 / 스코어 ---
       const teams = m.teams || {};
-      const teamIdRaw = (
-        selfPlayer?.team ||
-        selfPlayer?.player_team ||
-        selfPlayer?.team_id ||
-        ''
-      ).toLowerCase();
-
-      let myTeamKey = null;
-      if (teamIdRaw === 'blue' || teamIdRaw === 'red') {
-        myTeamKey = teamIdRaw;
-      } else if (teamIdRaw === 'defending' || teamIdRaw === 'defense') {
-        myTeamKey = 'defending';
-      } else if (teamIdRaw === 'attacking' || teamIdRaw === 'attack') {
-        myTeamKey = 'attacking';
-      } else {
-        myTeamKey = 'blue';
-      }
-
       let myTeam = teams[myTeamKey] || {};
       let enemyTeam = {};
 
@@ -655,13 +580,11 @@ router.get('/matches', async (req, res) => {
           else if (winTeam === 'red') redWins += 1;
         });
 
-        let colorKey = null;
-        if (teamIdRaw === 'blue' || teamIdRaw === 'red') {
-          colorKey = teamIdRaw;
-        } else if (teams.blue && myTeam === teams.blue) {
-          colorKey = 'blue';
-        } else if (teams.red && myTeam === teams.red) {
-          colorKey = 'red';
+        // 내 색깔 결정
+        let colorKey = myTeamKey;
+        if (!colorKey) {
+          if (teams.blue && myTeam === teams.blue) colorKey = 'blue';
+          else if (teams.red && myTeam === teams.red) colorKey = 'red';
         }
 
         if (colorKey === 'blue') {
@@ -681,13 +604,100 @@ router.get('/matches', async (req, res) => {
             ? roundsWon > roundsLost
             : null);
 
-      const assets = selfPlayer?.assets || {};
-      const agentAssets = assets.agent || {};
-      const agentName =
-        selfPlayer?.character ||
-        selfPlayer?.agent?.name ||
-        selfPlayer?.agent ||
-        'Unknown';
+      // --- 개별 플레이어 정보 매핑 (팀원/상대 모두) ---
+      const mapPlayerStats = (p) => {
+        const rawStats = p.stats || {};
+        const coreStats = rawStats.core || rawStats;
+
+        const kills = coreStats.kills ?? rawStats.kills ?? 0;
+        const deaths = coreStats.deaths ?? rawStats.deaths ?? 0;
+        const assists = coreStats.assists ?? rawStats.assists ?? 0;
+
+        const kdRaw = deaths > 0 ? kills / deaths : kills;
+        const kd = Number.isFinite(kdRaw) ? kdRaw : null;
+
+        let score =
+          coreStats.score ??
+          coreStats.average_score ??
+          coreStats.combat_score ??
+          rawStats.score ??
+          rawStats.average_score ??
+          rawStats.combat_score ??
+          null;
+
+        if (typeof score === 'string') {
+          const parsed = Number(score);
+          score = Number.isNaN(parsed) ? null : parsed;
+        }
+
+        let headshots =
+          coreStats.headshots ??
+          rawStats.headshots ??
+          null;
+        let bodyshots =
+          coreStats.bodyshots ??
+          rawStats.bodyshots ??
+          null;
+        let legshots =
+          coreStats.legshots ??
+          rawStats.legshots ??
+          null;
+
+        const shots = coreStats.shots || rawStats.shots;
+        if (shots) {
+          if (headshots == null)
+            headshots = shots.head ?? shots.headshots ?? null;
+          if (bodyshots == null)
+            bodyshots = shots.body ?? shots.bodyshots ?? null;
+          if (legshots == null)
+            legshots = shots.leg ?? shots.legshots ?? null;
+        }
+
+        const totalShots =
+          (headshots || 0) + (bodyshots || 0) + (legshots || 0);
+        const hsPercent =
+          totalShots > 0
+            ? Math.round(((headshots || 0) / totalShots) * 100)
+            : null;
+
+        const tKey = normalizeTeam(
+          p.team || p.player_team || p.team_id || ''
+        );
+
+        const assets = p.assets || {};
+        const agentAssets = assets.agent || {};
+        const agentName =
+          p.character ||
+          p.agent?.name ||
+          p.agent ||
+          'Unknown';
+
+        return {
+          name: p.name,
+          tag: p.tag,
+          puuid: p.puuid,
+          team: tKey,           // 'blue', 'red', 'defending', 'attacking' 등
+          isSelf: henrikPuuid && p.puuid === henrikPuuid,
+          agent: agentName,
+          agentIcon:
+            agentAssets.small ||
+            agentAssets.bust ||
+            agentAssets.full ||
+            null,
+          kills,
+          deaths,
+          assists,
+          kd,
+          acs: score,
+          adr: null,            // Henrik 쪽에 ADR 없으면 null
+          hsPercent,
+        };
+      };
+
+      const players = allPlayers.map(mapPlayerStats);
+
+      // --- 내 플레이 요약 (기존 카드용 정보) ---
+      const selfStats = mapPlayerStats(selfPlayer);
 
       return {
         matchId:
@@ -696,27 +706,27 @@ router.get('/matches', async (req, res) => {
         queue: meta.queue?.name || meta.mode || meta.queue || 'Mode',
         timeAgo: meta.started_at || meta.startedAt || '',
 
-        agent: agentName,
-        agentIcon:
-          agentAssets.small ||
-          agentAssets.bust ||
-          agentAssets.full ||
-          null,
-
+        // 카드 상단 요약용 (내 전적)
+        agent: selfStats.agent,
+        agentIcon: selfStats.agentIcon,
         teamScore: roundsWon,
         enemyScore: roundsLost,
         rankTier: selfPlayer?.currenttier_patched || null,
         rr: null,
-
-        kills,
-        deaths,
-        assists,
-        kd,
-        acs: score,
-        adr: null,      // ADR 없어서 일단 null
-        hsPercent,
+        kills: selfStats.kills,
+        deaths: selfStats.deaths,
+        assists: selfStats.assists,
+        kd: selfStats.kd,
+        acs: selfStats.acs,
+        adr: selfStats.adr,
+        hsPercent: selfStats.hsPercent,
         win: hasWon,
         placement: null,
+
+        // 🔥 새로 추가된 필드들
+        myTeam: myTeamKey,
+        enemyTeam: enemyTeamKey,
+        players,    // 전체 플레이어 리스트 (팀원 + 상대)
       };
     });
 
@@ -738,5 +748,6 @@ router.get('/matches', async (req, res) => {
     });
   }
 });
+
 
 module.exports = router;
