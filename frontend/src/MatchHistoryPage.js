@@ -40,6 +40,40 @@ function tierNameToNumber(tierName) {
   return TIER_NAME_MAP[key] || null;
 }
 
+// ⭐ 영어 티어 이름 → 한국어 변환
+function toKoreanTierName(tierName) {
+  if (!tierName || typeof tierName !== 'string') return tierName;
+
+  const raw = tierName.trim();
+  const lower = raw.toLowerCase();
+
+  // 예: "Iron 3", "diamond2", "ASCENDANT 1" 등
+  const match = lower.match(
+    /(iron|bronze|silver|gold|platinum|diamond|ascendant|immortal|radiant)\s*(\d)?/
+  );
+
+  if (!match) return tierName; // 예외적인 포맷은 원문 그대로
+
+  const baseEn = match[1];
+  const num = match[2] || '';
+
+  const baseKoMap = {
+    iron: '아이언',
+    bronze: '브론즈',
+    silver: '실버',
+    gold: '골드',
+    platinum: '플래티넘',
+    diamond: '다이아몬드',
+    ascendant: '초월자', // 요청대로 초월자
+    immortal: '불멸',
+    radiant: '레디언트',
+  };
+
+  const baseKo = baseKoMap[baseEn] || baseEn;
+
+  return num ? `${baseKo} ${num}` : baseKo;
+}
+
 // 🔹 티어 변화 라인 그래프 컴포넌트
 function TierChart({ data }) {
   if (!data || data.length === 0) return null;
@@ -84,9 +118,10 @@ function TierChart({ data }) {
               ? item.season.slice(-8)
               : item.season
             : `S${idx + 1}`;
+
         const tierLabel =
           typeof item.tier === 'string'
-            ? item.tier.replace('Radiant', 'Rad')
+            ? toKoreanTierName(item.tier)
             : '';
 
         return (
@@ -518,7 +553,11 @@ function MatchHistoryPage() {
                       {p.tierNumber || p.tierName ? (
                         <img
                           src={getTierImageSrc(p.tierNumber, p.tierName)}
-                          alt={p.tierName || 'tier'}
+                          alt={
+                            p.tierName
+                              ? toKoreanTierName(p.tierName)
+                              : '티어'
+                          }
                           style={styles.tierIcon}
                           onError={(e) => {
                             e.currentTarget.style.display = 'none';
@@ -607,7 +646,11 @@ function MatchHistoryPage() {
                       {p.tierNumber || p.tierName ? (
                         <img
                           src={getTierImageSrc(p.tierNumber, p.tierName)}
-                          alt={p.tierName || 'tier'}
+                          alt={
+                            p.tierName
+                              ? toKoreanTierName(p.tierName)
+                              : '티어'
+                          }
                           style={styles.tierIcon}
                           onError={(e) => {
                             e.currentTarget.style.display = 'none';
@@ -779,7 +822,7 @@ function MatchHistoryPage() {
                         <div style={styles.tierRow}>
                           <span style={styles.tierText}>
                             {summary.currentTier
-                              ? summary.currentTier
+                              ? toKoreanTierName(summary.currentTier)
                               : '티어 정보 없음'}
                           </span>
                           {typeof summary.rr === 'number' && (
@@ -1258,7 +1301,7 @@ const styles = {
   matchesHeaderRow: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'spaceBetween',
+    justifyContent: 'space-between',
     marginTop: '8px',
     marginBottom: '8px',
   },
