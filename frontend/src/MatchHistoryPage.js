@@ -36,24 +36,27 @@ const TIER_NAME_MAP = {
 
 // 🎲 오늘의 발로란트 운세 문구들
 const FORTUNES = [
+  '사격장으로 손을 풀고 게임하러 가요 !',
+  '오퍼레이터를 굴려보는건 어때요?',
   '메인 피킹을 나오는 오퍼레이터를 조심하세요!',
-  '설치 후 나오는 적들의 리테이크 타이밍을 조심하세요!',
+  '설치할 때 나오는 적군을 조심하세요!',
   '요동봇에 물리지 않게 조심하세요!',
   '오늘은 벤달을 써보는 건 어때요?',
   '오늘은 팬텀을 써보는 건 어때요?',
-  '스카이 뺑을 조심하세요!',
+  '상대팀 브리치가 있다면 삥을 생각하고 게임해봐요!',
+  '적군 스카이 뺑을 조심하세요!',
   '아군 피닉스 삥을 조심하세요!',
   '오늘은 내 촉이 다 맞을 것 같은데요?',
-  '수류탄 각을 다시 한 번 생각해 보세요.',
+  '수류탄 각을 다시 한 번 체크해봐요!',
   '무리한 푸시는 한 번만 참아보는 건 어떨까요?',
   '첫 라운드 피스톨전에서 너무 앞서 나가지 마세요.',
-  '오늘은 센티넬 요원을 한 번 해보는 건 어때요?',
-  '엔트리 대신 팀원을 믿고 2번째로 따라가 보세요.',
-  '적 소바의 화살 각을 조심하세요!',
+  '오늘은 감시자 요원을 한 번 해보는 건 어때요?',
+  '엔트리 팀원을 믿고 사이트를 같이 들어가봐요!',
+  '적 소바의 각화살을 조심하세요!',
   '적 킬조이의 터렛 위치를 자주 확인해 보세요.',
   '오늘은 스킬보다는 에임을 믿어 보세요.',
   '너무 돈 아끼지 말고, 살 땐 과감하게 사보세요!',
-  '에코 라운드라고 포기하지 말고 끝까지 해보세요.',
+  '이코 라운드라고 포기하지 말고 끝까지 해보세요.',
   '오늘은 오퍼레이터보단 라이플이 더 잘 맞을지도 몰라요.',
   '클러치 상황에서 너무 많은 각을 동시에 보지 마세요.',
   '사이트에 들어갈 때 유틸부터 던지고 들어가 보세요.',
@@ -62,7 +65,7 @@ const FORTUNES = [
   '아군 듀얼리스트의 템포를 한 번 맞춰 봐도 좋아요.',
   '오늘은 평소에 안 하던 요원을 도전해 보세요!',
   '연속으로 지고 있다면, 한 판만 숨고르기 하면서 천천히 해보세요.',
-  '적 팀의 OP 위치를 초반에 체크해 보세요.',
+  '적 팀의 오퍼레이터 위치를 초반에 체크해 보세요.',
   '라운드 시작 전에 팀과 라운드 플랜을 한마디라도 나눠 보세요.',
   '오늘은 스프레이보다는 점사에 더 힘을 실어보세요.',
 ];
@@ -100,6 +103,76 @@ function toKoreanTierName(tierName) {
 
   const baseKo = baseKoMap[baseEn] || baseEn;
   return num ? `${baseKo} ${num}` : baseKo;
+}
+
+// ⭐ 맵 이름 영어 → 한글 변환
+function getKoreanMapName(raw) {
+  if (!raw || typeof raw !== 'string') return raw || 'Unknown Map';
+
+  const name = raw.trim();
+
+  // 혹시 "/Game/Maps/Ascent/Ascent" 같은 형태라면 마지막 토큰만 추출
+  const lastToken = name.split('/').pop();
+  const lower = lastToken.toLowerCase();
+
+  switch (lower) {
+    case 'ascent':
+      return '어센트';
+    case 'bind':
+      return '바인드';
+    case 'haven':
+      return '헤이븐';
+    case 'split':
+      return '스플릿';
+    case 'icebox':
+      return '아이스박스';
+    case 'breeze':
+      return '브리즈';
+    case 'fracture':
+      return '프랙처';
+    case 'pearl':
+      return '펄';
+    case 'lotus':
+      return '로터스';
+    case 'sunset':
+      return '선셋';
+    case 'abyss':
+      return '어비스';
+    case 'district':
+      return '디스트릭트';
+    case 'kasbah':
+      return '카스바';
+    case 'pitt':
+      return '피트';
+    default:
+      return name;
+  }
+}
+
+// ⭐ 경기 날짜 + timeAgo 정보 추출
+function getMatchDateParts(match) {
+  const dateStr =
+    match.gameStartTime ||
+    match.gameStartAt ||
+    match.startedAt ||
+    match.startTime ||
+    match.start_at ||
+    null;
+
+  let dateText = null;
+  if (dateStr) {
+    const d = new Date(dateStr);
+    if (!Number.isNaN(d.getTime())) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      dateText = `${y}-${m}-${day}`;
+    }
+  }
+
+  const timeAgoText = match.timeAgo || null;
+
+  return { dateText, timeAgoText };
 }
 
 // 🔹 티어 변화 라인 그래프 컴포넌트
@@ -140,10 +213,8 @@ function TierChart({ data }) {
       {/* 점 + 시즌 텍스트 */}
       {points.map((p, idx) => {
         const item = data[idx];
-        // 👉 전체 문구 그대로 사용 (에피소드10 엑트1 등)
         const seasonLabel =
           typeof item.season === 'string' ? item.season : `S${idx + 1}`;
-
         const tierLabel =
           typeof item.tier === 'string' ? toKoreanTierName(item.tier) : '';
 
@@ -482,8 +553,8 @@ function MatchHistoryPage() {
   const getMapName = (match) => {
     const m = match.map;
     if (!m) return 'Unknown Map';
-    if (typeof m === 'string') return m;
-    if (m.name) return m.name;
+    if (typeof m === 'string') return getKoreanMapName(m);
+    if (m.name) return getKoreanMapName(m.name);
     return 'Unknown Map';
   };
 
@@ -1095,15 +1166,52 @@ function MatchHistoryPage() {
                       ? match.teamScore > match.enemyScore
                       : false;
 
+                  // ✅ ADR / KAST 처리
+                  const rawAdr =
+                    match.adr ??
+                    match.avgDamagePerRound ??
+                    match.damagePerRound ??
+                    null;
+                  const adr =
+                    rawAdr !== null && rawAdr !== undefined
+                      ? Math.round(rawAdr)
+                      : null;
+
+                  const rawKast = match.kast ?? match.kastPercent ?? null;
+                  const kast =
+                    rawKast !== null && rawKast !== undefined
+                      ? rawKast
+                      : null;
+
+                  const { dateText, timeAgoText } = getMatchDateParts(match);
+
                   return (
                     <div
                       key={match.matchId}
                       style={{
                         ...styles.matchRowCard,
                         cursor: 'pointer',
+                        background:
+                          isWin
+                            ? 'linear-gradient(135deg, rgba(13,71,161,0.55), rgba(13,71,161,0.2))'
+                            : 'linear-gradient(135deg, rgba(183,28,28,0.55), rgba(183,28,28,0.2))',
+                        borderColor: isWin ? '#1565c0' : '#b71c1c',
                       }}
                       onClick={() => handleMatchClick(match)}
                     >
+                      {/* 왼쪽 승/패 스트립 */}
+                      <div
+                        style={{
+                          ...styles.resultStrip,
+                          backgroundColor: isWin
+                            ? 'rgba(25,118,210,0.9)'
+                            : 'rgba(211,47,47,0.9)',
+                          borderColor: isWin ? '#82b1ff' : '#ef9a9a',
+                        }}
+                      >
+                        {isWin ? '승리' : '패배'}
+                      </div>
+
                       <div style={styles.matchLeft}>
                         <img
                           src={getAgentImageSrc(match.agent)}
@@ -1124,18 +1232,11 @@ function MatchHistoryPage() {
                             {getMapName(match)}
                           </div>
                           <div style={styles.queueText}>
-                            {getQueueName(match)} · {match.timeAgo}
+                            {getQueueName(match)}
                           </div>
 
                           <div style={styles.scoreBox}>
-                            <span
-                              style={{
-                                ...styles.scoreText,
-                                color: isWin ? '#4CAF50' : '#F44336',
-                              }}
-                            >
-                              {scoreText}
-                            </span>
+                            <span style={styles.scoreText}>{scoreText}</span>
                           </div>
                         </div>
                       </div>
@@ -1153,7 +1254,7 @@ function MatchHistoryPage() {
                           <span
                             style={{
                               ...styles.statValue,
-                              color: kd >= 1 ? '#4CAF50' : '#F44336',
+                              color: kd >= 1 ? '#c5e1a5' : '#ffcdd2',
                             }}
                           >
                             {kd}
@@ -1167,12 +1268,25 @@ function MatchHistoryPage() {
                           </span>
                         </div>
 
-                        <div style={styles.statBlock}>
-                          <span style={styles.statLabel}>ADR</span>
-                          <span style={styles.statValue}>
-                            {match.adr ?? '-'}
-                          </span>
-                        </div>
+                        {/* ✅ ADR: 값이 있을 때만 표시 */}
+                        {adr !== null && (
+                          <div style={styles.statBlock}>
+                            <span style={styles.statLabel}>ADR</span>
+                            <span style={styles.statValue}>{adr}</span>
+                          </div>
+                        )}
+
+                        {/* ✅ KAST: 값이 있을 때만 표시 */}
+                        {kast !== null && (
+                          <div style={styles.statBlock}>
+                            <span style={styles.statLabel}>KAST</span>
+                            <span style={styles.statValue}>
+                              {typeof kast === 'number'
+                                ? `${kast}%`
+                                : kast}
+                            </span>
+                          </div>
+                        )}
 
                         <div style={styles.statBlock}>
                           <span style={styles.statLabel}>HS%</span>
@@ -1182,6 +1296,22 @@ function MatchHistoryPage() {
                               : '-'}
                           </span>
                         </div>
+
+                        {/* 날짜 + timeAgo 블록 */}
+                        {(dateText || timeAgoText) && (
+                          <div style={styles.timeBlock}>
+                            {dateText && (
+                              <span style={styles.timeDateText}>
+                                {dateText}
+                              </span>
+                            )}
+                            {timeAgoText && (
+                              <span style={styles.timeAgoText}>
+                                {timeAgoText}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -1231,8 +1361,6 @@ function MatchHistoryPage() {
                 {FORTUNES[fortuneIndex]}
               </div>
             )}
-
-            {/* ✅ 다시 뽑기 버튼 제거됨 */}
           </div>
         </div>
       )}
@@ -1499,12 +1627,12 @@ const styles = {
     gap: '4px',
   },
   fortuneInlineLabel: {
-    fontSize: '13px',
+    fontSize: '14px',
     fontWeight: 600,
     color: '#ffeb3b',
   },
   fortuneInlineText: {
-    fontSize: '13px',
+    fontSize: '14px',
     color: '#eee',
   },
 
@@ -1551,11 +1679,27 @@ const styles = {
     borderRadius: '12px',
     border: '1px solid #303030',
     alignItems: 'center',
+    gap: '14px',
+  },
+  resultStrip: {
+    minWidth: '60px',
+    padding: '8px 10px',
+    borderRadius: '10px',
+    border: '1px solid transparent',
+    fontSize: '16px',
+    fontWeight: 700,
+    textAlign: 'center',
+    color: '#fff',
+    alignSelf: 'stretch',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   matchLeft: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
+    flex: 1,
   },
   agentImage: {
     width: '48px',
@@ -1574,20 +1718,23 @@ const styles = {
   },
   queueText: {
     fontSize: '12px',
-    color: '#999',
+    color: '#ddd',
   },
   scoreBox: {
     marginTop: '2px',
   },
   scoreText: {
     fontSize: '14px',
-    fontWeight: '600',
+    fontWeight: '700',
   },
 
   statsRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '18px',
+    gap: '16px',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    minWidth: '340px',
   },
   statBlock: {
     display: 'flex',
@@ -1597,11 +1744,26 @@ const styles = {
   },
   statLabel: {
     fontSize: '11px',
-    color: '#777',
+    color: '#ddd',
   },
   statValue: {
     fontSize: '13px',
     color: '#fff',
+  },
+
+  timeBlock: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    minWidth: '80px',
+  },
+  timeDateText: {
+    fontSize: '11px',
+    color: '#e0e0e0',
+  },
+  timeAgoText: {
+    fontSize: '11px',
+    color: '#b0bec5',
   },
 
   loginButton: {
@@ -1836,7 +1998,7 @@ const styles = {
   },
   fortuneResultText: {
     marginTop: '6px',
-    fontSize: '14px',
+    fontSize: '16px',
     fontWeight: 600,
     textAlign: 'center',
     color: '#ffeb3b',
