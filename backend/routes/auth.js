@@ -291,9 +291,15 @@ router.get('/stats', async (req, res) => {
     // ------------------------------------------------
     // 시즌별 최고 티어 찾기 (peak tier)
     // ------------------------------------------------
+        // ------------------------------------------------
+    // 시즌별 최고 티어 찾기 (peak tier)
+    //   - 1순위: end_tier.id / end_tier.name
+    //   - 2순위: act_wins 배열에서 id가 가장 높은 티어
+    //   - 3순위: 기존 generic 필드들 (tiers, ranks, rank_history 등)
+    // ------------------------------------------------
     const seasonHistory = seasonalDesc
       .map((s) => {
-        // 시즌 이름/코드
+        // 1) 시즌 이름/코드
         let seasonName =
           (s.season && typeof s.season === 'object'
             ? s.season.short || s.season.id
@@ -305,33 +311,58 @@ router.get('/stats', async (req, res) => {
 
         if (!seasonName) return null;
 
-        // 후보가 될 수 있는 배열 타입들: tiers, ranks, rank_history 등
-        const tierCandidates = [];
-        const possibleArrays = [
-          s.tiers,
-          s.ranks,
-          s.rank_history,
-          s.rankHistory,
-          s.highest_rank,
-          s.peak_rank,
-        ];
+        let peakId = null;
+        let peakName = null;
 
-        possibleArrays.forEach((arr) => {
-          if (Array.isArray(arr)) tierCandidates.push(...arr);
-        });
+        // 2) end_tier 우선 사용
+        if (s.end_tier && typeof s.end_tier === 'object') {
+          if (typeof s.end_tier.id === 'number') peakId = s.end_tier.id;
+          if (typeof s.end_tier.name === 'string') peakName = s.end_tier.name;
+        }
 
-        // id가 가장 높은 티어 선택
-        let peakTier = null;
-        tierCandidates.forEach((t) => {
-          if (!t || typeof t.id !== 'number') return;
-          if (!peakTier || t.id > peakTier.id) peakTier = t;
-        });
+        // 3) end_tier가 없으면 act_wins 배열에서 최고 티어 찾기
+        if ((!peakId || !peakName) && Array.isArray(s.act_wins)) {
+          s.act_wins.forEach((t) => {
+            if (!t || typeof t.id !== 'number') return;
+            if (peakId == null || t.id > peakId) {
+              peakId = t.id;
+              peakName = t.name || peakName;
+            }
+          });
+        }
 
-        let tierName = peakTier?.name || null;
+        // 4) 그래도 없으면 기존 candidate 배열들(tiers, ranks, rank_history...) 활용
+        if (!peakId && !peakName) {
+          const tierCandidates = [];
+          const possibleArrays = [
+            s.tiers,
+            s.ranks,
+            s.rank_history,
+            s.rankHistory,
+            s.highest_rank,
+            s.peak_rank,
+          ];
 
-        // fallback: patched / rank / tier 등
-        if (!tierName) {
-          tierName =
+          possibleArrays.forEach((arr) => {
+            if (Array.isArray(arr)) tierCandidates.push(...arr);
+          });
+
+          let tmpPeak = null;
+          tierCandidates.forEach((t) => {
+            if (!t || typeof t.id !== 'number') return;
+            if (!tmpPeak || t.id > tmpPeak.id) tmpPeak = t;
+          });
+
+          if (tmpPeak) {
+            peakId = tmpPeak.id;
+            peakName = tmpPeak.name || peakName;
+          }
+        }
+
+        // 5) 여전히 이름이 없으면 patched 문자열 등으로 보조
+        if (!peakName) {
+          peakName =
+            s.end_tier?.name ||
             s.final_rank_patched ||
             s.final_tier_patched ||
             s.finaltier_patched ||
@@ -345,9 +376,11 @@ router.get('/stats', async (req, res) => {
             null;
         }
 
+        if (!peakName) return null;
+
         return {
           season: seasonName,
-          tier: tierName,
+          tier: peakName,
         };
       })
       .filter(Boolean);

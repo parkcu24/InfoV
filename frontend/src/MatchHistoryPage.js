@@ -847,7 +847,7 @@ function MatchHistoryPage() {
                   {/* 🔥 티어 그래프 (토글) */}
                   {showTierChart && (
                     <div style={styles.tierChartCard}>
-                      {tierChartData.length >= 2 ? (
+                      {tierChartData.length > 0 ? (
                         <TierChart data={tierChartData} />
                       ) : (
                         <div style={styles.tierChartEmptyText}>
