@@ -37,7 +37,7 @@ const TIER_NAME_MAP = {
 // 🎲 오늘의 발로란트 운세 문구들
 const FORTUNES = [
   '메인 피킹을 나오는 오퍼레이터를 조심하세요!',
-  '설치 할 떄 나오는 적들을 조심하세요!',
+  '설치 후 나오는 적들의 리테이크 타이밍을 조심하세요!',
   '요동봇에 물리지 않게 조심하세요!',
   '오늘은 벤달을 써보는 건 어때요?',
   '오늘은 팬텀을 써보는 건 어때요?',
@@ -47,22 +47,22 @@ const FORTUNES = [
   '수류탄 각을 다시 한 번 생각해 보세요.',
   '무리한 푸시는 한 번만 참아보는 건 어떨까요?',
   '첫 라운드 피스톨전에서 너무 앞서 나가지 마세요.',
-  '오늘은 감시자 요원을 한 번 해보는 건 어때요?',
-  '엔트리 팀원을 믿고 같이 따라가 보세요.',
-  '적 소바의 각화살을 조심하세요!',
+  '오늘은 센티넬 요원을 한 번 해보는 건 어때요?',
+  '엔트리 대신 팀원을 믿고 2번째로 따라가 보세요.',
+  '적 소바의 화살 각을 조심하세요!',
   '적 킬조이의 터렛 위치를 자주 확인해 보세요.',
   '오늘은 스킬보다는 에임을 믿어 보세요.',
   '너무 돈 아끼지 말고, 살 땐 과감하게 사보세요!',
-  '이코 라운드라고 포기하지 말고 끝까지 해보세요.',
+  '에코 라운드라고 포기하지 말고 끝까지 해보세요.',
   '오늘은 오퍼레이터보단 라이플이 더 잘 맞을지도 몰라요.',
   '클러치 상황에서 너무 많은 각을 동시에 보지 마세요.',
   '사이트에 들어갈 때 유틸부터 던지고 들어가 보세요.',
   '적이 자주 나오는 각에 크로스헤어를 미리 두어 보세요.',
   '백업을 너무 늦게 가지 않도록 미니맵을 자주 보세요.',
-  '아군 엔트리들의 템포를 한 번 맞춰 봐도 좋아요.',
+  '아군 듀얼리스트의 템포를 한 번 맞춰 봐도 좋아요.',
   '오늘은 평소에 안 하던 요원을 도전해 보세요!',
   '연속으로 지고 있다면, 한 판만 숨고르기 하면서 천천히 해보세요.',
-  '적 팀의 오퍼레이터 위치를 초반에 체크해 보세요.',
+  '적 팀의 OP 위치를 초반에 체크해 보세요.',
   '라운드 시작 전에 팀과 라운드 플랜을 한마디라도 나눠 보세요.',
   '오늘은 스프레이보다는 점사에 더 힘을 실어보세요.',
 ];
@@ -77,15 +77,11 @@ function tierNameToNumber(tierName) {
 function toKoreanTierName(tierName) {
   if (!tierName || typeof tierName !== 'string') return tierName;
 
-  const raw = tierName.trim();
-  const lower = raw.toLowerCase();
-
-  // 예: "Iron 3", "diamond2", "ASCENDANT 1" 등
+  const lower = tierName.trim().toLowerCase();
   const match = lower.match(
     /(iron|bronze|silver|gold|platinum|diamond|ascendant|immortal|radiant)\s*(\d)?/
   );
-
-  if (!match) return tierName; // 예외적인 포맷은 원문 그대로
+  if (!match) return tierName;
 
   const baseEn = match[1];
   const num = match[2] || '';
@@ -97,13 +93,12 @@ function toKoreanTierName(tierName) {
     gold: '골드',
     platinum: '플래티넘',
     diamond: '다이아몬드',
-    ascendant: '초월자', // 요청대로 초월자
+    ascendant: '초월자',
     immortal: '불멸',
     radiant: '레디언트',
   };
 
   const baseKo = baseKoMap[baseEn] || baseEn;
-
   return num ? `${baseKo} ${num}` : baseKo;
 }
 
@@ -127,7 +122,7 @@ function TierChart({ data }) {
     const x = paddingX + idx * widthPerPoint;
     const norm = (d.value - minVal) / range; // 0~1
     const y =
-      height - paddingY - norm * (height - paddingY * 2); // 위가 높은 티어
+      height - paddingY - norm * (height - paddingY * 2); // 위로 갈수록 높은 티어
     return { x, y };
   });
 
@@ -145,12 +140,9 @@ function TierChart({ data }) {
       {/* 점 + 시즌 텍스트 */}
       {points.map((p, idx) => {
         const item = data[idx];
+        // 👉 전체 문구 그대로 사용 (에피소드10 엑트1 등)
         const seasonLabel =
-          typeof item.season === 'string'
-            ? item.season.length > 8
-              ? item.season.slice(-8)
-              : item.season
-            : `S${idx + 1}`;
+          typeof item.season === 'string' ? item.season : `S${idx + 1}`;
 
         const tierLabel =
           typeof item.tier === 'string' ? toKoreanTierName(item.tier) : '';
@@ -205,7 +197,7 @@ function MatchHistoryPage() {
   const [showFortuneOverlay, setShowFortuneOverlay] = useState(false);
   const [fortuneIndex, setFortuneIndex] = useState(0);
   const [isFortuneRolling, setIsFortuneRolling] = useState(false);
-  const [latestFortuneText, setLatestFortuneText] = useState(null);
+  const [latestFortuneText, setLatestFortuneText] = useState(null); // ✅ 한 번 뽑힌 운세 저장
 
   const fortuneIntervalRef = useRef(null);
   const fortuneStopTimeoutRef = useRef(null);
@@ -243,16 +235,15 @@ function MatchHistoryPage() {
     if (!tierNumber && !tierName) return null;
 
     let num = tierNumber;
-
     if (!num && tierName) {
       num = tierNameToNumber(tierName);
     }
 
     if (!num) return null;
-    return `/tiers/${num}.png`; // public/tiers/3.png 이런 식
+    return `/tiers/${num}.png`;
   };
 
-  // ⭐ 플레이어 카드 이미지 (현재는 기본값만 사용)
+  // ⭐ 플레이어 카드 이미지
   const getPlayerCardSrc = () => {
     if (summary && summary.playerCardUrl) {
       return summary.playerCardUrl;
@@ -260,7 +251,7 @@ function MatchHistoryPage() {
     return '/playercards/default.png';
   };
 
-  // ⭐ 큐 이름을 영어 키로 정규화 (필터용)
+  // ⭐ 큐 이름을 영어 키로 정규화
   const normalizeQueueKey = (q) => {
     if (!q) return 'other';
     const s = String(q).toLowerCase();
@@ -272,7 +263,6 @@ function MatchHistoryPage() {
     if (s.includes('deathmatch') && s.includes('team')) return 'team_deathmatch';
     if (s.includes('deathmatch')) return 'deathmatch';
     if (s.includes('escalation')) return 'escalation';
-    if (s.includes('swiftplay')) return 'swiftplay';
     if (s.includes('snowball') || s.includes('sheep')) return 'snowball';
     if (s.includes('custom')) return 'custom';
     if (s.includes('brawl') || s.includes('mayhem') || s.includes('swiftpush'))
@@ -313,7 +303,6 @@ function MatchHistoryPage() {
   // ⭐ 필터에 맞는 전적만 추리기
   const getFilteredMatches = () => {
     if (queueFilter === 'all') return matches;
-
     return matches.filter((m) => {
       const key = normalizeQueueKey(m.queue || m.mode);
       return key === queueFilter;
@@ -349,7 +338,6 @@ function MatchHistoryPage() {
         }
 
         const profileData = await profileRes.json();
-        console.log('[DEBUG] profileData:', profileData);
         setProfile(profileData);
 
         // 2) Henrik 요약 스탯
@@ -360,7 +348,6 @@ function MatchHistoryPage() {
 
           if (statsRes.ok) {
             const statsData = await statsRes.json();
-            console.log('[DEBUG] statsData:', statsData);
             setSummary(statsData);
           }
         } catch (e) {
@@ -379,8 +366,6 @@ function MatchHistoryPage() {
         }
 
         const matchesData = await matchesRes.json();
-        console.log('[DEBUG] matchesData:', matchesData);
-
         setMatches(
           Array.isArray(matchesData) ? matchesData : matchesData.matches || []
         );
@@ -395,14 +380,12 @@ function MatchHistoryPage() {
     fetchData();
   }, []);
 
-  // 🎰 룰렛 시작
+  // 🎰 룰렛 시작 (✅ 한 번 뽑힌 후에는 다시 돌지 않도록 latestFortuneText 체크)
   const startFortuneRolling = () => {
-    // 이미 돌고 있으면 무시
-    if (isFortuneRolling) return;
+    if (isFortuneRolling || latestFortuneText) return;
 
     setIsFortuneRolling(true);
 
-    // 기존 인터벌/타임아웃 정리
     if (fortuneIntervalRef.current) {
       clearInterval(fortuneIntervalRef.current);
       fortuneIntervalRef.current = null;
@@ -412,12 +395,12 @@ function MatchHistoryPage() {
       fortuneStopTimeoutRef.current = null;
     }
 
-    // 빠르게 인덱스 변경 (위에서 아래로 쭉 내려가는 느낌)
+    // ⏩ 속도 살짝 빠르게 (기존 80ms → 50ms)
     fortuneIntervalRef.current = setInterval(() => {
       setFortuneIndex((prev) => (prev + 1) % FORTUNES.length);
-    }, 80); // 0.08초마다 한 줄씩 내려가는 느낌
+    }, 50);
 
-    // 일정 시간 후 자동으로 멈추면서 랜덤으로 확정
+    // ⏱ 도는 시간도 약간 줄이기 (기존 2200ms → 1600ms)
     fortuneStopTimeoutRef.current = setTimeout(() => {
       if (fortuneIntervalRef.current) {
         clearInterval(fortuneIntervalRef.current);
@@ -425,16 +408,36 @@ function MatchHistoryPage() {
       }
       setIsFortuneRolling(false);
 
-      // 최종 문장 랜덤 선택
       const finalIndex = Math.floor(Math.random() * FORTUNES.length);
       setFortuneIndex(finalIndex);
-      setLatestFortuneText(FORTUNES[finalIndex]);
-    }, 2200); // 약 2.2초 돌고 멈춤
+      setLatestFortuneText(FORTUNES[finalIndex]); // ✅ 한 번 나온 운세 저장
+    }, 1600);
   };
 
-  // 🎰 모달 열기 (열면서 자동으로 룰렛 시작)
+  // 🎰 모달 열기
   const openFortuneOverlay = () => {
     setShowFortuneOverlay(true);
+
+    // ✅ 이미 한 번 운세를 뽑았다면: 다시 굴리지 않고, 그 결과만 보여준다
+    if (latestFortuneText) {
+      const idx = FORTUNES.indexOf(latestFortuneText);
+      if (idx >= 0) {
+        setFortuneIndex(idx);
+      }
+      setIsFortuneRolling(false);
+      // 기존 인터벌/타임아웃 안전하게 정리
+      if (fortuneIntervalRef.current) {
+        clearInterval(fortuneIntervalRef.current);
+        fortuneIntervalRef.current = null;
+      }
+      if (fortuneStopTimeoutRef.current) {
+        clearTimeout(fortuneStopTimeoutRef.current);
+        fortuneStopTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    // 아직 한 번도 안 뽑았다면: 룰렛 한 번 진행
     setFortuneIndex(Math.floor(Math.random() * FORTUNES.length));
     startFortuneRolling();
   };
@@ -526,16 +529,14 @@ function MatchHistoryPage() {
   // 📈 시즌 히스토리 → 티어 그래프용 데이터
   let tierChartData = [];
   if (summary?.seasonHistory && summary.seasonHistory.length > 0) {
-    // backend에서 최신 → 과거 순이라, 다시 뒤집어서 오래된 시즌 → 최신 시즌 순으로
     const chronological = [...summary.seasonHistory].reverse();
-    const lastSix = chronological.slice(-6); // 최근 6시즌만
+    const lastSix = chronological.slice(-6);
 
     tierChartData = lastSix
       .map((s) => {
         const value = tierNameToNumber(s.tier);
         if (!value) return null;
 
-        // 🎯 시즌 코드(e10a1 등)를 "에피소드10 엑트1" 식으로 풀어서 표시
         let seasonLabel = s.season;
         if (typeof seasonLabel === 'string') {
           const match = seasonLabel.toLowerCase().match(/e(\d+)a(\d+)/);
@@ -566,7 +567,6 @@ function MatchHistoryPage() {
     setSelectedMatch(null);
   };
 
-  // 🔥 모달 내부에서 팀 분리
   const getModalTeams = (match) => {
     if (!match || !Array.isArray(match.players)) {
       return { allies: [], enemies: [] };
@@ -591,7 +591,6 @@ function MatchHistoryPage() {
           style={styles.modalContent}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* 모달 헤더 */}
           <div style={styles.modalHeader}>
             <div>
               <div style={styles.modalTitleRow}>
@@ -631,9 +630,8 @@ function MatchHistoryPage() {
             </div>
           </div>
 
-          {/* 두 팀 스코어보드 */}
           <div style={styles.scoreboardWrapper}>
-            {/* 아군 팀 */}
+            {/* 우리 팀 */}
             <div style={styles.teamColumn}>
               <div style={styles.teamHeader}>
                 <span style={styles.teamTitle}>우리 팀</span>
@@ -652,7 +650,6 @@ function MatchHistoryPage() {
                 const d = p.deaths ?? 0;
                 const a = p.assists ?? 0;
                 const kd = d > 0 ? (k / d).toFixed(2) : k;
-
                 const isSelf = !!p.isSelf;
 
                 return (
@@ -672,7 +669,6 @@ function MatchHistoryPage() {
                       )}
                     </span>
 
-                    {/* 🔥 경기 당시 티어 이미지 */}
                     <span style={styles.tdTier}>
                       {p.tierNumber || p.tierName ? (
                         <img
@@ -695,8 +691,7 @@ function MatchHistoryPage() {
                     <span style={styles.tdAgent}>
                       <img
                         src={
-                          p.agentIcon ||
-                          getAgentImageSrc(p.agent || null)
+                          p.agentIcon || getAgentImageSrc(p.agent || null)
                         }
                         alt={p.agent || 'agent'}
                         style={styles.modalAgentImg}
@@ -765,7 +760,6 @@ function MatchHistoryPage() {
                       )}
                     </span>
 
-                    {/* 🔥 상대 팀 티어 이미지 */}
                     <span style={styles.tdTier}>
                       {p.tierNumber || p.tierName ? (
                         <img
@@ -788,8 +782,7 @@ function MatchHistoryPage() {
                     <span style={styles.tdAgent}>
                       <img
                         src={
-                          p.agentIcon ||
-                          getAgentImageSrc(p.agent || null)
+                          p.agentIcon || getAgentImageSrc(p.agent || null)
                         }
                         alt={p.agent || 'agent'}
                         style={styles.modalAgentImg}
@@ -903,7 +896,7 @@ function MatchHistoryPage() {
             {/* 상단 프로필 카드 */}
             {profile && (
               <div style={styles.profileCard}>
-                {/* 왼쪽: 플레이어 카드 동그라미 + 레벨 박스 */}
+                {/* 왼쪽: 플레이어 카드 동그라미 + 레벨 */}
                 <div style={styles.profileLeft}>
                   <div style={styles.avatarWrapper}>
                     <img
@@ -930,7 +923,7 @@ function MatchHistoryPage() {
                   </div>
                 </div>
 
-                {/* 오른쪽: 닉네임/태그 + 현재 티어, 평균값, 티어 그래프 버튼 */}
+                {/* 오른쪽: 닉네임/티어/평균스탯/버튼 */}
                 <div style={styles.profileRight}>
                   <div style={styles.nameCard}>
                     <div style={styles.nameRow}>
@@ -961,7 +954,6 @@ function MatchHistoryPage() {
                           )}
                         </div>
 
-                        {/* 🔥 평균 HS / KD / ACS 요약 */}
                         {avgStats && (
                           <div style={styles.overallStatsRow}>
                             <div style={styles.overallStatItem}>
@@ -997,7 +989,6 @@ function MatchHistoryPage() {
                           </div>
                         )}
 
-                        {/* 🔘 티어 자세히 보기 / 오늘의 운세 버튼 */}
                         <div style={styles.tierButtonRow}>
                           <button
                             type="button"
@@ -1021,7 +1012,6 @@ function MatchHistoryPage() {
                     )}
                   </div>
 
-                  {/* 🔥 티어 그래프 (토글) */}
                   {showTierChart && (
                     <div style={styles.tierChartCard}>
                       {tierChartData.length > 0 ? (
@@ -1083,7 +1073,6 @@ function MatchHistoryPage() {
                   const k = match.kills ?? 0;
                   const d = match.deaths ?? 0;
                   const a = match.assists ?? 0;
-
                   const kd = d > 0 ? (k / d).toFixed(2) : k;
 
                   const scoreText =
@@ -1224,7 +1213,7 @@ function MatchHistoryPage() {
                   ...styles.fortuneInner,
                   transform: `translateY(-${fortuneIndex * 40}px)`,
                   transition: isFortuneRolling
-                    ? 'transform 0.08s linear'
+                    ? 'transform 0.05s linear' // 속도에 맞게
                     : 'transform 0.35s ease-out',
                 }}
               >
@@ -1243,13 +1232,7 @@ function MatchHistoryPage() {
               </div>
             )}
 
-            <button
-              style={styles.fortuneRerollButton}
-              onClick={startFortuneRolling}
-              disabled={isFortuneRolling}
-            >
-              {isFortuneRolling ? '돌아가는 중...' : '다시 뽑기'}
-            </button>
+            {/* ✅ 다시 뽑기 버튼 제거됨 */}
           </div>
         </div>
       )}
@@ -1326,7 +1309,6 @@ const styles = {
   },
   errorText: { color: '#ff8888' },
 
-  /* 우측 상단 간단 프로필 */
   profileBoxTopRight: {
     display: 'flex',
     alignItems: 'center',
@@ -1337,7 +1319,6 @@ const styles = {
     color: '#eee',
   },
 
-  /* 상단 프로필 카드 */
   profileCard: {
     backgroundColor: '#181818',
     padding: '20px 24px',
@@ -1445,7 +1426,6 @@ const styles = {
     color: '#9fd39f',
   },
 
-  /* 🔥 상단 평균 스탯 */
   overallStatsRow: {
     display: 'flex',
     flexWrap: 'wrap',
@@ -1466,7 +1446,6 @@ const styles = {
     fontWeight: 600,
   },
 
-  /* 티어/운세 버튼 줄 */
   tierButtonRow: {
     marginTop: '8px',
     display: 'flex',
@@ -1493,7 +1472,6 @@ const styles = {
     cursor: 'pointer',
   },
 
-  /* 🔥 티어 그래프 카드 */
   tierChartCard: {
     marginTop: '10px',
     padding: '12px',
@@ -1509,7 +1487,6 @@ const styles = {
     display: 'block',
   },
 
-  /* 🧿 인라인 운세 줄 */
   fortuneInlineBox: {
     marginTop: '4px',
     marginBottom: '12px',
@@ -1531,7 +1508,6 @@ const styles = {
     color: '#eee',
   },
 
-  /* 전적 헤더 + 필터 */
   matchesHeaderRow: {
     display: 'flex',
     alignItems: 'center',
@@ -1562,7 +1538,6 @@ const styles = {
     outline: 'none',
   },
 
-  /* 매치 카드 */
   matchList: {
     display: 'flex',
     flexDirection: 'column',
@@ -1609,7 +1584,6 @@ const styles = {
     fontWeight: '600',
   },
 
-  /* 스탯 */
   statsRow: {
     display: 'flex',
     alignItems: 'center',
@@ -1630,7 +1604,6 @@ const styles = {
     color: '#fff',
   },
 
-  /* 버튼 */
   loginButton: {
     padding: '6px 12px',
     backgroundColor: 'transparent',
@@ -1648,7 +1621,6 @@ const styles = {
     cursor: 'pointer',
   },
 
-  /* 🔥 모달 스타일 (스코어보드) */
   modalOverlay: {
     position: 'fixed',
     inset: 0,
@@ -1808,7 +1780,7 @@ const styles = {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 2500, // 스코어보드 모달보다 위
+    zIndex: 2500,
   },
   fortuneCard: {
     position: 'relative',
@@ -1841,7 +1813,7 @@ const styles = {
   },
   fortuneWindow: {
     width: '100%',
-    height: '40px', // 한 줄 높이
+    height: '40px',
     overflow: 'hidden',
     borderRadius: '10px',
     border: '1px solid #444',
@@ -1869,16 +1841,6 @@ const styles = {
     textAlign: 'center',
     color: '#ffeb3b',
     textShadow: '0 0 10px rgba(255, 235, 59, 0.4)',
-  },
-  fortuneRerollButton: {
-    marginTop: '4px',
-    padding: '6px 16px',
-    borderRadius: '999px',
-    border: '1px solid #666',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    color: '#eee',
-    fontSize: '12px',
-    cursor: 'pointer',
   },
 };
 
