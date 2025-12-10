@@ -569,9 +569,6 @@ function MatchHistoryPage() {
           <span style={styles.navItem} onClick={() => navigate('/esports')}>
             E-Sports
           </span>
-          <span style={styles.navItem} onClick={() => navigate('/matches')}>
-            전적
-          </span>
         </div>
 
         <div style={styles.right}>
