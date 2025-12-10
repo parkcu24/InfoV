@@ -1148,9 +1148,9 @@ function MatchHistoryPage() {
                         ...styles.matchRowCard,
                         cursor: 'pointer',
                         background: isWin
-                          ? 'linear-gradient(135deg, rgba(13,71,161,0.55), rgba(13,71,161,0.2))'
-                          : 'linear-gradient(135deg, rgba(183,28,28,0.55), rgba(183,28,28,0.2))',
-                        borderColor: isWin ? '#1565c0' : '#b71c1c',
+                          ? 'linear-gradient(135deg, rgba(21, 101, 192, 0.24), rgba(13, 71, 161, 0.06))'
+                          : 'linear-gradient(135deg, rgba(183, 28, 28, 0.24), rgba(183, 28, 28, 0.06))',
+                        borderColor: isWin ? '#264e73' : '#6b1b1b',
                       }}
                       onClick={() => handleMatchClick(match)}
                     >
@@ -1168,14 +1168,20 @@ function MatchHistoryPage() {
                             e.currentTarget.src = '/agents/default.png';
                           }}
                         />
-
                         <div style={styles.matchLeftText}>
-                          <div style={styles.mapName}>
-                            {getMapName(match)}
+                          <div style={styles.mapNameRow}>
+                            <span style={styles.mapName}>{getMapName(match)}</span>
+                            <span
+                              style={isWin ? styles.resultWinText : styles.resultLoseText}
+                            >
+                              {isWin ? '승리' : '패배'}
+                            </span>
                           </div>
+
                           <div style={styles.queueText}>
                             {getQueueName(match)}
                           </div>
+
                           <div style={styles.scoreBox}>
                             <span style={styles.scoreText}>{scoreText}</span>
                           </div>
