@@ -34,6 +34,39 @@ const TIER_NAME_MAP = {
   radiant: 27,
 };
 
+// 🎲 오늘의 발로란트 운세 문구들
+const FORTUNES = [
+  '메인 피킹을 나오는 오퍼레이터를 조심하세요!',
+  '설치 후 나오는 적들의 리테이크 타이밍을 조심하세요!',
+  '요동봇에 물리지 않게 조심하세요!',
+  '오늘은 벤달을 써보는 건 어때요?',
+  '오늘은 팬텀을 써보는 건 어때요?',
+  '스카이 뺑을 조심하세요!',
+  '아군 피닉스 삥을 조심하세요!',
+  '오늘은 내 촉이 다 맞을 것 같은데요?',
+  '수류탄 각을 다시 한 번 생각해 보세요.',
+  '무리한 푸시는 한 번만 참아보는 건 어떨까요?',
+  '첫 라운드 피스톨전에서 너무 앞서 나가지 마세요.',
+  '오늘은 센티넬 요원을 한 번 해보는 건 어때요?',
+  '엔트리 대신 팀원을 믿고 2번째로 따라가 보세요.',
+  '적 소바의 화살 각을 조심하세요!',
+  '적 킬조이의 터렛 위치를 자주 확인해 보세요.',
+  '오늘은 스킬보다는 에임을 믿어 보세요.',
+  '너무 돈 아끼지 말고, 살 땐 과감하게 사보세요!',
+  '에코 라운드라고 포기하지 말고 끝까지 해보세요.',
+  '오늘은 오퍼레이터보단 라이플이 더 잘 맞을지도 몰라요.',
+  '클러치 상황에서 너무 많은 각을 동시에 보지 마세요.',
+  '사이트에 들어갈 때 유틸부터 던지고 들어가 보세요.',
+  '적이 자주 나오는 각에 크로스헤어를 미리 두어 보세요.',
+  '백업을 너무 늦게 가지 않도록 미니맵을 자주 보세요.',
+  '아군 듀얼리스트의 템포를 한 번 맞춰 봐도 좋아요.',
+  '오늘은 평소에 안 하던 요원을 도전해 보세요!',
+  '연속으로 지고 있다면, 한 판만 숨고르기 하면서 천천히 해보세요.',
+  '적 팀의 OP 위치를 초반에 체크해 보세요.',
+  '라운드 시작 전에 팀과 라운드 플랜을 한마디라도 나눠 보세요.',
+  '오늘은 스프레이보다는 점사에 더 힘을 실어보세요.',
+];
+
 function tierNameToNumber(tierName) {
   if (!tierName) return null;
   const key = tierName.toLowerCase().replace(/\s+/g, '');
@@ -47,11 +80,12 @@ function toKoreanTierName(tierName) {
   const raw = tierName.trim();
   const lower = raw.toLowerCase();
 
+  // 예: "Iron 3", "diamond2", "ASCENDANT 1" 등
   const match = lower.match(
     /(iron|bronze|silver|gold|platinum|diamond|ascendant|immortal|radiant)\s*(\d)?/
   );
 
-  if (!match) return tierName;
+  if (!match) return tierName; // 예외적인 포맷은 원문 그대로
 
   const baseEn = match[1];
   const num = match[2] || '';
@@ -63,7 +97,7 @@ function toKoreanTierName(tierName) {
     gold: '골드',
     platinum: '플래티넘',
     diamond: '다이아몬드',
-    ascendant: '초월자',
+    ascendant: '초월자', // 요청대로 초월자
     immortal: '불멸',
     radiant: '레디언트',
   };
@@ -72,46 +106,6 @@ function toKoreanTierName(tierName) {
 
   return num ? `${baseKo} ${num}` : baseKo;
 }
-
-// ⭐ 시즌 코드(e10a1) → "에피소드 10 엑트 1"
-function formatSeasonLabel(season) {
-  if (!season) return '';
-  const s = String(season).toLowerCase().trim();
-
-  // e10a1 형태
-  const shortMatch = s.match(/e(\d+)a(\d+)/);
-  if (shortMatch) {
-    const ep = parseInt(shortMatch[1], 10);
-    const act = parseInt(shortMatch[2], 10);
-    return `에피소드 ${ep} 엑트 ${act}`;
-  }
-
-  // "episode 10 act 1" 형태도 대응
-  const longMatch = s.match(/episode\s*(\d+)\s*act\s*(\d+)/);
-  if (longMatch) {
-    const ep = parseInt(longMatch[1], 10);
-    const act = parseInt(longMatch[2], 10);
-    return `에피소드 ${ep} 엑트 ${act}`;
-  }
-
-  return season;
-}
-
-// 🎲 발로란트 운세 문구 리스트
-const VALORANT_FORTUNES = [
-  '메인 피킹을 나오는 오퍼레이터를 조심하세요!',
-  '설치를 할 때 나오는 적들을 조심하세요!',
-  '요동봇에 물리지 않게 조심하세요!',
-  '오늘은 벤달을 써보는 건 어때요?',
-  '오늘은 팬텀을 써보는 건 어때요?',
-  '스카이 뺑을 조심하세요!',
-  '아군 피닉스 삥을 조심하세요!',
-  '오늘은 내 촉이 다 맞을 것 같은데요?',
-  '리테이크 각을 너무 욕심내지 말아보세요.',
-  '첫 라운드에 집중해보세요. 시작이 반입니다.',
-  '스킬 아끼지 말고 과감하게 써보세요!',
-  '오늘은 팀원 마이크를 믿어보는 건 어떨까요?',
-];
 
 // 🔹 티어 변화 라인 그래프 컴포넌트
 function TierChart({ data }) {
@@ -131,9 +125,9 @@ function TierChart({ data }) {
 
   const points = data.map((d, idx) => {
     const x = paddingX + idx * widthPerPoint;
-    const norm = (d.value - minVal) / range;
+    const norm = (d.value - minVal) / range; // 0~1
     const y =
-      height - paddingY - norm * (height - paddingY * 2);
+      height - paddingY - norm * (height - paddingY * 2); // 위가 높은 티어
     return { x, y };
   });
 
@@ -141,27 +135,30 @@ function TierChart({ data }) {
 
   return (
     <svg width={width} height={height} style={styles.tierChartSvg}>
+      {/* 라인 */}
       <polyline
         points={polyPoints}
         fill="none"
         stroke="#4CAF50"
         strokeWidth="2"
       />
+      {/* 점 + 시즌 텍스트 */}
       {points.map((p, idx) => {
         const item = data[idx];
         const seasonLabel =
           typeof item.season === 'string'
-            ? formatSeasonLabel(item.season)
+            ? item.season.length > 8
+              ? item.season.slice(-8)
+              : item.season
             : `S${idx + 1}`;
 
         const tierLabel =
-          typeof item.tier === 'string'
-            ? toKoreanTierName(item.tier)
-            : '';
+          typeof item.tier === 'string' ? toKoreanTierName(item.tier) : '';
 
         return (
           <g key={idx}>
             <circle cx={p.x} cy={p.y} r="3" fill="#ffffff" />
+            {/* 티어 텍스트 (점 위) */}
             <text
               x={p.x}
               y={p.y - 8}
@@ -171,6 +168,7 @@ function TierChart({ data }) {
             >
               {tierLabel}
             </text>
+            {/* 시즌 텍스트 (아래 축) */}
             <text
               x={p.x}
               y={height - 5}
@@ -197,15 +195,20 @@ function MatchHistoryPage() {
   const [hasToken, setHasToken] = useState(false);
   const [queueFilter, setQueueFilter] = useState('all');
 
+  // 🔥 클릭된 경기(스코어보드 모달용)
   const [selectedMatch, setSelectedMatch] = useState(null);
+
+  // 🔥 티어 그래프 토글
   const [showTierChart, setShowTierChart] = useState(false);
 
-  // 🔮 운세 상태
-  const [fortune, setFortune] = useState('');
-  const [isRolling, setIsRolling] = useState(false);
-  const [rollingIndex, setRollingIndex] = useState(0);
-  const rollingIntervalRef = useRef(null);
-  const rollingTimeoutRef = useRef(null);
+  // 🎲 오늘의 운세 모달 & 룰렛 상태
+  const [showFortuneOverlay, setShowFortuneOverlay] = useState(false);
+  const [fortuneIndex, setFortuneIndex] = useState(0);
+  const [isFortuneRolling, setIsFortuneRolling] = useState(false);
+  const [latestFortuneText, setLatestFortuneText] = useState(null);
+
+  const fortuneIntervalRef = useRef(null);
+  const fortuneStopTimeoutRef = useRef(null);
 
   // ⭐ 에이전트 이름을 파일명 규칙에 맞게 자동 변환하는 함수
   const getAgentImageSrc = (agent) => {
@@ -246,7 +249,7 @@ function MatchHistoryPage() {
     }
 
     if (!num) return null;
-    return `/tiers/${num}.png`;
+    return `/tiers/${num}.png`; // public/tiers/3.png 이런 식
   };
 
   // ⭐ 플레이어 카드 이미지 (현재는 기본값만 사용)
@@ -392,11 +395,73 @@ function MatchHistoryPage() {
     fetchData();
   }, []);
 
-  // 언마운트 시 운세 타이머 정리
+  // 🎰 룰렛 시작
+  const startFortuneRolling = () => {
+    // 이미 돌고 있으면 무시
+    if (isFortuneRolling) return;
+
+    setIsFortuneRolling(true);
+
+    // 기존 인터벌/타임아웃 정리
+    if (fortuneIntervalRef.current) {
+      clearInterval(fortuneIntervalRef.current);
+      fortuneIntervalRef.current = null;
+    }
+    if (fortuneStopTimeoutRef.current) {
+      clearTimeout(fortuneStopTimeoutRef.current);
+      fortuneStopTimeoutRef.current = null;
+    }
+
+    // 빠르게 인덱스 변경 (위에서 아래로 쭉 내려가는 느낌)
+    fortuneIntervalRef.current = setInterval(() => {
+      setFortuneIndex((prev) => (prev + 1) % FORTUNES.length);
+    }, 80); // 0.08초마다 한 줄씩 내려가는 느낌
+
+    // 일정 시간 후 자동으로 멈추면서 랜덤으로 확정
+    fortuneStopTimeoutRef.current = setTimeout(() => {
+      if (fortuneIntervalRef.current) {
+        clearInterval(fortuneIntervalRef.current);
+        fortuneIntervalRef.current = null;
+      }
+      setIsFortuneRolling(false);
+
+      // 최종 문장 랜덤 선택
+      const finalIndex = Math.floor(Math.random() * FORTUNES.length);
+      setFortuneIndex(finalIndex);
+      setLatestFortuneText(FORTUNES[finalIndex]);
+    }, 2200); // 약 2.2초 돌고 멈춤
+  };
+
+  // 🎰 모달 열기 (열면서 자동으로 룰렛 시작)
+  const openFortuneOverlay = () => {
+    setShowFortuneOverlay(true);
+    setFortuneIndex(Math.floor(Math.random() * FORTUNES.length));
+    startFortuneRolling();
+  };
+
+  // ❌ 모달 닫기 (룰렛 강제 종료)
+  const closeFortuneOverlay = () => {
+    if (fortuneIntervalRef.current) {
+      clearInterval(fortuneIntervalRef.current);
+      fortuneIntervalRef.current = null;
+    }
+    if (fortuneStopTimeoutRef.current) {
+      clearTimeout(fortuneStopTimeoutRef.current);
+      fortuneStopTimeoutRef.current = null;
+    }
+    setIsFortuneRolling(false);
+    setShowFortuneOverlay(false);
+  };
+
+  // 언마운트 시 타이머 정리
   useEffect(() => {
     return () => {
-      if (rollingIntervalRef.current) clearInterval(rollingIntervalRef.current);
-      if (rollingTimeoutRef.current) clearTimeout(rollingTimeoutRef.current);
+      if (fortuneIntervalRef.current) {
+        clearInterval(fortuneIntervalRef.current);
+      }
+      if (fortuneStopTimeoutRef.current) {
+        clearTimeout(fortuneStopTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -425,7 +490,7 @@ function MatchHistoryPage() {
 
   const filteredMatches = getFilteredMatches();
 
-  // 📊 최근 전적 기준 요약 스탯
+  // 📊 최근 전적 기준 요약 스탯(평균 HS, 평균 KD, 평균 ACS)
   let avgStats = null;
   if (matches && matches.length > 0) {
     let totalKills = 0;
@@ -461,15 +526,30 @@ function MatchHistoryPage() {
   // 📈 시즌 히스토리 → 티어 그래프용 데이터
   let tierChartData = [];
   if (summary?.seasonHistory && summary.seasonHistory.length > 0) {
+    // backend에서 최신 → 과거 순이라, 다시 뒤집어서 오래된 시즌 → 최신 시즌 순으로
     const chronological = [...summary.seasonHistory].reverse();
-    const lastSix = chronological.slice(-6);
+    const lastSix = chronological.slice(-6); // 최근 6시즌만
 
     tierChartData = lastSix
       .map((s) => {
         const value = tierNameToNumber(s.tier);
         if (!value) return null;
+
+        // 🎯 시즌 코드(e10a1 등)를 "에피소드10 엑트1" 식으로 풀어서 표시
+        let seasonLabel = s.season;
+        if (typeof seasonLabel === 'string') {
+          const match = seasonLabel.toLowerCase().match(/e(\d+)a(\d+)/);
+          if (match) {
+            const ep = parseInt(match[1], 10);
+            const act = parseInt(match[2], 10);
+            if (!Number.isNaN(ep) && !Number.isNaN(act)) {
+              seasonLabel = `에피소드${ep} 엑트${act}`;
+            }
+          }
+        }
+
         return {
-          season: s.season,
+          season: seasonLabel,
           tier: s.tier,
           value,
         };
@@ -484,32 +564,6 @@ function MatchHistoryPage() {
 
   const handleCloseModal = () => {
     setSelectedMatch(null);
-  };
-
-  // 🔥 운세 버튼 클릭
-  const handleFortuneClick = () => {
-    if (isRolling) return;
-
-    setIsRolling(true);
-    setRollingIndex(0);
-
-    const total = VALORANT_FORTUNES.length;
-    let index = 0;
-
-    rollingIntervalRef.current = setInterval(() => {
-      index = (index + 1) % total;
-      setRollingIndex(index);
-    }, 80);
-
-    rollingTimeoutRef.current = setTimeout(() => {
-      if (rollingIntervalRef.current) {
-        clearInterval(rollingIntervalRef.current);
-        rollingIntervalRef.current = null;
-      }
-      const finalIndex = index;
-      setFortune(VALORANT_FORTUNES[finalIndex]);
-      setIsRolling(false);
-    }, 1800);
   };
 
   // 🔥 모달 내부에서 팀 분리
@@ -537,6 +591,7 @@ function MatchHistoryPage() {
           style={styles.modalContent}
           onClick={(e) => e.stopPropagation()}
         >
+          {/* 모달 헤더 */}
           <div style={styles.modalHeader}>
             <div>
               <div style={styles.modalTitleRow}>
@@ -576,7 +631,9 @@ function MatchHistoryPage() {
             </div>
           </div>
 
+          {/* 두 팀 스코어보드 */}
           <div style={styles.scoreboardWrapper}>
+            {/* 아군 팀 */}
             <div style={styles.teamColumn}>
               <div style={styles.teamHeader}>
                 <span style={styles.teamTitle}>우리 팀</span>
@@ -615,6 +672,7 @@ function MatchHistoryPage() {
                       )}
                     </span>
 
+                    {/* 🔥 경기 당시 티어 이미지 */}
                     <span style={styles.tdTier}>
                       {p.tierNumber || p.tierName ? (
                         <img
@@ -675,6 +733,7 @@ function MatchHistoryPage() {
               })}
             </div>
 
+            {/* 상대 팀 */}
             <div style={styles.teamColumn}>
               <div style={styles.teamHeader}>
                 <span style={styles.teamTitle}>상대 팀</span>
@@ -706,6 +765,7 @@ function MatchHistoryPage() {
                       )}
                     </span>
 
+                    {/* 🔥 상대 팀 티어 이미지 */}
                     <span style={styles.tdTier}>
                       {p.tierNumber || p.tierName ? (
                         <img
@@ -773,6 +833,7 @@ function MatchHistoryPage() {
 
   return (
     <div style={styles.pageWrapper}>
+      {/* 네비게이션 */}
       <nav style={styles.navbar}>
         <div style={styles.left}>
           <img
@@ -819,6 +880,7 @@ function MatchHistoryPage() {
         </div>
       </nav>
 
+      {/* 본문 */}
       <div style={styles.content}>
         {loading && <p style={styles.message}>불러오는 중입니다...</p>}
 
@@ -838,8 +900,10 @@ function MatchHistoryPage() {
 
         {!loading && !error && (
           <>
+            {/* 상단 프로필 카드 */}
             {profile && (
               <div style={styles.profileCard}>
+                {/* 왼쪽: 플레이어 카드 동그라미 + 레벨 박스 */}
                 <div style={styles.profileLeft}>
                   <div style={styles.avatarWrapper}>
                     <img
@@ -866,6 +930,7 @@ function MatchHistoryPage() {
                   </div>
                 </div>
 
+                {/* 오른쪽: 닉네임/태그 + 현재 티어, 평균값, 티어 그래프 버튼 */}
                 <div style={styles.profileRight}>
                   <div style={styles.nameCard}>
                     <div style={styles.nameRow}>
@@ -896,6 +961,7 @@ function MatchHistoryPage() {
                           )}
                         </div>
 
+                        {/* 🔥 평균 HS / KD / ACS 요약 */}
                         {avgStats && (
                           <div style={styles.overallStatsRow}>
                             <div style={styles.overallStatItem}>
@@ -931,7 +997,8 @@ function MatchHistoryPage() {
                           </div>
                         )}
 
-                        <div style={styles.tierButtonsRow}>
+                        {/* 🔘 티어 자세히 보기 / 오늘의 운세 버튼 */}
+                        <div style={styles.tierButtonRow}>
                           <button
                             type="button"
                             style={styles.tierDetailButton}
@@ -945,42 +1012,16 @@ function MatchHistoryPage() {
                           <button
                             type="button"
                             style={styles.fortuneButton}
-                            onClick={handleFortuneClick}
-                            disabled={isRolling}
+                            onClick={openFortuneOverlay}
                           >
-                            오늘의 발로란트 운세 보기 !
+                            오늘의 발로란트 운세 보기!
                           </button>
-                        </div>
-
-                        <div style={styles.fortuneWrapper}>
-                          {isRolling ? (
-                            <div style={styles.fortuneWindow}>
-                              <div
-                                style={{
-                                  ...styles.fortuneList,
-                                  transform: `translateY(-${
-                                    rollingIndex * 32
-                                  }px)`,
-                                }}
-                              >
-                                {VALORANT_FORTUNES.map((text, idx) => (
-                                  <div key={idx} style={styles.fortuneItem}>
-                                    {text}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ) : (
-                            <div style={styles.fortuneResultBox}>
-                              {fortune ||
-                                '버튼을 눌러 오늘의 발로란트 운세를 확인해 보세요!'}
-                            </div>
-                          )}
                         </div>
                       </>
                     )}
                   </div>
 
+                  {/* 🔥 티어 그래프 (토글) */}
                   {showTierChart && (
                     <div style={styles.tierChartCard}>
                       {tierChartData.length > 0 ? (
@@ -996,6 +1037,19 @@ function MatchHistoryPage() {
               </div>
             )}
 
+            {/* 🧿 오늘의 발로란트 운세 인라인 표시 */}
+            <div style={styles.fortuneInlineBox}>
+              <span style={styles.fortuneInlineLabel}>
+                오늘의 발로란트 운세 ! :{' '}
+              </span>
+              <span style={styles.fortuneInlineText}>
+                {latestFortuneText
+                  ? latestFortuneText
+                  : '위 버튼을 눌러 오늘의 발로란트 운세를 확인해보세요 !'}
+              </span>
+            </div>
+
+            {/* 전적 헤더 + 필터 */}
             <div style={styles.matchesHeaderRow}>
               <h3 style={styles.sectionTitle}>최근 경기 전적</h3>
 
@@ -1020,6 +1074,7 @@ function MatchHistoryPage() {
               </div>
             </div>
 
+            {/* 전적 리스트 */}
             {filteredMatches.length === 0 ? (
               <p style={styles.message}>해당 모드 전적이 없습니다.</p>
             ) : (
@@ -1148,6 +1203,58 @@ function MatchHistoryPage() {
         )}
       </div>
 
+      {/* 🎲 오늘의 발로란트 운세 모달 */}
+      {showFortuneOverlay && (
+        <div style={styles.fortuneOverlay}>
+          <div style={styles.fortuneCard}>
+            {/* 우측 상단 X 버튼 */}
+            <button
+              style={styles.fortuneCloseButton}
+              onClick={closeFortuneOverlay}
+            >
+              ✕
+            </button>
+
+            <h3 style={styles.fortuneTitle}>오늘의 발로란트 운세</h3>
+
+            {/* 룰렛 창 */}
+            <div style={styles.fortuneWindow}>
+              <div
+                style={{
+                  ...styles.fortuneInner,
+                  transform: `translateY(-${fortuneIndex * 40}px)`,
+                  transition: isFortuneRolling
+                    ? 'transform 0.08s linear'
+                    : 'transform 0.35s ease-out',
+                }}
+              >
+                {FORTUNES.map((text, idx) => (
+                  <div key={idx} style={styles.fortuneRow}>
+                    {text}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 최종 결과 문장 (룰렛 멈춘 후 강조) */}
+            {!isFortuneRolling && (
+              <div style={styles.fortuneResultText}>
+                {FORTUNES[fortuneIndex]}
+              </div>
+            )}
+
+            <button
+              style={styles.fortuneRerollButton}
+              onClick={startFortuneRolling}
+              disabled={isFortuneRolling}
+            >
+              {isFortuneRolling ? '돌아가는 중...' : '다시 뽑기'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 🔥 경기 상세 스코어보드 모달 */}
       {renderScoreboardModal()}
     </div>
   );
@@ -1219,6 +1326,7 @@ const styles = {
   },
   errorText: { color: '#ff8888' },
 
+  /* 우측 상단 간단 프로필 */
   profileBoxTopRight: {
     display: 'flex',
     alignItems: 'center',
@@ -1229,11 +1337,12 @@ const styles = {
     color: '#eee',
   },
 
+  /* 상단 프로필 카드 */
   profileCard: {
     backgroundColor: '#181818',
     padding: '20px 24px',
     borderRadius: '16px',
-    marginBottom: '24px',
+    marginBottom: '16px',
     border: '1px solid #333',
     display: 'flex',
     gap: '24px',
@@ -1336,6 +1445,7 @@ const styles = {
     color: '#9fd39f',
   },
 
+  /* 🔥 상단 평균 스탯 */
   overallStatsRow: {
     display: 'flex',
     flexWrap: 'wrap',
@@ -1356,13 +1466,13 @@ const styles = {
     fontWeight: 600,
   },
 
-  tierButtonsRow: {
+  /* 티어/운세 버튼 줄 */
+  tierButtonRow: {
     marginTop: '8px',
     display: 'flex',
-    gap: '8px',
     flexWrap: 'wrap',
+    gap: '8px',
   },
-
   tierDetailButton: {
     padding: '4px 10px',
     borderRadius: '999px',
@@ -1371,54 +1481,19 @@ const styles = {
     color: '#ddd',
     fontSize: '11px',
     cursor: 'pointer',
+    alignSelf: 'flex-start',
   },
-
   fortuneButton: {
-    padding: '4px 10px',
+    padding: '4px 12px',
     borderRadius: '999px',
-    border: '1px solid #555',
-    backgroundColor: '#262626',
-    color: '#f0f0f0',
+    border: '1px solid #7c4dff',
+    backgroundColor: 'rgba(124,77,255,0.18)',
+    color: '#e5ddff',
     fontSize: '11px',
     cursor: 'pointer',
   },
 
-  fortuneWrapper: {
-    marginTop: '8px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-  },
-  fortuneWindow: {
-    position: 'relative',
-    overflow: 'hidden',
-    height: 32,
-    borderRadius: '8px',
-    border: '1px solid #333',
-    backgroundColor: '#101010',
-  },
-  fortuneList: {
-    display: 'flex',
-    flexDirection: 'column',
-    transition: 'transform 0.08s linear',
-  },
-  fortuneItem: {
-    height: 32,
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0 10px',
-    fontSize: '12px',
-    color: '#ddd',
-  },
-  fortuneResultBox: {
-    borderRadius: '8px',
-    border: '1px solid #333',
-    backgroundColor: '#101010',
-    padding: '6px 10px',
-    fontSize: '12px',
-    color: '#f0f0f0',
-  },
-
+  /* 🔥 티어 그래프 카드 */
   tierChartCard: {
     marginTop: '10px',
     padding: '12px',
@@ -1434,6 +1509,29 @@ const styles = {
     display: 'block',
   },
 
+  /* 🧿 인라인 운세 줄 */
+  fortuneInlineBox: {
+    marginTop: '4px',
+    marginBottom: '12px',
+    padding: '8px 12px',
+    borderRadius: '10px',
+    border: '1px solid #2e2e2e',
+    backgroundColor: '#151515',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '4px',
+  },
+  fortuneInlineLabel: {
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#ffeb3b',
+  },
+  fortuneInlineText: {
+    fontSize: '13px',
+    color: '#eee',
+  },
+
+  /* 전적 헤더 + 필터 */
   matchesHeaderRow: {
     display: 'flex',
     alignItems: 'center',
@@ -1464,6 +1562,7 @@ const styles = {
     outline: 'none',
   },
 
+  /* 매치 카드 */
   matchList: {
     display: 'flex',
     flexDirection: 'column',
@@ -1510,6 +1609,7 @@ const styles = {
     fontWeight: '600',
   },
 
+  /* 스탯 */
   statsRow: {
     display: 'flex',
     alignItems: 'center',
@@ -1530,11 +1630,12 @@ const styles = {
     color: '#fff',
   },
 
+  /* 버튼 */
   loginButton: {
     padding: '6px 12px',
     backgroundColor: 'transparent',
     borderRadius: '999px',
-    border: '1px solid #555',
+    border: '1px solid '#555',
     color: '#eee',
     cursor: 'pointer',
   },
@@ -1547,6 +1648,7 @@ const styles = {
     cursor: 'pointer',
   },
 
+  /* 🔥 모달 스타일 (스코어보드) */
   modalOverlay: {
     position: 'fixed',
     inset: 0,
@@ -1696,6 +1798,87 @@ const styles = {
   agentNameText: {
     fontSize: '11px',
     color: '#ddd',
+  },
+
+  /* 🎲 운세 모달 스타일 */
+  fortuneOverlay: {
+    position: 'fixed',
+    inset: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2500, // 스코어보드 모달보다 위
+  },
+  fortuneCard: {
+    position: 'relative',
+    width: '480px',
+    maxWidth: '90%',
+    backgroundColor: '#151515',
+    borderRadius: '18px',
+    border: '1px solid #444',
+    padding: '20px 22px 18px',
+    boxShadow: '0 16px 40px rgba(0,0,0,0.7)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  fortuneCloseButton: {
+    position: 'absolute',
+    top: '10px',
+    right: '12px',
+    background: 'transparent',
+    border: 'none',
+    color: '#aaa',
+    fontSize: '18px',
+    cursor: 'pointer',
+  },
+  fortuneTitle: {
+    fontSize: '18px',
+    margin: '4px 0 8px',
+    fontWeight: 700,
+  },
+  fortuneWindow: {
+    width: '100%',
+    height: '40px', // 한 줄 높이
+    overflow: 'hidden',
+    borderRadius: '10px',
+    border: '1px solid '#444',
+    background:
+      'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))',
+  },
+  fortuneInner: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  fortuneRow: {
+    height: '40px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '13px',
+    color: '#eee',
+    whiteSpace: 'nowrap',
+    padding: '0 10px',
+  },
+  fortuneResultText: {
+    marginTop: '6px',
+    fontSize: '14px',
+    fontWeight: 600,
+    textAlign: 'center',
+    color: '#ffeb3b',
+    textShadow: '0 0 10px rgba(255, 235, 59, 0.4)',
+  },
+  fortuneRerollButton: {
+    marginTop: '4px',
+    padding: '6px 16px',
+    borderRadius: '999px',
+    border: '1px solid #666',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    color: '#eee',
+    fontSize: '12px',
+    cursor: 'pointer',
   },
 };
 
