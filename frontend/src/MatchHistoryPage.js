@@ -15,7 +15,7 @@ function MatchHistoryPage() {
   const [hasToken, setHasToken] = useState(false);
   const [queueFilter, setQueueFilter] = useState('all');
 
-  // 🔥 새로 추가: 클릭된 경기(스코어보드 모달용)
+  // 🔥 클릭된 경기(스코어보드 모달용)
   const [selectedMatch, setSelectedMatch] = useState(null);
 
   // ⭐ 에이전트 이름을 파일명 규칙에 맞게 자동 변환하는 함수
@@ -24,15 +24,13 @@ function MatchHistoryPage() {
 
     if (!agent) return defaultSrc;
 
-    // agent가 객체로 올 수도 있음 (예: { name: 'Omen', id: 'omen' ... })
     let agentName = agent;
-
     if (typeof agent === 'object') {
       agentName =
         agent.displayName ||
         agent.name ||
         agent.id ||
-        ''; // 그래도 없으면 빈 문자열
+        '';
     }
 
     if (typeof agentName !== 'string' || agentName.length === 0) {
@@ -48,9 +46,51 @@ function MatchHistoryPage() {
     return normalized ? `/agents/${normalized}.png` : defaultSrc;
   };
 
+  // ⭐ 티어 이미지 (아이언1~레디언트) 경로
+  const getTierImageSrc = (tierNumber, tierName) => {
+    if (!tierNumber && !tierName) return null;
+
+    let num = tierNumber;
+
+    // 혹시 숫자가 없고 문자열만 온 경우 이름으로 매핑
+    if (!num && tierName) {
+      const key = tierName.toLowerCase().replace(/\s+/g, '');
+      const map = {
+        iron1: 3,
+        iron2: 4,
+        iron3: 5,
+        bronze1: 6,
+        bronze2: 7,
+        bronze3: 8,
+        silver1: 9,
+        silver2: 10,
+        silver3: 11,
+        gold1: 12,
+        gold2: 13,
+        gold3: 14,
+        platinum1: 15,
+        platinum2: 16,
+        platinum3: 17,
+        diamond1: 18,
+        diamond2: 19,
+        diamond3: 20,
+        ascendant1: 21,
+        ascendant2: 22,
+        ascendant3: 23,
+        immortal1: 24,
+        immortal2: 25,
+        immortal3: 26,
+        radiant: 27,
+      };
+      num = map[key];
+    }
+
+    if (!num) return null;
+    return `/tiers/${num}.png`; // public/tiers/3.png 이런 식
+  };
+
   // ⭐ 플레이어 카드 이미지 (현재는 기본값만 사용)
   const getPlayerCardSrc = () => {
-    // 나중에 summary.playerCardUrl 이 생기면 그걸 우선 사용
     if (summary && summary.playerCardUrl) {
       return summary.playerCardUrl;
     }
@@ -218,7 +258,7 @@ function MatchHistoryPage() {
 
   const filteredMatches = getFilteredMatches();
 
-  // 🔥 새로 추가: 경기 카드 클릭 시 스코어보드 모달 열기
+  // 🔥 경기 카드 클릭 시 스코어보드 모달 열기
   const handleMatchClick = (match) => {
     setSelectedMatch(match);
   };
@@ -301,6 +341,7 @@ function MatchHistoryPage() {
               </div>
               <div style={styles.tableHeaderRow}>
                 <span style={styles.thPlayer}>플레이어</span>
+                <span style={styles.thTier}>티어</span>
                 <span style={styles.thAgent}>요원</span>
                 <span style={styles.thStat}>K / D / A</span>
                 <span style={styles.thStat}>K/D</span>
@@ -335,6 +376,23 @@ function MatchHistoryPage() {
                         </span>
                       )}
                     </span>
+
+                    {/* 🔥 경기 당시 티어 이미지 */}
+                    <span style={styles.tdTier}>
+                      {p.tierNumber || p.tierName ? (
+                        <img
+                          src={getTierImageSrc(p.tierNumber, p.tierName)}
+                          alt={p.tierName || 'tier'}
+                          style={styles.tierIcon}
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        '-'
+                      )}
+                    </span>
+
                     <span style={styles.tdAgent}>
                       <img
                         src={
@@ -387,6 +445,7 @@ function MatchHistoryPage() {
               </div>
               <div style={styles.tableHeaderRow}>
                 <span style={styles.thPlayer}>플레이어</span>
+                <span style={styles.thTier}>티어</span>
                 <span style={styles.thAgent}>요원</span>
                 <span style={styles.thStat}>K / D / A</span>
                 <span style={styles.thStat}>K/D</span>
@@ -414,6 +473,23 @@ function MatchHistoryPage() {
                         </span>
                       )}
                     </span>
+
+                    {/* 🔥 상대 팀 티어 이미지 */}
+                    <span style={styles.tdTier}>
+                      {p.tierNumber || p.tierName ? (
+                        <img
+                          src={getTierImageSrc(p.tierNumber, p.tierName)}
+                          alt={p.tierName || 'tier'}
+                          style={styles.tierIcon}
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        '-'
+                      )}
+                    </span>
+
                     <span style={styles.tdAgent}>
                       <img
                         src={
@@ -574,7 +650,6 @@ function MatchHistoryPage() {
 
                 {/* 오른쪽: 닉네임/태그 + 현재 티어/승률 + 시즌 히스토리 */}
                 <div style={styles.profileRight}>
-                  {/* 닉네임 박스 */}
                   <div style={styles.nameCard}>
                     <div style={styles.nameRow}>
                       <span style={styles.nicknameText}>
@@ -610,7 +685,6 @@ function MatchHistoryPage() {
                     )}
                   </div>
 
-                  {/* 시즌 히스토리 박스들 */}
                   {summary?.seasonHistory && summary.seasonHistory.length > 0 && (
                     <div style={styles.seasonHistoryWrapper}>
                       {summary.seasonHistory.map((s, idx) => (
@@ -1216,7 +1290,8 @@ const styles = {
   },
   tableHeaderRow: {
     display: 'grid',
-    gridTemplateColumns: '2fr 1.4fr 1.2fr 0.8fr 0.9fr 0.9fr',
+    gridTemplateColumns: '2fr 0.7fr 1.4fr 1.2fr 0.8fr 0.9fr 0.9fr',
+    //    플레이어 티어  요원  KDA  KD  ACS HS
     fontSize: '11px',
     color: '#999',
     borderBottom: '1px solid #333',
@@ -1224,12 +1299,13 @@ const styles = {
     marginBottom: '4px',
   },
   thPlayer: { textAlign: 'left' },
+  thTier: { textAlign: 'center' },
   thAgent: { textAlign: 'left' },
   thStat: { textAlign: 'right' },
 
   tableRow: {
     display: 'grid',
-    gridTemplateColumns: '2fr 1.4fr 1.2fr 0.8fr 0.9fr 0.9fr',
+    gridTemplateColumns: '2fr 0.7fr 1.4fr 1.2fr 0.8fr 0.9fr 0.9fr',
     fontSize: '12px',
     padding: '4px 0',
     alignItems: 'center',
@@ -1240,6 +1316,9 @@ const styles = {
     alignItems: 'baseline',
     gap: '4px',
   },
+  tdTier: {
+    textAlign: 'center',
+  },
   tdAgent: {
     textAlign: 'left',
     display: 'flex',
@@ -1248,6 +1327,11 @@ const styles = {
   },
   tdStat: {
     textAlign: 'right',
+  },
+  tierIcon: {
+    width: 26,
+    height: 26,
+    objectFit: 'contain',
   },
   playerNameText: {
     fontWeight: 500,
