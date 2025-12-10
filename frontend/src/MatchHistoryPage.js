@@ -5,6 +5,120 @@ import { useNavigate } from 'react-router-dom';
 // Render 백엔드 주소
 const API_BASE_URL = 'https://infov.onrender.com';
 
+// 🔢 티어 이름 → 번호 매핑 (아이언1=3 ... 레디언트=27)
+const TIER_NAME_MAP = {
+  iron1: 3,
+  iron2: 4,
+  iron3: 5,
+  bronze1: 6,
+  bronze2: 7,
+  bronze3: 8,
+  silver1: 9,
+  silver2: 10,
+  silver3: 11,
+  gold1: 12,
+  gold2: 13,
+  gold3: 14,
+  platinum1: 15,
+  platinum2: 16,
+  platinum3: 17,
+  diamond1: 18,
+  diamond2: 19,
+  diamond3: 20,
+  ascendant1: 21,
+  ascendant2: 22,
+  ascendant3: 23,
+  immortal1: 24,
+  immortal2: 25,
+  immortal3: 26,
+  radiant: 27,
+};
+
+function tierNameToNumber(tierName) {
+  if (!tierName) return null;
+  const key = tierName.toLowerCase().replace(/\s+/g, '');
+  return TIER_NAME_MAP[key] || null;
+}
+
+// 🔹 티어 변화 라인 그래프 컴포넌트
+function TierChart({ data }) {
+  if (!data || data.length === 0) return null;
+
+  const widthPerPoint = 60;
+  const height = 120;
+  const paddingX = 20;
+  const paddingY = 20;
+  const width =
+    paddingX * 2 + (data.length > 1 ? (data.length - 1) * widthPerPoint : 0);
+
+  const values = data.map((d) => d.value);
+  const minVal = Math.min(...values);
+  const maxVal = Math.max(...values);
+  const range = maxVal - minVal || 1;
+
+  const points = data.map((d, idx) => {
+    const x = paddingX + idx * widthPerPoint;
+    const norm = (d.value - minVal) / range; // 0~1
+    const y =
+      height - paddingY - norm * (height - paddingY * 2); // 위가 높은 티어
+    return { x, y };
+  });
+
+  const polyPoints = points.map((p) => `${p.x},${p.y}`).join(' ');
+
+  return (
+    <svg width={width} height={height} style={styles.tierChartSvg}>
+      {/* 라인 */}
+      <polyline
+        points={polyPoints}
+        fill="none"
+        stroke="#4CAF50"
+        strokeWidth="2"
+      />
+      {/* 점 + 시즌 텍스트 */}
+      {points.map((p, idx) => {
+        const item = data[idx];
+        const seasonLabel =
+          typeof item.season === 'string'
+            ? item.season.length > 8
+              ? item.season.slice(-8)
+              : item.season
+            : `S${idx + 1}`;
+        const tierLabel =
+          typeof item.tier === 'string'
+            ? item.tier.replace('Radiant', 'Rad')
+            : '';
+
+        return (
+          <g key={idx}>
+            <circle cx={p.x} cy={p.y} r="3" fill="#ffffff" />
+            {/* 티어 텍스트 (점 위) */}
+            <text
+              x={p.x}
+              y={p.y - 8}
+              textAnchor="middle"
+              fontSize="9"
+              fill="#ffffff"
+            >
+              {tierLabel}
+            </text>
+            {/* 시즌 텍스트 (아래 축) */}
+            <text
+              x={p.x}
+              y={height - 5}
+              textAnchor="middle"
+              fontSize="9"
+              fill="#999999"
+            >
+              {seasonLabel}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 function MatchHistoryPage() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
@@ -17,6 +131,9 @@ function MatchHistoryPage() {
 
   // 🔥 클릭된 경기(스코어보드 모달용)
   const [selectedMatch, setSelectedMatch] = useState(null);
+
+  // 🔥 티어 그래프 토글
+  const [showTierChart, setShowTierChart] = useState(false);
 
   // ⭐ 에이전트 이름을 파일명 규칙에 맞게 자동 변환하는 함수
   const getAgentImageSrc = (agent) => {
@@ -52,37 +169,8 @@ function MatchHistoryPage() {
 
     let num = tierNumber;
 
-    // 혹시 숫자가 없고 문자열만 온 경우 이름으로 매핑
     if (!num && tierName) {
-      const key = tierName.toLowerCase().replace(/\s+/g, '');
-      const map = {
-        iron1: 3,
-        iron2: 4,
-        iron3: 5,
-        bronze1: 6,
-        bronze2: 7,
-        bronze3: 8,
-        silver1: 9,
-        silver2: 10,
-        silver3: 11,
-        gold1: 12,
-        gold2: 13,
-        gold3: 14,
-        platinum1: 15,
-        platinum2: 16,
-        platinum3: 17,
-        diamond1: 18,
-        diamond2: 19,
-        diamond3: 20,
-        ascendant1: 21,
-        ascendant2: 22,
-        ascendant3: 23,
-        immortal1: 24,
-        immortal2: 25,
-        immortal3: 26,
-        radiant: 27,
-      };
-      num = map[key];
+      num = tierNameToNumber(tierName);
     }
 
     if (!num) return null;
@@ -112,7 +200,8 @@ function MatchHistoryPage() {
     if (s.includes('swiftplay')) return 'swiftplay';
     if (s.includes('snowball') || s.includes('sheep')) return 'snowball';
     if (s.includes('custom')) return 'custom';
-    if (s.includes('brawl') || s.includes('mayhem') || s.includes('swiftpush')) return 'brawl';
+    if (s.includes('brawl') || s.includes('mayhem') || s.includes('swiftpush'))
+      return 'brawl';
 
     return 'other';
   };
@@ -218,9 +307,7 @@ function MatchHistoryPage() {
         console.log('[DEBUG] matchesData:', matchesData);
 
         setMatches(
-          Array.isArray(matchesData)
-            ? matchesData
-            : matchesData.matches || []
+          Array.isArray(matchesData) ? matchesData : matchesData.matches || []
         );
       } catch (err) {
         console.error(err);
@@ -257,6 +344,59 @@ function MatchHistoryPage() {
   };
 
   const filteredMatches = getFilteredMatches();
+
+  // 📊 최근 전적 기준 요약 스탯(평균 HS, 평균 KD, 평균 ACS)
+  let avgStats = null;
+  if (matches && matches.length > 0) {
+    let totalKills = 0;
+    let totalDeaths = 0;
+    let totalAcs = 0;
+    let countAcs = 0;
+    let totalHs = 0;
+    let countHs = 0;
+
+    matches.forEach((m) => {
+      const k = m.kills ?? 0;
+      const d = m.deaths ?? 0;
+      totalKills += k;
+      totalDeaths += d;
+
+      if (m.acs != null) {
+        totalAcs += m.acs;
+        countAcs += 1;
+      }
+      if (m.hsPercent != null) {
+        totalHs += m.hsPercent;
+        countHs += 1;
+      }
+    });
+
+    const avgKd = totalDeaths > 0 ? totalKills / totalDeaths : totalKills;
+    const avgAcs = countAcs > 0 ? totalAcs / countAcs : null;
+    const avgHs = countHs > 0 ? totalHs / countHs : null;
+
+    avgStats = { avgKd, avgAcs, avgHs };
+  }
+
+  // 📈 시즌 히스토리 → 티어 그래프용 데이터
+  let tierChartData = [];
+  if (summary?.seasonHistory && summary.seasonHistory.length > 0) {
+    // backend에서 최신 → 과거 순이라, 다시 뒤집어서 오래된 시즌 → 최신 시즌 순으로
+    const chronological = [...summary.seasonHistory].reverse();
+    const lastSix = chronological.slice(-6); // 최근 6시즌만
+
+    tierChartData = lastSix
+      .map((s) => {
+        const value = tierNameToNumber(s.tier);
+        if (!value) return null;
+        return {
+          season: s.season,
+          tier: s.tier,
+          value,
+        };
+      })
+      .filter(Boolean);
+  }
 
   // 🔥 경기 카드 클릭 시 스코어보드 모달 열기
   const handleMatchClick = (match) => {
@@ -367,13 +507,9 @@ function MatchHistoryPage() {
                     }}
                   >
                     <span style={styles.tdPlayer}>
-                      <span style={styles.playerNameText}>
-                        {p.name}
-                      </span>
+                      <span style={styles.playerNameText}>{p.name}</span>
                       {p.tag && (
-                        <span style={styles.playerTagText}>
-                          #{p.tag}
-                        </span>
+                        <span style={styles.playerTagText}>#{p.tag}</span>
                       )}
                     </span>
 
@@ -402,9 +538,7 @@ function MatchHistoryPage() {
                         alt={p.agent || 'agent'}
                         style={styles.modalAgentImg}
                         onError={(e) => {
-                          if (
-                            e.currentTarget.dataset.errorHandled === '1'
-                          ) {
+                          if (e.currentTarget.dataset.errorHandled === '1') {
                             e.currentTarget.style.display = 'none';
                             return;
                           }
@@ -412,9 +546,7 @@ function MatchHistoryPage() {
                           e.currentTarget.src = '/agents/default.png';
                         }}
                       />
-                      <span style={styles.agentNameText}>
-                        {p.agent}
-                      </span>
+                      <span style={styles.agentNameText}>{p.agent}</span>
                     </span>
                     <span style={styles.tdStat}>
                       {k} / {d} / {a}
@@ -464,13 +596,9 @@ function MatchHistoryPage() {
                     style={styles.tableRow}
                   >
                     <span style={styles.tdPlayer}>
-                      <span style={styles.playerNameText}>
-                        {p.name}
-                      </span>
+                      <span style={styles.playerNameText}>{p.name}</span>
                       {p.tag && (
-                        <span style={styles.playerTagText}>
-                          #{p.tag}
-                        </span>
+                        <span style={styles.playerTagText}>#{p.tag}</span>
                       )}
                     </span>
 
@@ -499,9 +627,7 @@ function MatchHistoryPage() {
                         alt={p.agent || 'agent'}
                         style={styles.modalAgentImg}
                         onError={(e) => {
-                          if (
-                            e.currentTarget.dataset.errorHandled === '1'
-                          ) {
+                          if (e.currentTarget.dataset.errorHandled === '1') {
                             e.currentTarget.style.display = 'none';
                             return;
                           }
@@ -509,9 +635,7 @@ function MatchHistoryPage() {
                           e.currentTarget.src = '/agents/default.png';
                         }}
                       />
-                      <span style={styles.agentNameText}>
-                        {p.agent}
-                      </span>
+                      <span style={styles.agentNameText}>{p.agent}</span>
                     </span>
                     <span style={styles.tdStat}>
                       {k} / {d} / {a}
@@ -577,18 +701,12 @@ function MatchHistoryPage() {
               <span style={styles.profileNameTopRight}>
                 {getDisplayName(profile)}
               </span>
-              <button
-                style={styles.logoutButton}
-                onClick={handleLogout}
-              >
+              <button style={styles.logoutButton} onClick={handleLogout}>
                 로그아웃
               </button>
             </div>
           ) : (
-            <button
-              style={styles.loginButton}
-              onClick={() => navigate('/')}
-            >
+            <button style={styles.loginButton} onClick={() => navigate('/')}>
               로그인
             </button>
           )}
@@ -645,7 +763,7 @@ function MatchHistoryPage() {
                   </div>
                 </div>
 
-                {/* 오른쪽: 닉네임/태그 + 현재 티어/승률 + 시즌 히스토리 */}
+                {/* 오른쪽: 닉네임/태그 + 현재 티어, 평균값, 티어 그래프 버튼 */}
                 <div style={styles.profileRight}>
                   <div style={styles.nameCard}>
                     <div style={styles.nameRow}>
@@ -653,47 +771,89 @@ function MatchHistoryPage() {
                         {profile.gameName}
                       </span>
                       {profile.tagLine && (
-                        <span style={styles.tagText}>
-                          #{profile.tagLine}
-                        </span>
+                        <span style={styles.tagText}>#{profile.tagLine}</span>
                       )}
                     </div>
                     {summary && (
-                      <div style={styles.tierRow}>
-                        <span style={styles.tierText}>
-                          {summary.currentTier
-                            ? summary.currentTier
-                            : '티어 정보 없음'}
-                        </span>
-                        {typeof summary.rr === 'number' && (
-                          <span style={styles.rrText}>
-                            {summary.rr} RR
+                      <>
+                        <div style={styles.tierRow}>
+                          <span style={styles.tierText}>
+                            {summary.currentTier
+                              ? summary.currentTier
+                              : '티어 정보 없음'}
                           </span>
+                          {typeof summary.rr === 'number' && (
+                            <span style={styles.rrText}>{summary.rr} RR</span>
+                          )}
+
+                          {typeof summary.winRate === 'number' && (
+                            <span style={styles.winrateText}>
+                              · 시즌 전적 {summary.wins ?? '-'}승{' '}
+                              {summary.losses ?? '-'}패 ({summary.winRate}%)
+                            </span>
+                          )}
+                        </div>
+
+                        {/* 🔥 평균 HS / KD / ACS 요약 */}
+                        {avgStats && (
+                          <div style={styles.overallStatsRow}>
+                            <div style={styles.overallStatItem}>
+                              <span style={styles.overallStatLabel}>
+                                평균 HS
+                              </span>
+                              <span style={styles.overallStatValue}>
+                                {avgStats.avgHs != null
+                                  ? `${avgStats.avgHs.toFixed(1)}%`
+                                  : '-'}
+                              </span>
+                            </div>
+                            <div style={styles.overallStatItem}>
+                              <span style={styles.overallStatLabel}>
+                                평균 K/D
+                              </span>
+                              <span style={styles.overallStatValue}>
+                                {avgStats.avgKd != null
+                                  ? avgStats.avgKd.toFixed(2)
+                                  : '-'}
+                              </span>
+                            </div>
+                            <div style={styles.overallStatItem}>
+                              <span style={styles.overallStatLabel}>
+                                평균 ACS
+                              </span>
+                              <span style={styles.overallStatValue}>
+                                {avgStats.avgAcs != null
+                                  ? Math.round(avgStats.avgAcs)
+                                  : '-'}
+                              </span>
+                            </div>
+                          </div>
                         )}
 
-                        {typeof summary.winRate === 'number' && (
-                          <span style={styles.winrateText}>
-                            · 시즌 전적 {summary.wins ?? '-'}승{' '}
-                            {summary.losses ?? '-'}패 (
-                            {summary.winRate}%)
-                          </span>
-                        )}
-                      </div>
+                        {/* 🔘 티어 자세히 보기 버튼 */}
+                        <button
+                          type="button"
+                          style={styles.tierDetailButton}
+                          onClick={() =>
+                            setShowTierChart((prev) => !prev)
+                          }
+                        >
+                          티어 자세히 보기 {showTierChart ? '▲' : '▼'}
+                        </button>
+                      </>
                     )}
                   </div>
 
-                  {summary?.seasonHistory && summary.seasonHistory.length > 0 && (
-                    <div style={styles.seasonHistoryWrapper}>
-                      {summary.seasonHistory.map((s, idx) => (
-                        <div key={`${s.season}-${idx}`} style={styles.seasonBox}>
-                          <div style={styles.seasonName}>
-                            {s.season}
-                          </div>
-                          <div style={styles.seasonTier}>
-                            {s.tier}
-                          </div>
+                  {/* 🔥 티어 그래프 (토글) */}
+                  {showTierChart && (
+                    <div style={styles.tierChartCard}>
+                      {tierChartData.length >= 2 ? (
+                        <TierChart data={tierChartData} />
+                      ) : (
+                        <div style={styles.tierChartEmptyText}>
+                          티어 기록이 부족합니다.
                         </div>
-                      ))}
+                      )}
                     </div>
                   )}
                 </div>
@@ -772,9 +932,7 @@ function MatchHistoryPage() {
                           alt={match.agent}
                           style={styles.agentImage}
                           onError={(e) => {
-                            if (
-                              e.currentTarget.dataset.errorHandled === '1'
-                            ) {
+                            if (e.currentTarget.dataset.errorHandled === '1') {
                               e.currentTarget.style.display = 'none';
                               return;
                             }
@@ -1035,6 +1193,7 @@ const styles = {
     gap: '8px',
     alignItems: 'center',
     fontSize: '13px',
+    marginBottom: '6px',
   },
   tierText: {
     color: '#f5f5f5',
@@ -1046,43 +1205,60 @@ const styles = {
     color: '#9fd39f',
   },
 
-  /* 시즌 히스토리 */
-  seasonHistoryWrapper: {
-    marginTop: '4px',
+  /* 🔥 상단 평균 스탯 */
+  overallStatsRow: {
     display: 'flex',
     flexWrap: 'wrap',
-    gap: '8px',
+    gap: '12px',
+    marginTop: '6px',
   },
-  seasonBox: {
-    padding: '6px 10px',
-    borderRadius: '10px',
-    backgroundColor: '#151515',
-    border: '1px solid #2d2d2d',
-    minWidth: '120px',
-    maxWidth: '160px',
+  overallStatItem: {
     display: 'flex',
-    flexDirection: 'column',
-    gap: '2px',
+    alignItems: 'baseline',
+    gap: '4px',
+    fontSize: '12px',
   },
-  seasonName: {
+  overallStatLabel: {
+    color: '#aaaaaa',
+  },
+  overallStatValue: {
+    color: '#ffffff',
+    fontWeight: 600,
+  },
+
+  tierDetailButton: {
+    marginTop: '8px',
+    padding: '4px 10px',
+    borderRadius: '999px',
+    border: '1px solid #444',
+    backgroundColor: 'transparent',
+    color: '#ddd',
+    fontSize: '11px',
+    cursor: 'pointer',
+    alignSelf: 'flex-start',
+  },
+
+  /* 🔥 티어 그래프 카드 */
+  tierChartCard: {
+    marginTop: '10px',
+    padding: '12px',
+    borderRadius: '12px',
+    backgroundColor: '#151515',
+    border: '1px solid #303030',
+  },
+  tierChartEmptyText: {
     fontSize: '12px',
     color: '#999',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
   },
-  seasonTier: {
-    fontSize: '13px',
-    color: '#fff',
-    fontWeight: 600,
-    wordBreak: 'keep-all',
+  tierChartSvg: {
+    display: 'block',
   },
 
   /* 전적 헤더 + 필터 */
   matchesHeaderRow: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'spaceBetween',
     marginTop: '8px',
     marginBottom: '8px',
   },
