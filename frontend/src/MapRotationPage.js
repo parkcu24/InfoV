@@ -26,7 +26,7 @@ function MapRotationPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  uuseEffect(() => {
+  useEffect(() => {
     axios.get(`${API_BASE_URL}/api/rotation`)
       .then(res => {
         console.log('🔍 rotation 응답:', res.data);
