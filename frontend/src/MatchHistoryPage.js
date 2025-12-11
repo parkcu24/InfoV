@@ -185,6 +185,12 @@ function TierChart({ data }) {
 
 function MatchHistoryPage() {
   const navigate = useNavigate();
+
+  // ✅ Riot OAuth 로그인으로 보내는 함수 (중요!)
+  const handleLoginRedirect = () => {
+    window.location.href = `${API_BASE_URL}/api/auth/login`;
+  };
+
   const [profile, setProfile] = useState(null);
   const [matches, setMatches] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -987,7 +993,8 @@ function MatchHistoryPage() {
               </button>
             </div>
           ) : (
-            <button style={styles.loginButton} onClick={() => navigate('/')}>
+            // ✅ 여기서도 OAuth로 직접 이동
+            <button style={styles.loginButton} onClick={handleLoginRedirect}>
               로그인
             </button>
           )}
@@ -1002,9 +1009,10 @@ function MatchHistoryPage() {
           <div style={styles.errorBox}>
             <p style={styles.errorText}>{error}</p>
             {!hasToken && (
+              // ✅ 에러박스 버튼도 OAuth로 직접 이동
               <button
                 style={styles.primaryButton}
-                onClick={() => navigate('/')}
+                onClick={handleLoginRedirect}
               >
                 로그인 하러 가기
               </button>
@@ -1806,7 +1814,7 @@ const styles = {
     backgroundColor: '#181818',
     color: '#eee',
     borderRadius: '999px',
-    border: '1px solid #444',
+    border: '1px solid '#444',
     padding: '4px 10px',
     fontSize: '13px',
     outline: 'none',
@@ -2153,7 +2161,7 @@ const styles = {
     maxWidth: '90%',
     backgroundColor: '#151515',
     borderRadius: '18px',
-    border: '1px solid #444',
+    border: '1px solid '#444',
     padding: '20px 22px 18px',
     boxShadow: '0 16px 40px rgba(0,0,0,0.7)',
     display: 'flex',
