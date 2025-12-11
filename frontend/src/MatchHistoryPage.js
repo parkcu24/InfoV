@@ -1897,7 +1897,7 @@ const styles = {
     alignItems: 'center',
     gap: '14px',
     alignSelf: 'flex-end',
-    marginRight: '26px', // 0일 전 텍스트 기준 살짝 왼쪽으로 밀기
+    marginRight: '28px', // 0일 전 텍스트 기준 살짝 왼쪽으로 밀기
     marginTop: '4px',
   },
   statBlock: {
