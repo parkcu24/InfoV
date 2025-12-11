@@ -1569,7 +1569,7 @@ const styles = {
     backgroundColor: '#2b1b1b',
     padding: '20px',
     borderRadius: '12px',
-    border: '1px solid '#ff4d4f',
+    border: '1px solid #ff4d4f',
     textAlign: 'center',
   },
   errorText: { color: '#ff8888' },
