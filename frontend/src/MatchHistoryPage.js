@@ -506,6 +506,7 @@ function MatchHistoryPage() {
       );
 
       if (!res.ok) {
+        console.error('추가 전적 fetch 실패, status:', res.status);
         throw new Error(
           `추가 전적을 불러오지 못했습니다. (status ${res.status})`
         );
@@ -518,10 +519,10 @@ function MatchHistoryPage() {
       setPageStart((prev) => prev + newList.length);
       setHasMore(newList.length === pageSize);
     } catch (err) {
-      console.error('추가 전적 불러오기 오류:', err);
+      console.error('추가 전적 불러오기 오류 (CORS 포함 가능):', err);
       setError(
         err.message ||
-          '추가 전적을 불러오지 못했습니다. (백엔드 CORS 설정을 확인해 주세요)'
+          '추가 전적을 불러오지 못했습니다. (백엔드 CORS 설정 또는 Render 로그를 확인해 주세요)'
       );
     } finally {
       setLoadingMore(false);
@@ -1285,33 +1286,7 @@ function MatchHistoryPage() {
                             )}
                           </div>
 
-                          {/* 0일 전 기준, 살짝 왼쪽에 KAST 배치 */}
-                          <div style={styles.kastRow}>
-                            <div
-                              style={styles.kastBlock}
-                              onMouseEnter={() =>
-                                setHoveredStat({ key: 'kast', matchKey })
-                              }
-                              onMouseLeave={() => setHoveredStat(null)}
-                            >
-                              <span style={styles.statLabel}>KAST</span>
-                              <span style={styles.statValue}>
-                                {match.kast != null
-                                  ? `${match.kast}%`
-                                  : '-'}
-                              </span>
-
-                              {hoveredStat &&
-                                hoveredStat.key === 'kast' &&
-                                hoveredStat.matchKey === matchKey && (
-                                  <div style={styles.statInlineTooltip}>
-                                    {STAT_HELP_TEXT.kast}
-                                  </div>
-                                )}
-                            </div>
-                          </div>
-
-                          {/* 왼쪽으로 모아서: KDA / KD / ACS / HS */}
+                          {/* 한 줄: KDA / KD / ACS / HS / KAST  (KAST는 가장 오른쪽) */}
                           <div style={styles.statsRow}>
                             {/* KDA */}
                             <div
@@ -1321,9 +1296,7 @@ function MatchHistoryPage() {
                               }
                               onMouseLeave={() => setHoveredStat(null)}
                             >
-                              <span style={styles.statLabel}>
-                                K / D / A
-                              </span>
+                              <span style={styles.statLabel}>K / D / A</span>
                               <span style={styles.statValue}>
                                 {k} / {d} / {a}
                               </span>
@@ -1407,6 +1380,30 @@ function MatchHistoryPage() {
                                 hoveredStat.matchKey === matchKey && (
                                   <div style={styles.statInlineTooltip}>
                                     {STAT_HELP_TEXT.hs}
+                                  </div>
+                                )}
+                            </div>
+
+                            {/* KAST (줄의 맨 오른쪽, 전체 줄은 0일 전보다 살짝 왼쪽) */}
+                            <div
+                              style={styles.statBlock}
+                              onMouseEnter={() =>
+                                setHoveredStat({ key: 'kast', matchKey })
+                              }
+                              onMouseLeave={() => setHoveredStat(null)}
+                            >
+                              <span style={styles.statLabel}>KAST</span>
+                              <span style={styles.statValue}>
+                                {match.kast != null
+                                  ? `${match.kast}%`
+                                  : '-'}
+                              </span>
+
+                              {hoveredStat &&
+                                hoveredStat.key === 'kast' &&
+                                hoveredStat.matchKey === matchKey && (
+                                  <div style={styles.statInlineTooltip}>
+                                    {STAT_HELP_TEXT.kast}
                                   </div>
                                 )}
                             </div>
@@ -1894,25 +1891,14 @@ const styles = {
     color: '#888',
   },
 
-  // 👉 KAST를 0일 전 기준으로 살짝 왼쪽에 두는 줄
-  kastRow: {
-    alignSelf: 'flex-end',
-    marginRight: '24px', // 0일 전보다 살짝 왼쪽에 보이도록 여백
-  },
-  kastBlock: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    minWidth: '60px',
-    position: 'relative',
-  },
-
-  // 왼쪽에 모이는 KDA / KD / ACS / HS
+  // KDA / KD / ACS / HS / KAST 한 줄 (우측 정렬 + 살짝 왼쪽)
   statsRow: {
     display: 'flex',
     alignItems: 'center',
     gap: '14px',
-    alignSelf: 'flex-start',
+    alignSelf: 'flex-end',
+    marginRight: '26px', // 0일 전 텍스트 기준 살짝 왼쪽으로 밀기
+    marginTop: '4px',
   },
   statBlock: {
     display: 'flex',
