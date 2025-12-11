@@ -62,7 +62,7 @@ app.use('/api/rankings', rankingsRouter);
 app.use('/api/acts', actsRouter);
 app.use('/api/rotation', rotationRouter);
 app.use('/api/search', searchRouter);
-app.use('/api/auth', authRouter);
+app.use('/api/auth', cors(corsOptions), authRouter);
 
 // 🟢 서버 시작 (0.0.0.0 바인딩: WSL/도커/배포 호환)
 app.listen(PORT, '0.0.0.0', () => {

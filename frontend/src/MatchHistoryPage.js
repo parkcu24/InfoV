@@ -76,7 +76,6 @@ const STAT_HELP_TEXT = {
   kda: 'K / D / A : 한 판에서 올린 킬, 데스, 어시스트 수예요.',
   kd: 'K/D : 킬을 데스로 나눈 비율이에요. 1.00 이상이면 데스보다 킬이 더 많다는 뜻이에요.',
   acs: 'ACS : 라운드당 평균 전투 점수(교전 기여도)를 나타내요.',
-  adr: 'ADR : 라운드당 평균 피해량(데미지)입니다.',
   hs: 'HS% : 전체 명중탄 중에서 머리를 맞힌 비율이에요.',
   kast: 'KAST : Kill / Assist / Survive / Trade 라운드 비율이에요.',
 };
@@ -215,7 +214,6 @@ function MatchHistoryPage() {
   const [loadingMore, setLoadingMore] = useState(false);
 
   // 📘 어떤 스탯 위에 마우스 올라가 있는지
-  // 예: { key: 'kda', matchKey: '...' }
   const [hoveredStat, setHoveredStat] = useState(null);
 
   // ⭐ 모드별로 화면에 몇 판까지 보여줄지 (기본 10)
@@ -233,7 +231,6 @@ function MatchHistoryPage() {
     other: 10,
   });
 
-  // ⭐ 에이전트 이름 → 이미지 파일명
   const getAgentImageSrc = (agent) => {
     const defaultSrc = '/agents/default.png';
 
@@ -257,7 +254,6 @@ function MatchHistoryPage() {
     return normalized ? `/agents/${normalized}.png` : defaultSrc;
   };
 
-  // ⭐ 티어 이미지 (아이언1~레디언트) 경로
   const getTierImageSrc = (tierNumber, tierName) => {
     if (!tierNumber && !tierName) return null;
 
@@ -270,7 +266,6 @@ function MatchHistoryPage() {
     return `/tiers/${num}.png`;
   };
 
-  // ⭐ 플레이어 카드 이미지
   const getPlayerCardSrc = () => {
     if (summary && summary.playerCardUrl) {
       return summary.playerCardUrl;
@@ -278,7 +273,6 @@ function MatchHistoryPage() {
     return '/playercards/default.png';
   };
 
-  // ⭐ 큐 이름을 영어 키로 정규화
   const normalizeQueueKey = (q) => {
     if (!q) return 'other';
     const s = String(q).toLowerCase();
@@ -298,7 +292,6 @@ function MatchHistoryPage() {
     return 'other';
   };
 
-  // ⭐ 큐 이름 한국어
   const getQueueDisplayName = (match) => {
     const q = match.queue || match.mode;
     const key = normalizeQueueKey(q);
@@ -327,7 +320,6 @@ function MatchHistoryPage() {
     }
   };
 
-  // ⭐ 필터에 맞는 전적만 추리기
   const getFilteredMatches = () => {
     if (queueFilter === 'all') return matches;
     return matches.filter((m) => {
@@ -336,7 +328,7 @@ function MatchHistoryPage() {
     });
   };
 
-  // 🔥 첫 로딩 (profile, stats, matches 10개)
+  // 🔥 첫 로딩
   useEffect(() => {
     const token = localStorage.getItem('riot_access_token');
 
@@ -368,7 +360,7 @@ function MatchHistoryPage() {
         const profileData = await profileRes.json();
         setProfile(profileData);
 
-        // 2) Henrik 요약 스탯
+        // 2) 요약 스탯
         try {
           const statsRes = await fetch(`${API_BASE_URL}/api/auth/stats`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -382,7 +374,7 @@ function MatchHistoryPage() {
           console.error('Stats API 오류:', e);
         }
 
-        // 3) 전적 - 처음 10판(start=0, size=10)
+        // 3) 전적 처음 10판
         const matchesRes = await fetch(
           `${API_BASE_URL}/api/auth/matches?start=0&size=10`,
           {
@@ -402,8 +394,8 @@ function MatchHistoryPage() {
           : matchesData.matches || [];
 
         setMatches(list);
-        setPageStart(list.length); // 지금까지 불러온 개수
-        setHasMore(list.length === 10); // 10개 꽉 채워졌으면 더 있을 가능성 있음
+        setPageStart(list.length);
+        setHasMore(list.length === 10);
       } catch (err) {
         console.error(err);
         setError(err.message);
@@ -415,7 +407,7 @@ function MatchHistoryPage() {
     fetchData();
   }, []);
 
-  // 🎰 룰렛 시작 (한 번 뽑힌 후에는 다시 돌지 않도록 latestFortuneText 체크)
+  // 🎰 운세 룰렛
   const startFortuneRolling = () => {
     if (isFortuneRolling || latestFortuneText) return;
 
@@ -447,7 +439,6 @@ function MatchHistoryPage() {
     }, 1600);
   };
 
-  // 🎰 모달 열기
   const openFortuneOverlay = () => {
     setShowFortuneOverlay(true);
 
@@ -472,7 +463,6 @@ function MatchHistoryPage() {
     startFortuneRolling();
   };
 
-  // ❌ 운세 모달 닫기
   const closeFortuneOverlay = () => {
     if (fortuneIntervalRef.current) {
       clearInterval(fortuneIntervalRef.current);
@@ -486,7 +476,6 @@ function MatchHistoryPage() {
     setShowFortuneOverlay(false);
   };
 
-  // 언마운트 시 타이머 정리
   useEffect(() => {
     return () => {
       if (fortuneIntervalRef.current) {
@@ -498,7 +487,7 @@ function MatchHistoryPage() {
     };
   }, []);
 
-  // 🔥 서버에서 전적 더 가져오기 (start=pageStart, size=10)
+  // 🔥 전적 더 가져오기
   const fetchMoreMatches = async () => {
     if (!hasMore || loadingMore) return;
 
@@ -527,23 +516,23 @@ function MatchHistoryPage() {
 
       setMatches((prev) => [...prev, ...newList]);
       setPageStart((prev) => prev + newList.length);
-      setHasMore(newList.length === pageSize); // 10개 꽉 채우지 못하면 더 이상 없음
+      setHasMore(newList.length === pageSize);
     } catch (err) {
-      console.error(err);
-      setError(err.message || '추가 전적을 불러오지 못했습니다.');
+      console.error('추가 전적 불러오기 오류:', err);
+      setError(
+        err.message ||
+          '추가 전적을 불러오지 못했습니다. (백엔드 CORS 설정을 확인해 주세요)'
+      );
     } finally {
       setLoadingMore(false);
     }
   };
 
-  // ⭐ 현재 선택된 모드(queueFilter)에 대해서만 화면에 보여주는 판 수를 +10
   const handleLoadMoreClick = async () => {
     const key = queueFilter || 'all';
 
-    // 1) 서버에 더 있는지 시도 (Henrik 기준 최대 100판)
     await fetchMoreMatches();
 
-    // 2) 현재 모드에서 보여줄 개수 +10
     setVisibleCounts((prev) => ({
       ...prev,
       [key]: (prev[key] || 10) + 10,
@@ -561,7 +550,6 @@ function MatchHistoryPage() {
     return p.gameName || '';
   };
 
-  // ⭐ 맵 이름 한국어 변환
   const getMapName = (match) => {
     const m = match.map;
     let name = 'Unknown Map';
@@ -599,14 +587,11 @@ function MatchHistoryPage() {
 
   const filteredMatches = getFilteredMatches();
 
-  // 현재 모드에서 몇 판까지 보여줄지
   const currentKey = queueFilter || 'all';
   const visibleCount = visibleCounts[currentKey] || 10;
-
-  // ⭐ 필터된 전적 중 위에서 visibleCount만큼만 화면에 표시
   const visibleMatches = filteredMatches.slice(0, visibleCount);
 
-  // 📊 최근 전적 기준 요약 스탯(평균 HS, 평균 KD, 평균 ACS)
+  // 📊 전체 전적 기준 요약 스탯
   let avgStats = null;
   if (matches && matches.length > 0) {
     let totalKills = 0;
@@ -639,7 +624,7 @@ function MatchHistoryPage() {
     avgStats = { avgKd, avgAcs, avgHs };
   }
 
-  // 📈 시즌 히스토리 → 티어 그래프용 데이터
+  // 📈 시즌 히스토리 → 티어 그래프용
   let tierChartData = [];
   if (summary?.seasonHistory && summary.seasonHistory.length > 0) {
     const chronological = [...summary.seasonHistory].reverse();
@@ -671,7 +656,6 @@ function MatchHistoryPage() {
       .filter(Boolean);
   }
 
-  // 🔥 경기 카드 클릭 시 스코어보드 모달 열기
   const handleMatchClick = (match) => {
     setSelectedMatch(match);
   };
@@ -714,9 +698,7 @@ function MatchHistoryPage() {
                   · {getQueueName(selectedMatch)}
                 </span>
               </div>
-              <div style={styles.modalSubText}>
-                {selectedMatch.timeAgo}
-              </div>
+              <div style={styles.modalSubText}>{selectedMatch.timeAgo}</div>
             </div>
 
             <div style={styles.modalScoreBox}>
@@ -1221,7 +1203,6 @@ function MatchHistoryPage() {
                         ? match.teamScore > match.enemyScore
                         : false;
 
-                    // ⭐ 이 매치를 구분할 고유 키 (툴팁에서 사용)
                     const matchKey =
                       match.matchId ||
                       `${match.map}-${match.queue}-${match.timeAgo}`;
@@ -1290,6 +1271,7 @@ function MatchHistoryPage() {
 
                         {/* 오른쪽 */}
                         <div style={styles.matchRight}>
+                          {/* 날짜 + 0일 전 */}
                           <div style={styles.matchMetaBox}>
                             {match.gameDate && (
                               <div style={styles.matchDateText}>
@@ -1303,6 +1285,33 @@ function MatchHistoryPage() {
                             )}
                           </div>
 
+                          {/* 0일 전 기준, 살짝 왼쪽에 KAST 배치 */}
+                          <div style={styles.kastRow}>
+                            <div
+                              style={styles.kastBlock}
+                              onMouseEnter={() =>
+                                setHoveredStat({ key: 'kast', matchKey })
+                              }
+                              onMouseLeave={() => setHoveredStat(null)}
+                            >
+                              <span style={styles.statLabel}>KAST</span>
+                              <span style={styles.statValue}>
+                                {match.kast != null
+                                  ? `${match.kast}%`
+                                  : '-'}
+                              </span>
+
+                              {hoveredStat &&
+                                hoveredStat.key === 'kast' &&
+                                hoveredStat.matchKey === matchKey && (
+                                  <div style={styles.statInlineTooltip}>
+                                    {STAT_HELP_TEXT.kast}
+                                  </div>
+                                )}
+                            </div>
+                          </div>
+
+                          {/* 왼쪽으로 모아서: KDA / KD / ACS / HS */}
                           <div style={styles.statsRow}>
                             {/* KDA */}
                             <div
@@ -1319,7 +1328,6 @@ function MatchHistoryPage() {
                                 {k} / {d} / {a}
                               </span>
 
-                              {/* ⭐ KDA 툴팁 */}
                               {hoveredStat &&
                                 hoveredStat.key === 'kda' &&
                                 hoveredStat.matchKey === matchKey && (
@@ -1402,30 +1410,6 @@ function MatchHistoryPage() {
                                   </div>
                                 )}
                             </div>
-
-                            {/* KAST */}
-                            <div
-                              style={styles.statBlock}
-                              onMouseEnter={() =>
-                                setHoveredStat({ key: 'kast', matchKey })
-                              }
-                              onMouseLeave={() => setHoveredStat(null)}
-                            >
-                              <span style={styles.statLabel}>KAST</span>
-                              <span style={styles.statValue}>
-                                {match.kast != null
-                                  ? `${match.kast}%`
-                                  : '-'}
-                              </span>
-
-                              {hoveredStat &&
-                                hoveredStat.key === 'kast' &&
-                                hoveredStat.matchKey === matchKey && (
-                                  <div style={styles.statInlineTooltip}>
-                                    {STAT_HELP_TEXT.kast}
-                                  </div>
-                                )}
-                            </div>
                           </div>
                         </div>
                       </div>
@@ -1433,7 +1417,7 @@ function MatchHistoryPage() {
                   })}
                 </div>
 
-                {/* 전적 더보기 버튼 - Henrik API 기준 최대 100판까지 */}
+                {/* 전적 더보기 */}
                 <div style={styles.loadMoreWrapper}>
                   <button
                     type="button"
@@ -1891,7 +1875,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'flex-end',
-    gap: '6px',
+    gap: '4px',
     minWidth: '260px',
     marginLeft: '48px',
   },
@@ -1910,18 +1894,32 @@ const styles = {
     color: '#888',
   },
 
+  // 👉 KAST를 0일 전 기준으로 살짝 왼쪽에 두는 줄
+  kastRow: {
+    alignSelf: 'flex-end',
+    marginRight: '24px', // 0일 전보다 살짝 왼쪽에 보이도록 여백
+  },
+  kastBlock: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    minWidth: '60px',
+    position: 'relative',
+  },
+
+  // 왼쪽에 모이는 KDA / KD / ACS / HS
   statsRow: {
     display: 'flex',
     alignItems: 'center',
     gap: '14px',
-    alignSelf: 'flex-start', // 👉 스탯을 조금 더 왼쪽으로
+    alignSelf: 'flex-start',
   },
   statBlock: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'flex-end',
     minWidth: '60px',
-    position: 'relative', // ⭐ 툴팁 위치 기준
+    position: 'relative',
   },
   statLabel: {
     fontSize: '11px',
@@ -1932,7 +1930,7 @@ const styles = {
     color: '#fff',
   },
 
-  // ⭐ 각 스탯 바로 아래에 뜨는 툴팁
+  // 각 스탯 아래 툴팁
   statInlineTooltip: {
     position: 'absolute',
     bottom: '-42px',
@@ -2078,7 +2076,7 @@ const styles = {
   tableHeaderRow: {
     display: 'grid',
     gridTemplateColumns:
-      '2fr 0.7fr 1.4fr 1.2fr 0.8fr 0.9fr 0.9fr 0.9fr', // 8열 (플레이어~KAST)
+      '2fr 0.7fr 1.4fr 1.2fr 0.8fr 0.9fr 0.9fr 0.9fr',
     fontSize: '11px',
     color: '#999',
     borderBottom: '1px solid #333',
@@ -2093,7 +2091,7 @@ const styles = {
   tableRow: {
     display: 'grid',
     gridTemplateColumns:
-      '2fr 0.7fr 1.4fr 1.2fr 0.8fr 0.9fr 0.9fr 0.9fr', // 8열
+      '2fr 0.7fr 1.4fr 1.2fr 0.8fr 0.9fr 0.9fr 0.9fr',
     fontSize: '12px',
     padding: '4px 0',
     alignItems: 'center',
