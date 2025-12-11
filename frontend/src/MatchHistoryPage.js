@@ -1488,7 +1488,7 @@ const styles = {
     padding: '20px 24px',
     borderRadius: '16px',
     marginBottom: '16px',
-    border: '1px solid '#333',
+    border: '1px solid #333',
     display: 'flex',
     gap: '24px',
     alignItems: 'center',
