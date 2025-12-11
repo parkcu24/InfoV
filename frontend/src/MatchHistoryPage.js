@@ -133,9 +133,9 @@ function TierChart({ data }) {
 
   const points = data.map((d, idx) => {
     const x = paddingX + idx * widthPerPoint;
-    const norm = (d.value - minVal) / range; // 0~1
+    const norm = (d.value - minVal) / range;
     const y =
-      height - paddingY - norm * (height - paddingY * 2); // 위로 갈수록 높은 티어
+      height - paddingY - norm * (height - paddingY * 2);
     return { x, y };
   });
 
@@ -143,14 +143,12 @@ function TierChart({ data }) {
 
   return (
     <svg width={width} height={height} style={styles.tierChartSvg}>
-      {/* 라인 */}
       <polyline
         points={polyPoints}
         fill="none"
         stroke="#4CAF50"
         strokeWidth="2"
       />
-      {/* 점 + 시즌 텍스트 */}
       {points.map((p, idx) => {
         const item = data[idx];
         const seasonLabel =
@@ -161,7 +159,6 @@ function TierChart({ data }) {
         return (
           <g key={idx}>
             <circle cx={p.x} cy={p.y} r="3" fill="#ffffff" />
-            {/* 티어 텍스트 (점 위) */}
             <text
               x={p.x}
               y={p.y - 8}
@@ -171,7 +168,6 @@ function TierChart({ data }) {
             >
               {tierLabel}
             </text>
-            {/* 시즌 텍스트 (아래 축) */}
             <text
               x={p.x}
               y={height - 5}
@@ -208,18 +204,20 @@ function MatchHistoryPage() {
   const [showFortuneOverlay, setShowFortuneOverlay] = useState(false);
   const [fortuneIndex, setFortuneIndex] = useState(0);
   const [isFortuneRolling, setIsFortuneRolling] = useState(false);
-  const [latestFortuneText, setLatestFortuneText] = useState(null); // ✅ 한 번 뽑힌 운세 저장
+  const [latestFortuneText, setLatestFortuneText] = useState(null);
 
   const fortuneIntervalRef = useRef(null);
   const fortuneStopTimeoutRef = useRef(null);
 
-  // 📌 전적 "더 보기" 를 위한 개수 상태 (초기 10개)
-  const [visibleCount, setVisibleCount] = useState(10);
+  // 📌 백엔드 페이지네이션: start, size 기반
+  const [pageStart, setPageStart] = useState(0);      // 지금까지 불러온 총 개수
+  const [hasMore, setHasMore] = useState(true);       // 더 불러올 수 있는지
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // 📘 어떤 스탯 위에 마우스 올라가 있는지
   const [hoveredStat, setHoveredStat] = useState(null);
 
-  // ⭐ 에이전트 이름을 파일명 규칙에 맞게 자동 변환하는 함수
+  // ⭐ 에이전트 이름 → 이미지 파일명
   const getAgentImageSrc = (agent) => {
     const defaultSrc = '/agents/default.png';
 
@@ -288,7 +286,7 @@ function MatchHistoryPage() {
     return 'other';
   };
 
-  // ⭐ 큐 이름을 한국어로 표시
+  // ⭐ 큐 이름 한국어
   const getQueueDisplayName = (match) => {
     const q = match.queue || match.mode;
     const key = normalizeQueueKey(q);
@@ -326,6 +324,7 @@ function MatchHistoryPage() {
     });
   };
 
+  // 🔥 첫 로딩 (profile, stats, matches 10개)
   useEffect(() => {
     const token = localStorage.getItem('riot_access_token');
 
@@ -371,10 +370,13 @@ function MatchHistoryPage() {
           console.error('Stats API 오류:', e);
         }
 
-        // 3) 전적 (⚠️ 백엔드에서 size: 100 으로 설정해둘 예정)
-        const matchesRes = await fetch(`${API_BASE_URL}/api/auth/matches`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        // 3) 전적 - 처음 10판(start=0, size=10)
+        const matchesRes = await fetch(
+          `${API_BASE_URL}/api/auth/matches?start=0&size=10`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
 
         if (!matchesRes.ok) {
           throw new Error(
@@ -386,7 +388,10 @@ function MatchHistoryPage() {
         const list = Array.isArray(matchesData)
           ? matchesData
           : matchesData.matches || [];
+
         setMatches(list);
+        setPageStart(list.length);      // 지금까지 불러온 개수
+        setHasMore(list.length === 10); // 10개 꽉 채워졌으면 더 있을 가능성 있음
       } catch (err) {
         console.error(err);
         setError(err.message);
@@ -398,12 +403,7 @@ function MatchHistoryPage() {
     fetchData();
   }, []);
 
-  // 🎯 필터가 바뀌거나 전체 전적이 바뀔 때마다 "보이는 개수" 초기화 (10개)
-  useEffect(() => {
-    setVisibleCount(10);
-  }, [queueFilter, matches]);
-
-  // 🎰 룰렛 시작 (✅ 한 번 뽑힌 후에는 다시 돌지 않도록 latestFortuneText 체크)
+  // 🎰 룰렛 시작 (한 번 뽑힌 후에는 다시 돌지 않도록 latestFortuneText 체크)
   const startFortuneRolling = () => {
     if (isFortuneRolling || latestFortuneText) return;
 
@@ -431,7 +431,7 @@ function MatchHistoryPage() {
 
       const finalIndex = Math.floor(Math.random() * FORTUNES.length);
       setFortuneIndex(finalIndex);
-      setLatestFortuneText(FORTUNES[finalIndex]); // ✅ 한 번 나온 운세 저장
+      setLatestFortuneText(FORTUNES[finalIndex]);
     }, 1600);
   };
 
@@ -439,14 +439,12 @@ function MatchHistoryPage() {
   const openFortuneOverlay = () => {
     setShowFortuneOverlay(true);
 
-    // ✅ 이미 한 번 운세를 뽑았다면: 다시 굴리지 않고, 그 결과만 보여준다
     if (latestFortuneText) {
       const idx = FORTUNES.indexOf(latestFortuneText);
       if (idx >= 0) {
         setFortuneIndex(idx);
       }
       setIsFortuneRolling(false);
-      // 기존 인터벌/타임아웃 안전하게 정리
       if (fortuneIntervalRef.current) {
         clearInterval(fortuneIntervalRef.current);
         fortuneIntervalRef.current = null;
@@ -458,12 +456,11 @@ function MatchHistoryPage() {
       return;
     }
 
-    // 아직 한 번도 안 뽑았다면: 룰렛 한 번 진행
     setFortuneIndex(Math.floor(Math.random() * FORTUNES.length));
     startFortuneRolling();
   };
 
-  // ❌ 모달 닫기 (룰렛 강제 종료)
+  // ❌ 운세 모달 닫기
   const closeFortuneOverlay = () => {
     if (fortuneIntervalRef.current) {
       clearInterval(fortuneIntervalRef.current);
@@ -488,6 +485,44 @@ function MatchHistoryPage() {
       }
     };
   }, []);
+
+  // 🔥 전적 더 가져오기 (start=pageStart, size=10)
+  const loadMoreMatches = async () => {
+    if (!hasMore || loadingMore) return;
+
+    const token = localStorage.getItem('riot_access_token');
+    if (!token) return;
+
+    try {
+      setLoadingMore(true);
+
+      const pageSize = 10;
+      const res = await fetch(
+        `${API_BASE_URL}/api/auth/matches?start=${pageStart}&size=${pageSize}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error(
+          `추가 전적을 불러오지 못했습니다. (status ${res.status})`
+        );
+      }
+
+      const data = await res.json();
+      const newList = Array.isArray(data) ? data : data.matches || [];
+
+      setMatches((prev) => [...prev, ...newList]);
+      setPageStart((prev) => prev + newList.length);
+      setHasMore(newList.length === pageSize); // 10개 꽉 채우지 못하면 더 이상 없음
+    } catch (err) {
+      console.error(err);
+      setError(err.message || '추가 전적을 불러오지 못했습니다.');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('riot_access_token');
@@ -536,7 +571,7 @@ function MatchHistoryPage() {
   };
 
   const filteredMatches = getFilteredMatches();
-  const visibleMatches = filteredMatches.slice(0, visibleCount);
+  const visibleMatches = filteredMatches; // 이제는 서버에서 10판씩 가져와 누적
 
   // 📊 최근 전적 기준 요약 스탯(평균 HS, 평균 KD, 평균 ACS)
   let avgStats = null;
@@ -1109,7 +1144,7 @@ function MatchHistoryPage() {
               </div>
             </div>
 
-            {/* 🔍 스탯 설명 바 (KDA, KD 등 위에 마우스 올렸을 때) */}
+            {/* 🔍 스탯 설명 바 */}
             {hoveredStat && (
               <div style={styles.statTooltipBar}>
                 {STAT_HELP_TEXT[hoveredStat]}
@@ -1121,7 +1156,7 @@ function MatchHistoryPage() {
               <p style={styles.message}>
                 {queueFilter === 'all'
                   ? '최근 전적이 없습니다.'
-                  : '최근 100판 기준으로 이 모드를 플레이한 전적이 없습니다.'}
+                  : '최근 전적 중 이 모드로 플레이한 기록이 없습니다.'}
               </p>
             ) : (
               <>
@@ -1168,9 +1203,8 @@ function MatchHistoryPage() {
                         }}
                         onClick={() => handleMatchClick(match)}
                       >
-                        {/* 🔹 왼쪽: 승리/패배 + ㅣ + 요원 + 맵 정보 */}
+                        {/* 왼쪽 */}
                         <div style={styles.matchLeft}>
-                          {/* 승리 / 패배 텍스트 */}
                           <div
                             style={
                               isWin
@@ -1181,10 +1215,8 @@ function MatchHistoryPage() {
                             {isWin ? '승리' : '패배'}
                           </div>
 
-                          {/* ㅣ 세로 작대기 */}
                           <div style={styles.matchLeftDivider} />
 
-                          {/* 요원 이미지 */}
                           <img
                             src={getAgentImageSrc(match.agent)}
                             alt={match.agent}
@@ -1199,7 +1231,6 @@ function MatchHistoryPage() {
                             }}
                           />
 
-                          {/* 맵 / 모드 / 스코어 */}
                           <div style={styles.matchLeftText}>
                             <div style={styles.mapName}>
                               {getMapName(match)}
@@ -1221,7 +1252,7 @@ function MatchHistoryPage() {
                           </div>
                         </div>
 
-                        {/* 🔹 오른쪽: 날짜/시간 + 스탯 */}
+                        {/* 오른쪽 */}
                         <div style={styles.matchRight}>
                           <div style={styles.matchMetaBox}>
                             {match.gameDate && (
@@ -1312,33 +1343,27 @@ function MatchHistoryPage() {
                   })}
                 </div>
 
-                {/* 전적 더보기 버튼 - 항상 노출 */}
+                {/* 전적 더보기 버튼 - Henrik API 기준 최대 100판까지 */}
                 <div style={styles.loadMoreWrapper}>
                   <button
                     type="button"
                     style={{
                       ...styles.loadMoreButton,
-                      opacity:
-                        filteredMatches.length > visibleCount ? 1 : 0.4,
-                      cursor:
-                        filteredMatches.length > visibleCount
-                          ? 'pointer'
-                          : 'default',
+                      opacity: hasMore ? 1 : 0.4,
+                      cursor: hasMore ? 'pointer' : 'default',
                     }}
-                    disabled={filteredMatches.length <= visibleCount}
-                    onClick={() => {
-                      if (filteredMatches.length > visibleCount) {
-                        setVisibleCount((prev) => prev + 10);
-                      }
-                    }}
+                    disabled={!hasMore || loadingMore}
+                    onClick={loadMoreMatches}
                   >
-                    {filteredMatches.length > visibleCount
+                    {loadingMore
+                      ? '불러오는 중...'
+                      : hasMore
                       ? '전적 더 보기 (+10)'
                       : '더 볼 전적이 없습니다'}
                   </button>
                   <div style={styles.loadMoreSubText}>
-                    최근 최대 100판까지 불러옵니다. (
-                    {visibleMatches.length}/{filteredMatches.length})
+                    현재 {matches.length}판까지 불러왔습니다. (Henrik API 기준
+                    최대 100판)
                   </div>
                 </div>
               </>
@@ -1351,7 +1376,6 @@ function MatchHistoryPage() {
       {showFortuneOverlay && (
         <div style={styles.fortuneOverlay}>
           <div style={styles.fortuneCard}>
-            {/* 우측 상단 X 버튼 */}
             <button
               style={styles.fortuneCloseButton}
               onClick={closeFortuneOverlay}
@@ -1361,7 +1385,6 @@ function MatchHistoryPage() {
 
             <h3 style={styles.fortuneTitle}>오늘의 발로란트 운세</h3>
 
-            {/* 룰렛 창 */}
             <div style={styles.fortuneWindow}>
               <div
                 style={{
@@ -1380,7 +1403,6 @@ function MatchHistoryPage() {
               </div>
             </div>
 
-            {/* 최종 결과 문장 (룰렛 멈춘 후 강조) */}
             {!isFortuneRolling && (
               <div style={styles.fortuneResultText}>
                 {FORTUNES[fortuneIndex]}
@@ -1702,7 +1724,6 @@ const styles = {
     outline: 'none',
   },
 
-  // 스탯 설명 바
   statTooltipBar: {
     marginBottom: '8px',
     padding: '8px 12px',
@@ -1735,7 +1756,6 @@ const styles = {
     minWidth: 0,
   },
 
-  // 🔵🔴 왼쪽 "승리 / 패배" 텍스트
   resultFlagWin: {
     fontSize: '14px',
     fontWeight: 700,
@@ -1751,7 +1771,6 @@ const styles = {
     textAlign: 'center',
   },
 
-  // ㅣ 세로 작대기
   matchLeftDivider: {
     width: '1px',
     height: '60%',
@@ -1788,7 +1807,6 @@ const styles = {
     fontWeight: '600',
   },
 
-  // 오른쪽 영역: 날짜 / 시간 / 스탯
   matchRight: {
     display: 'flex',
     flexDirection: 'column',
@@ -2021,7 +2039,6 @@ const styles = {
     color: '#ddd',
   },
 
-  /* 🎲 운세 모달 스타일 */
   fortuneOverlay: {
     position: 'fixed',
     inset: 0,

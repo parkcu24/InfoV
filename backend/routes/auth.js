@@ -479,8 +479,8 @@ router.get('/stats', async (req, res) => {
 
 // --------------------------------------------------
 // 5️⃣ 최근 경기 정보 반환 (/api/auth/matches)
-//   - 최대 100판까지 가져와서 프론트에서 10개씩 "더보기"
-//   - K/D/A, ACS, ADR, HS%, 승패, 팀 스코어, 전체 플레이어 정보 등
+//   - Henrik v4 /matches: size(1~10), start(페이지 시작 인덱스) 사용
+//   - 프론트에서 "전적 더 보기" 버튼으로 10판씩 추가 요청
 // --------------------------------------------------
 router.get('/matches', async (req, res) => {
   const authHeader = req.headers.authorization;
@@ -489,8 +489,24 @@ router.get('/matches', async (req, res) => {
   }
 
   const accessToken = authHeader.split(' ')[1];
+
+  // 🔹 쿼리에서 start, size 받기 (기본값: start=0, size=10)
+  let { start, size } = req.query;
+
+  start = Number(start);
+  if (Number.isNaN(start) || start < 0) start = 0;
+
+  size = Number(size);
+  if (Number.isNaN(size) || size <= 0) size = 10;
+
+  // Henrik API 제한: size 최소 1, 최대 10
+  if (size > 10) size = 10;
+
   console.log(
-    '🎮 [Henrik DEBUG] /auth/matches 호출, 토큰 앞 10자리:',
+    '🎮 [Henrik DEBUG] /auth/matches 호출:',
+    'start =', start,
+    'size =', size,
+    '토큰 앞 10자리:',
     accessToken.slice(0, 10),
     '...'
   );
@@ -528,7 +544,7 @@ router.get('/matches', async (req, res) => {
     const region = resolveHenrikRegion(country, regionFromHenrik);
     const henrikPuuid = accountData?.puuid || null;
 
-    // 2) v4 matches - 최대 100판
+    // 2) v4 matches - 페이지네이션(size, start)
     const matchesUrl = `https://api.henrikdev.xyz/valorant/v4/matches/${region}/pc/${encodeURIComponent(
       accountData.name
     )}/${encodeURIComponent(accountData.tag)}`;
@@ -537,11 +553,15 @@ router.get('/matches', async (req, res) => {
 
     const matchesRes = await axios.get(matchesUrl, {
       headers: { Authorization: HENRIK_API_KEY },
-      params: { size: 100 }, // ✅ 최대 100판
+      params: { size, start }, // ← 여기서 페이지네이션
     });
 
     const rawMatches = matchesRes.data?.data || [];
-    console.log('✅ [Henrik DEBUG] matches v4 응답 개수:', rawMatches.length);
+    console.log(
+      '✅ [Henrik DEBUG] matches v4 응답 개수:',
+      rawMatches.length,
+      `(start=${start}, size=${size})`
+    );
 
     const mapped = rawMatches.map((m, idx) => {
       const meta = m.metadata || {};
@@ -572,7 +592,7 @@ router.get('/matches', async (req, res) => {
       }
 
       console.log(
-        `🎯 [Henrik DEBUG] match[${idx}] allPlayers 길이:`,
+        `🎯 [Henrik DEBUG] match[${start + idx}] allPlayers 길이:`,
         allPlayers.length
       );
 
@@ -590,7 +610,7 @@ router.get('/matches', async (req, res) => {
       }
       if (!selfPlayer && allPlayers.length > 0) {
         console.log(
-          `⚠️ [Henrik DEBUG] match[${idx}] selfPlayer 찾기 실패, 0번 플레이어 사용`
+          `⚠️ [Henrik DEBUG] match[${start + idx}] selfPlayer 찾기 실패, 0번 플레이어 사용`
         );
         selfPlayer = allPlayers[0];
       }
