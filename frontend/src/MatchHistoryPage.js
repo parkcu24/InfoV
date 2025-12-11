@@ -190,7 +190,7 @@ function MatchHistoryPage() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [hasToken, setHasToken] = useState(false);
+  const [hasToken, setHasToken] = useState(false); // 세션 유무 표현용
   const [queueFilter, setQueueFilter] = useState('all');
 
   // 🔥 클릭된 경기(스코어보드 모달용)
@@ -328,19 +328,8 @@ function MatchHistoryPage() {
     });
   };
 
-  // 🔥 첫 로딩
+  // 🔥 첫 로딩: 세션 쿠키 기반으로 프로필 / 스탯 / 전적 불러오기
   useEffect(() => {
-    const token = localStorage.getItem('riot_access_token');
-
-    if (!token) {
-      setHasToken(false);
-      setError('로그인이 필요합니다.');
-      setLoading(false);
-      return;
-    }
-
-    setHasToken(true);
-
     const fetchData = async () => {
       try {
         setError('');
@@ -348,8 +337,18 @@ function MatchHistoryPage() {
 
         // 1) 프로필
         const profileRes = await fetch(`${API_BASE_URL}/api/auth/profile`, {
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include', // ⭐ 쿠키 포함
         });
+
+        if (profileRes.status === 401) {
+          // 세션 없음 → 로그인 필요
+          setHasToken(false);
+          setProfile(null);
+          setSummary(null);
+          setMatches([]);
+          setError('로그인이 필요합니다. Riot 계정으로 먼저 로그인해 주세요.');
+          return;
+        }
 
         if (!profileRes.ok) {
           throw new Error(
@@ -359,11 +358,12 @@ function MatchHistoryPage() {
 
         const profileData = await profileRes.json();
         setProfile(profileData);
+        setHasToken(true);
 
         // 2) 요약 스탯
         try {
           const statsRes = await fetch(`${API_BASE_URL}/api/auth/stats`, {
-            headers: { Authorization: `Bearer ${token}` },
+            credentials: 'include',
           });
 
           if (statsRes.ok) {
@@ -378,7 +378,7 @@ function MatchHistoryPage() {
         const matchesRes = await fetch(
           `${API_BASE_URL}/api/auth/matches?start=0&size=10`,
           {
-            headers: { Authorization: `Bearer ${token}` },
+            credentials: 'include',
           }
         );
 
@@ -487,12 +487,9 @@ function MatchHistoryPage() {
     };
   }, []);
 
-  // 🔥 전적 더 가져오기
+  // 🔥 전적 더 가져오기: 쿠키 기반
   const fetchMoreMatches = async () => {
     if (!hasMore || loadingMore) return;
-
-    const token = localStorage.getItem('riot_access_token');
-    if (!token) return;
 
     try {
       setLoadingMore(true);
@@ -501,9 +498,15 @@ function MatchHistoryPage() {
       const res = await fetch(
         `${API_BASE_URL}/api/auth/matches?start=${pageStart}&size=${pageSize}`,
         {
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
         }
       );
+
+      if (res.status === 401) {
+        setError('세션이 만료되었습니다. 다시 로그인해 주세요.');
+        setHasToken(false);
+        return;
+      }
 
       if (!res.ok) {
         console.error('추가 전적 fetch 실패, status:', res.status);
@@ -519,7 +522,7 @@ function MatchHistoryPage() {
       setPageStart((prev) => prev + newList.length);
       setHasMore(newList.length === pageSize);
     } catch (err) {
-      console.error('추가 전적 불러오기 오류 (CORS 포함 가능):', err);
+      console.error('추가 전적 불러오기 오류:', err);
       setError(
         err.message ||
           '추가 전적을 불러오지 못했습니다. (백엔드 CORS 설정 또는 Render 로그를 확인해 주세요)'
@@ -540,9 +543,23 @@ function MatchHistoryPage() {
     }));
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('riot_access_token');
-    navigate('/');
+  // 🔐 로그아웃: 세션 삭제 + 프론트 정리
+  const handleLogout = async () => {
+    try {
+      await fetch(`${API_BASE_URL}/api/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch (e) {
+      console.error('로그아웃 요청 실패:', e);
+    } finally {
+      localStorage.removeItem('riot_access_token'); // 예전 잔여값 정리용
+      setProfile(null);
+      setSummary(null);
+      setMatches([]);
+      setHasToken(false);
+      navigate('/');
+    }
   };
 
   const getDisplayName = (p) => {
@@ -1286,7 +1303,7 @@ function MatchHistoryPage() {
                             )}
                           </div>
 
-                          {/* 한 줄: KDA / KD / ACS / HS / KAST  (KAST는 가장 오른쪽) */}
+                          {/* 한 줄: KDA / KD / ACS / HS / KAST */}
                           <div style={styles.statsRow}>
                             {/* KDA */}
                             <div
@@ -1384,7 +1401,7 @@ function MatchHistoryPage() {
                                 )}
                             </div>
 
-                            {/* KAST (줄의 맨 오른쪽, 전체 줄은 0일 전보다 살짝 왼쪽) */}
+                            {/* KAST */}
                             <div
                               style={styles.statBlock}
                               onMouseEnter={() =>
@@ -1891,13 +1908,12 @@ const styles = {
     color: '#888',
   },
 
-  // KDA / KD / ACS / HS / KAST 한 줄 (우측 정렬 + 살짝 왼쪽)
   statsRow: {
     display: 'flex',
     alignItems: 'center',
     gap: '14px',
     alignSelf: 'flex-end',
-    marginRight: '28px', // 0일 전 텍스트 기준 살짝 왼쪽으로 밀기
+    marginRight: '28px',
     marginTop: '4px',
   },
   statBlock: {
@@ -1916,7 +1932,6 @@ const styles = {
     color: '#fff',
   },
 
-  // 각 스탯 아래 툴팁
   statInlineTooltip: {
     position: 'absolute',
     bottom: '-42px',

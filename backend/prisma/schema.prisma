@@ -1,0 +1,33 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- 여기부터 우리 모델 ----------
+
+model User {
+  id        Int       @id @default(autoincrement())
+  riotPuuid String    @unique
+  gameName  String
+  tagLine   String
+  region    String
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  sessions  Session[]
+}
+
+model Session {
+  id        String   @id           // uuid/nanoid 같은 랜덤 문자열
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}

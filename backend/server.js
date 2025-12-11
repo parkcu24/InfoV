@@ -17,6 +17,9 @@ const rotationRouter = require('./routes/rotation');
 const searchRouter = require('./routes/search');
 const authRouter = require('./routes/auth');
 
+const prisma = require('./lib/prisma');
+const cookieParser = require('cookie-parser');   // ⬅ 추가
+
 // ✅ CORS 설정
 const allowedOrigins = [
   'http://localhost:3000',
@@ -63,6 +66,8 @@ app.use('/api/acts', actsRouter);
 app.use('/api/rotation', rotationRouter);
 app.use('/api/search', searchRouter);
 app.use('/api/auth', cors(corsOptions), authRouter);
+
+app.use(cookieParser()); // ⬅ 추가: 쿠키 파싱
 
 // 🟢 서버 시작 (0.0.0.0 바인딩: WSL/도커/배포 호환)
 app.listen(PORT, '0.0.0.0', () => {

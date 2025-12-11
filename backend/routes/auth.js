@@ -1,6 +1,8 @@
 // 📁 backend/routes/auth.js
 const express = require('express');
 const axios = require('axios');
+const crypto = require('crypto');
+const prisma = require('../lib/prisma');
 require('dotenv').config();
 
 const router = express.Router();
@@ -39,6 +41,7 @@ function resolveHenrikRegion(country, fallbackRegion) {
 
 // --------------------------------------------------
 // 헬퍼: RSO AccessToken → Riot 계정 정보
+//   (access_token은 여기에서만 잠깐 쓰고 버린다)
 // --------------------------------------------------
 async function getRiotIdentityFromToken(accessToken) {
   console.log('👤 [RSO DEBUG] getRiotIdentityFromToken 호출');
@@ -100,14 +103,13 @@ async function getRiotIdentityFromToken(accessToken) {
 }
 
 // --------------------------------------------------
-// 헬퍼: 날짜 포맷 & "몇 시간 전" 계산
+// 날짜/시간 헬퍼
 // --------------------------------------------------
 function to2(n) {
   return n < 10 ? `0${n}` : String(n);
 }
 
 function parseMatchStart(meta) {
-  // Henrik 메타데이터에서 가능한 필드들을 최대한 다 시도
   const raw =
     meta.started_at ||
     meta.startedAt ||
@@ -119,14 +121,12 @@ function parseMatchStart(meta) {
 
   if (!raw) return null;
 
-  // 숫자(타임스탬프)인지 체크
   const num = Number(raw);
   if (!Number.isNaN(num) && num > 100000000000) {
     const d = new Date(num);
     if (!Number.isNaN(d.getTime())) return d;
   }
 
-  // ISO 문자열로 가정
   const d = new Date(raw);
   if (!Number.isNaN(d.getTime())) return d;
 
@@ -166,7 +166,46 @@ function formatKoreanTimeAgo(d) {
 }
 
 // --------------------------------------------------
-// 1️⃣ 로그인 페이지로 이동
+// 세션 기반 인증 헬퍼
+// --------------------------------------------------
+
+// 세션 쿠키에서 유저 불러오기
+async function getUserFromSession(req) {
+  const sessionId = req.cookies?.infov_session;
+  if (!sessionId) return null;
+
+  const session = await prisma.session.findUnique({
+    where: { id: sessionId },
+    include: { user: true },
+  });
+
+  if (!session) return null;
+  if (session.expiresAt < new Date()) {
+    // 만료된 세션 정리
+    await prisma.session.delete({ where: { id: sessionId } }).catch(() => {});
+    return null;
+  }
+
+  return session.user;
+}
+
+// 미들웨어: 로그인 필수
+async function requireAuth(req, res, next) {
+  try {
+    const user = await getUserFromSession(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    req.user = user;
+    next();
+  } catch (e) {
+    console.error('❌ [AUTH] 세션 확인 중 오류:', e);
+    res.status(500).json({ error: 'Auth check failed' });
+  }
+}
+
+// --------------------------------------------------
+// 1️⃣ Riot 로그인 페이지로 이동
 // --------------------------------------------------
 router.get('/login', (req, res) => {
   const authorizeUrl = `https://auth.riotgames.com/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(
@@ -179,6 +218,10 @@ router.get('/login', (req, res) => {
 
 // --------------------------------------------------
 // 2️⃣ Riot 로그인 콜백
+//     - code → access_token 교환
+//     - Riot ID 조회
+//     - User upsert
+//     - Session 생성 + 쿠키 발급
 // --------------------------------------------------
 router.get('/callback', async (req, res) => {
   const { code } = req.query;
@@ -205,7 +248,65 @@ router.get('/callback', async (req, res) => {
     const { access_token } = tokenResponse.data;
     console.log('✅ [RSO DEBUG] Access Token 획득 완료');
 
-    res.redirect(`${FRONTEND_URL}/callback?access_token=${access_token}`);
+    // 🔹 access_token으로 Riot ID 조회
+    const { gameName, tagLine, puuid, country } =
+      await getRiotIdentityFromToken(access_token);
+
+    if (!puuid) {
+      console.error('❌ [RSO DEBUG] PUUID 없음');
+      return res.status(500).send('Failed to resolve Riot ID');
+    }
+
+    const region = resolveHenrikRegion(country, null);
+
+    // 🔹 User upsert
+    const user = await prisma.user.upsert({
+      where: { riotPuuid: puuid },
+      update: {
+        gameName: gameName || 'Unknown',
+        tagLine: tagLine || 'NA1',
+        region,
+      },
+      create: {
+        riotPuuid: puuid,
+        gameName: gameName || 'Unknown',
+        tagLine: tagLine || 'NA1',
+        region,
+      },
+    });
+
+    console.log('✅ [AUTH] User upsert 완료:', {
+      id: user.id,
+      gameName: user.gameName,
+      tagLine: user.tagLine,
+      region: user.region,
+    });
+
+    // 🔹 Session 생성
+    const sessionId = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7일
+
+    await prisma.session.create({
+      data: {
+        id: sessionId,
+        userId: user.id,
+        expiresAt,
+      },
+    });
+
+    // 🔹 세션 쿠키 발급
+    res.cookie('infov_session', sessionId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      expires: expiresAt,
+    });
+
+    console.log('✅ [AUTH] 세션 쿠키 발급 완료');
+
+    // 이제 access_token은 사용 끝 → 저장하지 않고 버림
+    // 프론트는 쿠키만 가지고 자동 로그인 상태 유지
+    res.redirect(FRONTEND_URL); // 필요하면 /callback-success 같은 경로로 수정 가능
   } catch (err) {
     console.error('❌ [RSO DEBUG] OAuth 에러:', err.response?.data || err.message);
     res.status(500).send('OAuth 처리 중 오류가 발생했습니다.');
@@ -214,77 +315,53 @@ router.get('/callback', async (req, res) => {
 
 // --------------------------------------------------
 // 3️⃣ 프로필 정보 반환 (/api/auth/profile)
+//     - Authorization 헤더 대신 "세션 쿠키" 사용
 // --------------------------------------------------
-router.get('/profile', async (req, res) => {
-  const authHeader = req.headers.authorization;
+router.get('/profile', requireAuth, async (req, res) => {
+  const user = req.user;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.log('❌ [RSO DEBUG] Authorization 헤더 없음');
-    return res.status(401).json({ error: 'No access token provided' });
-  }
+  const profile = {
+    gameName: user.gameName,
+    tagLine: user.tagLine,
+    puuid: user.riotPuuid,
+    region: user.region,
+  };
 
-  const accessToken = authHeader.split(' ')[1];
-
-  try {
-    console.log('👤 [RSO DEBUG] /auth/profile 호출');
-    const { gameName, tagLine, puuid, country } =
-      await getRiotIdentityFromToken(accessToken);
-
-    const profile = {
-      gameName: gameName || null,
-      tagLine: tagLine || null,
-      puuid: puuid || null,
-      country: country || null,
-    };
-
-    console.log('✅ [RSO DEBUG] /auth/profile 응답:', profile);
-    res.json(profile);
-  } catch (err) {
-    console.error('❌ [RSO DEBUG] /auth/profile 에러:', err.response?.data || err.message);
-    const status =
-      err.response?.status &&
-      err.response.status >= 400 &&
-      err.response.status < 600
-        ? err.response.status
-        : 500;
-
-    res.status(status).json({
-      error: 'Failed to fetch profile from Riot',
-      detail: err.response?.data || err.message,
-    });
-  }
+  console.log('✅ [AUTH] /profile 응답:', profile);
+  res.json(profile);
 });
 
 // --------------------------------------------------
-// 4️⃣ Henrik 요약 스탯 (/api/auth/stats)
-//   - 시즌별 최고 티어(peak tier)까지 계산
-//   - playerCardUrl 포함
+// 4️⃣ 로그아웃 (/api/auth/logout)
+//     - 세션 삭제 + 쿠키 삭제
 // --------------------------------------------------
-router.get('/stats', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'No access token provided' });
+router.post('/logout', async (req, res) => {
+  const sessionId = req.cookies?.infov_session;
+  if (sessionId) {
+    await prisma.session.delete({ where: { id: sessionId } }).catch(() => {});
   }
+  res.clearCookie('infov_session');
+  res.json({ ok: true });
+});
 
-  const accessToken = authHeader.split(' ')[1];
-  console.log(
-    '📊 [Henrik DEBUG] /auth/stats 호출, 토큰 앞 10자리:',
-    accessToken.slice(0, 10),
-    '...'
-  );
+// --------------------------------------------------
+// 5️⃣ Henrik 요약 스탯 (/api/auth/stats)
+//     - 세션 기반 유저 → Henrik API 사용
+// --------------------------------------------------
+router.get('/stats', requireAuth, async (req, res) => {
+  const user = req.user;
+
+  const gameName = user.gameName;
+  const tagLine = user.tagLine;
+  const regionFromUser = user.region || 'ap';
+
+  console.log('📊 [Henrik DEBUG] /auth/stats 호출:', {
+    gameName,
+    tagLine,
+    regionFromUser,
+  });
 
   try {
-    const { gameName, tagLine, country } =
-      await getRiotIdentityFromToken(accessToken);
-
-    if (!gameName || !tagLine) {
-      console.log('❌ [Henrik DEBUG] gameName 또는 tagLine 없음');
-      return res.status(400).json({
-        error: 'Missing Riot ID',
-        detail: 'gameName or tagLine not found from Riot userinfo',
-      });
-    }
-
     // 1) Henrik account v2
     const accountUrl = `https://api.henrikdev.xyz/valorant/v2/account/${encodeURIComponent(
       gameName
@@ -302,7 +379,7 @@ router.get('/stats', async (req, res) => {
       JSON.stringify(acc, null, 2)
     );
 
-    const region = resolveHenrikRegion(country, acc?.region);
+    const region = resolveHenrikRegion(null, acc?.region || regionFromUser);
 
     // 2) MMR v3
     const mmrUrl = `https://api.henrikdev.xyz/valorant/v3/mmr/${region}/pc/${encodeURIComponent(
@@ -338,9 +415,7 @@ router.get('/stats', async (req, res) => {
     const seasonalDesc = [...seasonal].reverse();
     const latest = seasonalDesc[0];
 
-    // ---------------------------
     // 최신 시즌 승률 계산
-    // ---------------------------
     let wins = null;
     let losses = null;
     let winRate = null;
@@ -354,9 +429,7 @@ router.get('/stats', async (req, res) => {
       }
     }
 
-    // ------------------------------------------------
-    // 시즌별 최고 티어 찾기 (peak tier)
-    // ------------------------------------------------
+    // 시즌별 최고 티어 찾기
     const seasonHistory = seasonalDesc
       .map((s) => {
         let seasonName =
@@ -373,13 +446,11 @@ router.get('/stats', async (req, res) => {
         let peakId = null;
         let peakName = null;
 
-        // end_tier 우선
         if (s.end_tier && typeof s.end_tier === 'object') {
           if (typeof s.end_tier.id === 'number') peakId = s.end_tier.id;
           if (typeof s.end_tier.name === 'string') peakName = s.end_tier.name;
         }
 
-        // act_wins 에서 최고 티어
         if ((!peakId || !peakName) && Array.isArray(s.act_wins)) {
           s.act_wins.forEach((t) => {
             if (!t || typeof t.id !== 'number') return;
@@ -388,34 +459,6 @@ router.get('/stats', async (req, res) => {
               peakName = t.name || peakName;
             }
           });
-        }
-
-        // tiers, ranks, rank_history 등에서 후보 찾기
-        if (!peakId && !peakName) {
-          const tierCandidates = [];
-          const possibleArrays = [
-            s.tiers,
-            s.ranks,
-            s.rank_history,
-            s.rankHistory,
-            s.highest_rank,
-            s.peak_rank,
-          ];
-
-          possibleArrays.forEach((arr) => {
-            if (Array.isArray(arr)) tierCandidates.push(...arr);
-          });
-
-          let tmpPeak = null;
-          tierCandidates.forEach((t) => {
-            if (!t || typeof t.id !== 'number') return;
-            if (!tmpPeak || t.id > tmpPeak.id) tmpPeak = t;
-          });
-
-          if (tmpPeak) {
-            peakId = tmpPeak.id;
-            peakName = tmpPeak.name || peakName;
-          }
         }
 
         if (!peakName) {
@@ -478,19 +521,13 @@ router.get('/stats', async (req, res) => {
 });
 
 // --------------------------------------------------
-// 5️⃣ 최근 경기 정보 반환 (/api/auth/matches)
-//   - Henrik v4 /matches: size(1~10), start(페이지 시작 인덱스) 사용
-//   - 프론트에서 "전적 더 보기" 버튼으로 10판씩 추가 요청
+// 6️⃣ 최근 경기 정보 반환 (/api/auth/matches)
+//     - 세션 유저 기준으로 Henrik v4 /matches 호출
+//     - (기존 코드 구조 유지, access_token 의존 제거)
 // --------------------------------------------------
-router.get('/matches', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'No access token provided' });
-  }
+router.get('/matches', requireAuth, async (req, res) => {
+  const user = req.user;
 
-  const accessToken = authHeader.split(' ')[1];
-
-  // 🔹 쿼리에서 start, size 받기 (기본값: start=0, size=10)
   let { start, size } = req.query;
 
   start = Number(start);
@@ -498,31 +535,21 @@ router.get('/matches', async (req, res) => {
 
   size = Number(size);
   if (Number.isNaN(size) || size <= 0) size = 10;
+  if (size > 10) size = 10; // Henrik 제한
 
-  // Henrik API 제한: size 최소 1, 최대 10
-  if (size > 10) size = 10;
+  const gameName = user.gameName;
+  const tagLine = user.tagLine;
+  const regionFromUser = user.region || 'ap';
 
   console.log(
     '🎮 [Henrik DEBUG] /auth/matches 호출:',
     'start =', start,
     'size =', size,
-    '토큰 앞 10자리:',
-    accessToken.slice(0, 10),
-    '...'
+    'gameName =', gameName,
+    'tagLine =', tagLine
   );
 
   try {
-    const { gameName, tagLine, country } =
-      await getRiotIdentityFromToken(accessToken);
-
-    if (!gameName || !tagLine) {
-      console.log('❌ [Henrik DEBUG] gameName 또는 tagLine 없음');
-      return res.status(400).json({
-        error: 'Missing Riot ID',
-        detail: 'gameName or tagLine not found from Riot userinfo',
-      });
-    }
-
     // 1) Henrik account v2
     const accountUrl = `https://api.henrikdev.xyz/valorant/v2/account/${encodeURIComponent(
       gameName
@@ -540,8 +567,7 @@ router.get('/matches', async (req, res) => {
       JSON.stringify(accountData, null, 2)
     );
 
-    const regionFromHenrik = accountData?.region || null;
-    const region = resolveHenrikRegion(country, regionFromHenrik);
+    const region = resolveHenrikRegion(null, accountData?.region || regionFromUser);
     const henrikPuuid = accountData?.puuid || null;
 
     // 2) v4 matches - 페이지네이션(size, start)
@@ -553,7 +579,7 @@ router.get('/matches', async (req, res) => {
 
     const matchesRes = await axios.get(matchesUrl, {
       headers: { Authorization: HENRIK_API_KEY },
-      params: { size, start }, // ← 여기서 페이지네이션
+      params: { size, start },
     });
 
     const rawMatches = matchesRes.data?.data || [];
@@ -563,6 +589,7 @@ router.get('/matches', async (req, res) => {
       `(start=${start}, size=${size})`
     );
 
+    // ⬇⬇⬇ 아래 부분은 네가 쓰던 매핑 로직 그대로 유지
     const mapped = rawMatches.map((m, idx) => {
       const meta = m.metadata || {};
 
@@ -732,7 +759,6 @@ router.get('/matches', async (req, res) => {
         myTeam.won ??
         null;
 
-      // 라운드 배열에서 blue/red 승수 계산 (fallback)
       if (
         (roundsWon == null || roundsLost == null) &&
         Array.isArray(m.rounds) &&
@@ -774,7 +800,6 @@ router.get('/matches', async (req, res) => {
             ? roundsWon > roundsLost
             : null);
 
-      // 🔢 총 라운드 수 (ACS, ADR 계산용)
       let totalRounds = Array.isArray(m.rounds) ? m.rounds.length : null;
       if (
         (totalRounds == null || totalRounds === 0) &&
@@ -784,7 +809,6 @@ router.get('/matches', async (req, res) => {
         totalRounds = roundsWon + roundsLost;
       }
 
-      // 🔥 내 ACS = score / 라운드 수
       let acsSelf = null;
       if (score != null) {
         const roundsSelf =
@@ -799,7 +823,6 @@ router.get('/matches', async (req, res) => {
         }
       }
 
-      // 🔥 ADR 계산용 총 데미지 추정
       let totalDamageSelf =
         coreSelf.damage ??
         coreSelf.total_damage ??
@@ -811,7 +834,6 @@ router.get('/matches', async (req, res) => {
         rawStatsSelf.damageMade ??
         null;
 
-      // 만약 위 필드들에 없다면 라운드 데이터에서 합산 시도
       if (totalDamageSelf == null && Array.isArray(m.rounds)) {
         let dmgSum = 0;
         let found = false;
@@ -862,7 +884,6 @@ router.get('/matches', async (req, res) => {
         selfPlayer?.agent ||
         'Unknown';
 
-      // 🔥 각 플레이어 전체 스코어보드용 매핑
       const playersMapped = allPlayers.map((p) => {
         const ps = p.stats || {};
         const pc = ps.core || ps;
@@ -959,10 +980,9 @@ router.get('/matches', async (req, res) => {
         };
       });
 
-      // 📅 날짜/시간 포맷
       const startedAtDate = parseMatchStart(meta);
-      const gameDate = formatGameDate(startedAtDate);   // 예: 2025-12-04
-      const timeAgo = formatKoreanTimeAgo(startedAtDate); // 예: 4시간 전
+      const gameDate = formatGameDate(startedAtDate);
+      const timeAgo = formatKoreanTimeAgo(startedAtDate);
 
       return {
         matchId:
