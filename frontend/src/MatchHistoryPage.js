@@ -2161,7 +2161,7 @@ const styles = {
     maxWidth: '90%',
     backgroundColor: '#151515',
     borderRadius: '18px',
-    border: '1px solid '#444',
+    border: '1px solid #444',
     padding: '20px 22px 18px',
     boxShadow: '0 16px 40px rgba(0,0,0,0.7)',
     display: 'flex',
