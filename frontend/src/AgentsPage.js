@@ -7,7 +7,7 @@ const agentImageMap = {
   제트: "jett", 피닉스: "phoenix", 게코: "geko", 브리치: "breach", 소바: "sova", 스카이: "skye",
   케이오: "kayo", 테호: "tejo", 페이드: "fade", 데드록: "deadlock", 바이스: "vyse", 사이퍼: "cypher",
   세이지: "sage", 체임버: "chamber", 킬조이: "killjoy", 바이퍼: "viper", 브림스톤: "brimstone",
-  아스트라: "astra", 오멘: "omen", 클로브: "clove", 하버: "haver"
+  아스트라: "astra", 오멘: "omen", 클로브: "clove", 하버: "haver", 비토: "veto",
 };
 
 const agentData = {

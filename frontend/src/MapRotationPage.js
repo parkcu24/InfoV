@@ -26,14 +26,10 @@ function MapRotationPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  useEffect(() => {
-    document.body.style.overflow = menuOpen ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
-  }, [menuOpen]);
-
-  useEffect(() => {
-    axios.get('/api/rotation')
+  uuseEffect(() => {
+    axios.get(`${API_BASE_URL}/api/rotation`)
       .then(res => {
+        console.log('🔍 rotation 응답:', res.data);
         setSeasonTitle(res.data.seasonTitle);
         setRotationByMode(res.data.rotationByMode);
         setLoading(false);
