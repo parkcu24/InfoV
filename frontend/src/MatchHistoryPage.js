@@ -78,6 +78,7 @@ const STAT_HELP_TEXT = {
   acs: 'ACS : 라운드당 평균 전투 점수(교전 기여도)를 나타내요.',
   adr: 'ADR : 라운드당 평균 피해량(데미지)입니다.',
   hs: 'HS% : 전체 명중탄 중에서 머리를 맞힌 비율이에요.',
+  kast: 'KAST : Kill / Assist / Survive / Trade 라운드 비율이에요.',
 };
 
 function tierNameToNumber(tierName) {
@@ -583,6 +584,7 @@ function MatchHistoryPage() {
       lotus: '로터스',
       sunset: '선셋',
       abyss: '어비스',
+      corrode: '코로드',
     };
 
     const foundKey = Object.keys(mapKoMap).find((k) => lower.includes(k));
@@ -755,6 +757,7 @@ function MatchHistoryPage() {
                 <span style={styles.thStat}>K/D</span>
                 <span style={styles.thStat}>ACS</span>
                 <span style={styles.thStat}>HS%</span>
+                <span style={styles.thStat}>KAST</span>
               </div>
               {allies.map((p, idx) => {
                 const k = p.kills ?? 0;
@@ -834,6 +837,9 @@ function MatchHistoryPage() {
                     <span style={styles.tdStat}>
                       {p.hsPercent != null ? `${p.hsPercent}%` : '-'}
                     </span>
+                    <span style={styles.tdStat}>
+                      {p.kast != null ? `${p.kast}%` : '-'}
+                    </span>
                   </div>
                 );
               })}
@@ -852,6 +858,7 @@ function MatchHistoryPage() {
                 <span style={styles.thStat}>K/D</span>
                 <span style={styles.thStat}>ACS</span>
                 <span style={styles.thStat}>HS%</span>
+                <span style={styles.thStat}>KAST</span>
               </div>
               {enemies.map((p, idx) => {
                 const k = p.kills ?? 0;
@@ -924,6 +931,9 @@ function MatchHistoryPage() {
                     </span>
                     <span style={styles.tdStat}>
                       {p.hsPercent != null ? `${p.hsPercent}%` : '-'}
+                    </span>
+                    <span style={styles.tdStat}>
+                      {p.kast != null ? `${p.kast}%` : '-'}
                     </span>
                   </div>
                 );
@@ -1369,28 +1379,6 @@ function MatchHistoryPage() {
                                 )}
                             </div>
 
-                            {/* ADR */}
-                            <div
-                              style={styles.statBlock}
-                              onMouseEnter={() =>
-                                setHoveredStat({ key: 'adr', matchKey })
-                              }
-                              onMouseLeave={() => setHoveredStat(null)}
-                            >
-                              <span style={styles.statLabel}>ADR</span>
-                              <span style={styles.statValue}>
-                                {match.adr != null ? match.adr : '-'}
-                              </span>
-
-                              {hoveredStat &&
-                                hoveredStat.key === 'adr' &&
-                                hoveredStat.matchKey === matchKey && (
-                                  <div style={styles.statInlineTooltip}>
-                                    {STAT_HELP_TEXT.adr}
-                                  </div>
-                                )}
-                            </div>
-
                             {/* HS% */}
                             <div
                               style={styles.statBlock}
@@ -1411,6 +1399,30 @@ function MatchHistoryPage() {
                                 hoveredStat.matchKey === matchKey && (
                                   <div style={styles.statInlineTooltip}>
                                     {STAT_HELP_TEXT.hs}
+                                  </div>
+                                )}
+                            </div>
+
+                            {/* KAST */}
+                            <div
+                              style={styles.statBlock}
+                              onMouseEnter={() =>
+                                setHoveredStat({ key: 'kast', matchKey })
+                              }
+                              onMouseLeave={() => setHoveredStat(null)}
+                            >
+                              <span style={styles.statLabel}>KAST</span>
+                              <span style={styles.statValue}>
+                                {match.kast != null
+                                  ? `${match.kast}%`
+                                  : '-'}
+                              </span>
+
+                              {hoveredStat &&
+                                hoveredStat.key === 'kast' &&
+                                hoveredStat.matchKey === matchKey && (
+                                  <div style={styles.statInlineTooltip}>
+                                    {STAT_HELP_TEXT.kast}
                                   </div>
                                 )}
                             </div>
@@ -1440,8 +1452,8 @@ function MatchHistoryPage() {
                       : '더 볼 전적이 없습니다'}
                   </button>
                   <div style={styles.loadMoreSubText}>
-                    현재 {matches.length}판까지 불러왔습니다. (Henrik API 기준
-                    최대 100판)
+                    현재 계정 전체 기준 {matches.length}판까지 불러왔습니다.
+                    (모든 모드 합산, Henrik API 기준 최대 100판)
                   </div>
                 </div>
               </>
@@ -1557,7 +1569,7 @@ const styles = {
     backgroundColor: '#2b1b1b',
     padding: '20px',
     borderRadius: '12px',
-    border: '1px solid #ff4d4f',
+    border: '1px solid '#ff4d4f',
     textAlign: 'center',
   },
   errorText: { color: '#ff8888' },
@@ -1880,7 +1892,7 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'flex-end',
     gap: '6px',
-    minWidth: '220px',
+    minWidth: '260px',
     marginLeft: '48px',
   },
   matchMetaBox: {
@@ -1902,6 +1914,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '14px',
+    alignSelf: 'flex-start', // 👉 스탯을 조금 더 왼쪽으로
   },
   statBlock: {
     display: 'flex',
@@ -2064,7 +2077,8 @@ const styles = {
   },
   tableHeaderRow: {
     display: 'grid',
-    gridTemplateColumns: '2fr 0.7fr 1.4fr 1.2fr 0.8fr 0.9fr 0.9fr',
+    gridTemplateColumns:
+      '2fr 0.7fr 1.4fr 1.2fr 0.8fr 0.9fr 0.9fr 0.9fr', // 8열 (플레이어~KAST)
     fontSize: '11px',
     color: '#999',
     borderBottom: '1px solid #333',
@@ -2078,7 +2092,8 @@ const styles = {
 
   tableRow: {
     display: 'grid',
-    gridTemplateColumns: '2fr 0.7fr 1.4fr 1.2fr 0.8fr 0.9fr 0.9fr',
+    gridTemplateColumns:
+      '2fr 0.7fr 1.4fr 1.2fr 0.8fr 0.9fr 0.9fr 0.9fr', // 8열
     fontSize: '12px',
     padding: '4px 0',
     alignItems: 'center',
