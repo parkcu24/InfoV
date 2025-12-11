@@ -2,17 +2,20 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
+// ✅ Render 백엔드 주소
+const API_BASE_URL = 'https://infov.onrender.com';
+
 const mapImageMap = {
-  어센트: "ascent",
-  로터스: "lotus",
-  헤이븐: "haven",
-  펄: "pearl",
-  프랙처: "fracture",
-  스플릿: "split",
-  아이스박스: "icebox",
-  바인드: "bind",
-  선셋: "sunset",
-  브리즈: "breeze"
+  어센트: 'ascent',
+  로터스: 'lotus',
+  헤이븐: 'haven',
+  펄: 'pearl',
+  프랙처: 'fracture',
+  스플릿: 'split',
+  아이스박스: 'icebox',
+  바인드: 'bind',
+  선셋: 'sunset',
+  브리즈: 'breeze',
 };
 
 function MapRotationPage() {
@@ -26,15 +29,25 @@ function MapRotationPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // ✅ 메뉴 열릴 때 body 스크롤 잠금
   useEffect(() => {
-    axios.get(`${API_BASE_URL}/api/rotation`)
-      .then(res => {
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [menuOpen]);
+
+  // ✅ 백엔드에서 맵/시즌 정보 가져오기
+  useEffect(() => {
+    axios
+      .get(`${API_BASE_URL}/api/rotation`)
+      .then((res) => {
         console.log('🔍 rotation 응답:', res.data);
         setSeasonTitle(res.data.seasonTitle);
         setRotationByMode(res.data.rotationByMode);
         setLoading(false);
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('맵 로테이션 불러오기 실패:', err);
         setErrorMsg('맵 데이터를 불러오는 데 실패했습니다.');
         setLoading(false);
@@ -54,7 +67,11 @@ function MapRotationPage() {
       return;
     }
     setIsLoading(true);
-    navigate(`/search-result?name=${encodeURIComponent(gameName)}&tag=${encodeURIComponent(tagLine)}`);
+    navigate(
+      `/search-result?name=${encodeURIComponent(
+        gameName,
+      )}&tag=${encodeURIComponent(tagLine)}`,
+    );
     setIsLoading(false);
     setMenuOpen(false);
   };
@@ -63,27 +80,57 @@ function MapRotationPage() {
 
   return (
     <div style={styles.pageWrapper}>
-      {/* 네비게이션 바 (Privacy와 동일 레이아웃/스타일) */}
+      {/* 네비게이션 바 */}
       <nav style={styles.navbar} className="navbar">
-        {/* 좌측 로고 */}
         <div style={styles.left} className="nav-left" onClick={() => go('/')}>
           <img
             src="/InfoV_logo.png"
             alt="INFOV Logo"
-            style={styles.logoImage}  /* className 제거: 외부 CSS 충돌 방지 */
+            style={styles.logoImage}
           />
         </div>
 
-        {/* 중앙 메뉴 (데스크톱) */}
         <div style={styles.center} className="nav-center desktop-nav">
-          <span style={styles.navItem} className="nav-item" onClick={() => go('/agents')}>요원</span>
-          <span style={{ ...styles.navItem, fontWeight: 'bold', fontSize: '20px' }} className="nav-item active">맵 로테이션</span>
-          <span style={styles.navItem} className="nav-item" onClick={() => go('/skins')}>스킨</span>
-          <span style={styles.navItem} className="nav-item" onClick={() => go('/rank')}>랭킹</span>
-          <span style={styles.navItem} className="nav-item" onClick={() => go('/esports')}>E-Sports</span>
+          <span
+            style={styles.navItem}
+            className="nav-item"
+            onClick={() => go('/agents')}
+          >
+            요원
+          </span>
+          <span
+            style={{
+              ...styles.navItem,
+              fontWeight: 'bold',
+              fontSize: '20px',
+            }}
+            className="nav-item active"
+          >
+            맵 로테이션
+          </span>
+          <span
+            style={styles.navItem}
+            className="nav-item"
+            onClick={() => go('/skins')}
+          >
+            스킨
+          </span>
+          <span
+            style={styles.navItem}
+            className="nav-item"
+            onClick={() => go('/rank')}
+          >
+            랭킹
+          </span>
+          <span
+            style={styles.navItem}
+            className="nav-item"
+            onClick={() => go('/esports')}
+          >
+            E-Sports
+          </span>
         </div>
 
-        {/* 우측 검색 */}
         <form style={styles.right} className="nav-right" onSubmit={handleSearch}>
           <input
             type="text"
@@ -104,13 +151,12 @@ function MapRotationPage() {
           </button>
         </form>
 
-        {/* 모바일 햄버거 버튼 */}
         <button
           className="menu-toggle"
           aria-label="메뉴 열기"
           aria-expanded={menuOpen}
           aria-controls="mobile-drawer"
-          onClick={() => setMenuOpen(v => !v)}
+          onClick={() => setMenuOpen((v) => !v)}
         >
           <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
             <rect x="3" y="5" width="18" height="2" rx="1"></rect>
@@ -121,8 +167,13 @@ function MapRotationPage() {
       </nav>
 
       {/* 모바일 드로어 */}
-      <div id="mobile-drawer" className={`mobile-drawer ${menuOpen ? 'open' : ''}`}>
-        <button className="drawer-close" onClick={() => setMenuOpen(false)}>×</button>
+      <div
+        id="mobile-drawer"
+        className={`mobile-drawer ${menuOpen ? 'open' : ''}`}
+      >
+        <button className="drawer-close" onClick={() => setMenuOpen(false)}>
+          ×
+        </button>
         <div className="drawer-links">
           <button onClick={() => go('/agents')}>요원</button>
           <button className="active">맵 로테이션</button>
@@ -131,7 +182,6 @@ function MapRotationPage() {
           <button onClick={() => go('/esports')}>E-Sports</button>
         </div>
 
-        {/* 드로어 내 검색 */}
         <form onSubmit={handleSearch} style={{ padding: 12 }}>
           <input
             type="text"
@@ -140,12 +190,20 @@ function MapRotationPage() {
             onChange={(e) => setRiotId(e.target.value)}
             style={{ ...styles.topSearchInput, width: '100%' }}
           />
-          <button type="submit" style={{ ...styles.searchButton, width: '100%', marginTop: 8 }}>
+          <button
+            type="submit"
+            style={{ ...styles.searchButton, width: '100%', marginTop: 8 }}
+          >
             {isLoading ? '검색 중...' : '검색'}
           </button>
         </form>
       </div>
-      {menuOpen && <div className="drawer-backdrop" onClick={() => setMenuOpen(false)} />}
+      {menuOpen && (
+        <div
+          className="drawer-backdrop"
+          onClick={() => setMenuOpen(false)}
+        />
+      )}
 
       {/* 본문 */}
       <div style={styles.content}>
@@ -162,7 +220,8 @@ function MapRotationPage() {
                 style={{
                   ...styles.modeItem,
                   fontWeight: selectedMode === mode ? 'bold' : 'normal',
-                  textDecoration: selectedMode === mode ? 'underline' : 'none'
+                  textDecoration:
+                    selectedMode === mode ? 'underline' : 'none',
                 }}
               >
                 {mode}
@@ -187,7 +246,9 @@ function MapRotationPage() {
                   src={`/maps/${mapImageMap[map] || 'unknown'}.jpg`}
                   alt={map}
                   style={styles.mapImage}
-                  onError={(e) => { e.currentTarget.src = '/maps/unknown.jpg'; }}
+                  onError={(e) => {
+                    e.currentTarget.src = '/maps/unknown.jpg';
+                  }}
                 />
                 <div style={styles.mapName}>{map}</div>
               </div>
@@ -205,35 +266,35 @@ const styles = {
     minHeight: '100vh',
     color: '#fff',
     fontFamily: 'Black Han Sans, sans-serif',
-    paddingTop: '72px',           // ✅ 고정 네비 여백
+    paddingTop: '72px',
   },
   navbar: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '20px 40px',         // ✅ Privacy와 동일
+    padding: '20px 40px',
     backgroundColor: '#1E1E1E',
     borderBottom: '1px solid #333',
     position: 'fixed',
     top: 0,
     width: '100%',
     zIndex: 1000,
-    height: '72px',               // ✅ Privacy와 동일
-    overflow: 'visible',          // ✅ 큰 로고가 자연스럽게 보이도록
+    height: '72px',
+    overflow: 'visible',
   },
-  left: {                         // ✅ Privacy와 동일
+  left: {
     flex: '1 1 auto',
     display: 'flex',
     alignItems: 'center',
   },
-  center: {                       // ✅ Privacy와 동일
+  center: {
     flex: '1 1 auto',
     display: 'flex',
     justifyContent: 'center',
     gap: '30px',
     flexWrap: 'wrap',
   },
-  right: {                        // ✅ Privacy와 동일
+  right: {
     flex: 1.5,
     display: 'flex',
     justifyContent: 'flex-end',
@@ -241,7 +302,7 @@ const styles = {
     gap: '8px',
     paddingRight: '50px',
   },
-  logoImage: {                    // ✅ Privacy와 동일 (큰 로고)
+  logoImage: {
     height: '200px',
     marginTop: '-8px',
     cursor: 'pointer',
@@ -265,10 +326,14 @@ const styles = {
     borderRadius: '6px',
     cursor: 'pointer',
   },
-
   content: { padding: '40px' },
   seasonTitle: { fontSize: '28px', fontWeight: 'bold', marginBottom: '30px' },
-  modeContainer: { display: 'flex', gap: '20px', marginBottom: '30px', flexWrap: 'wrap' },
+  modeContainer: {
+    display: 'flex',
+    gap: '20px',
+    marginBottom: '30px',
+    flexWrap: 'wrap',
+  },
   modeItem: { fontSize: '16px', color: '#ccc', cursor: 'pointer' },
   mapGrid: { display: 'flex', flexWrap: 'wrap', gap: '20px' },
   mapCard: {
@@ -287,7 +352,12 @@ const styles = {
     objectFit: 'cover',
     borderRadius: '8px',
   },
-  mapName: { marginTop: '10px', fontSize: '16px', fontWeight: 'bold', color: '#fff' },
+  mapName: {
+    marginTop: '10px',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    color: '#fff',
+  },
 };
 
 export default MapRotationPage;
