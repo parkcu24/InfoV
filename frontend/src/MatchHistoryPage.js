@@ -71,7 +71,7 @@ const FORTUNES = [
   '상대 감시자를 보고 뒤를 돌아보는 거는 어떨까요?',
 ];
 
-// 📘 스탯 설명 텍스트 (호버 시 아래 바에 표시)
+// 📘 스탯 설명 텍스트 (툴팁에서 사용)
 const STAT_HELP_TEXT = {
   kda: 'K / D / A : 한 판에서 올린 킬, 데스, 어시스트 수예요.',
   kd: 'K/D : 킬을 데스로 나눈 비율이에요. 1.00 이상이면 데스보다 킬이 더 많다는 뜻이에요.',
@@ -134,8 +134,7 @@ function TierChart({ data }) {
   const points = data.map((d, idx) => {
     const x = paddingX + idx * widthPerPoint;
     const norm = (d.value - minVal) / range;
-    const y =
-      height - paddingY - norm * (height - paddingY * 2);
+    const y = height - paddingY - norm * (height - paddingY * 2);
     return { x, y };
   });
 
@@ -210,12 +209,28 @@ function MatchHistoryPage() {
   const fortuneStopTimeoutRef = useRef(null);
 
   // 📌 백엔드 페이지네이션: start, size 기반
-  const [pageStart, setPageStart] = useState(0);      // 지금까지 불러온 총 개수
-  const [hasMore, setHasMore] = useState(true);       // 더 불러올 수 있는지
+  const [pageStart, setPageStart] = useState(0); // 지금까지 불러온 총 개수
+  const [hasMore, setHasMore] = useState(true); // 더 불러올 수 있는지
   const [loadingMore, setLoadingMore] = useState(false);
 
   // 📘 어떤 스탯 위에 마우스 올라가 있는지
+  // 예: { key: 'kda', matchKey: '...' }
   const [hoveredStat, setHoveredStat] = useState(null);
+
+  // ⭐ 모드별로 화면에 몇 판까지 보여줄지 (기본 10)
+  const [visibleCounts, setVisibleCounts] = useState({
+    all: 10,
+    competitive: 10,
+    unrated: 10,
+    swiftplay: 10,
+    spikerush: 10,
+    custom: 10,
+    deathmatch: 10,
+    team_deathmatch: 10,
+    brawl: 10,
+    escalation: 10,
+    other: 10,
+  });
 
   // ⭐ 에이전트 이름 → 이미지 파일명
   const getAgentImageSrc = (agent) => {
@@ -225,11 +240,7 @@ function MatchHistoryPage() {
 
     let agentName = agent;
     if (typeof agent === 'object') {
-      agentName =
-        agent.displayName ||
-        agent.name ||
-        agent.id ||
-        '';
+      agentName = agent.displayName || agent.name || agent.id || '';
     }
 
     if (typeof agentName !== 'string' || agentName.length === 0) {
@@ -390,7 +401,7 @@ function MatchHistoryPage() {
           : matchesData.matches || [];
 
         setMatches(list);
-        setPageStart(list.length);      // 지금까지 불러온 개수
+        setPageStart(list.length); // 지금까지 불러온 개수
         setHasMore(list.length === 10); // 10개 꽉 채워졌으면 더 있을 가능성 있음
       } catch (err) {
         console.error(err);
@@ -486,8 +497,8 @@ function MatchHistoryPage() {
     };
   }, []);
 
-  // 🔥 전적 더 가져오기 (start=pageStart, size=10)
-  const loadMoreMatches = async () => {
+  // 🔥 서버에서 전적 더 가져오기 (start=pageStart, size=10)
+  const fetchMoreMatches = async () => {
     if (!hasMore || loadingMore) return;
 
     const token = localStorage.getItem('riot_access_token');
@@ -522,6 +533,20 @@ function MatchHistoryPage() {
     } finally {
       setLoadingMore(false);
     }
+  };
+
+  // ⭐ 현재 선택된 모드(queueFilter)에 대해서만 화면에 보여주는 판 수를 +10
+  const handleLoadMoreClick = async () => {
+    const key = queueFilter || 'all';
+
+    // 1) 서버에 더 있는지 시도 (Henrik 기준 최대 100판)
+    await fetchMoreMatches();
+
+    // 2) 현재 모드에서 보여줄 개수 +10
+    setVisibleCounts((prev) => ({
+      ...prev,
+      [key]: (prev[key] || 10) + 10,
+    }));
   };
 
   const handleLogout = () => {
@@ -571,7 +596,13 @@ function MatchHistoryPage() {
   };
 
   const filteredMatches = getFilteredMatches();
-  const visibleMatches = filteredMatches; // 이제는 서버에서 10판씩 가져와 누적
+
+  // 현재 모드에서 몇 판까지 보여줄지
+  const currentKey = queueFilter || 'all';
+  const visibleCount = visibleCounts[currentKey] || 10;
+
+  // ⭐ 필터된 전적 중 위에서 visibleCount만큼만 화면에 표시
+  const visibleMatches = filteredMatches.slice(0, visibleCount);
 
   // 📊 최근 전적 기준 요약 스탯(평균 HS, 평균 KD, 평균 ACS)
   let avgStats = null;
@@ -1144,13 +1175,6 @@ function MatchHistoryPage() {
               </div>
             </div>
 
-            {/* 🔍 스탯 설명 바 */}
-            {hoveredStat && (
-              <div style={styles.statTooltipBar}>
-                {STAT_HELP_TEXT[hoveredStat]}
-              </div>
-            )}
-
             {/* 전적 리스트 */}
             {filteredMatches.length === 0 ? (
               <p style={styles.message}>
@@ -1187,12 +1211,14 @@ function MatchHistoryPage() {
                         ? match.teamScore > match.enemyScore
                         : false;
 
+                    // ⭐ 이 매치를 구분할 고유 키 (툴팁에서 사용)
+                    const matchKey =
+                      match.matchId ||
+                      `${match.map}-${match.queue}-${match.timeAgo}`;
+
                     return (
                       <div
-                        key={
-                          match.matchId ||
-                          `${match.map}-${match.queue}-${match.timeAgo}`
-                        }
+                        key={matchKey}
                         style={{
                           ...styles.matchRowCard,
                           cursor: 'pointer',
@@ -1271,7 +1297,9 @@ function MatchHistoryPage() {
                             {/* KDA */}
                             <div
                               style={styles.statBlock}
-                              onMouseEnter={() => setHoveredStat('kda')}
+                              onMouseEnter={() =>
+                                setHoveredStat({ key: 'kda', matchKey })
+                              }
                               onMouseLeave={() => setHoveredStat(null)}
                             >
                               <span style={styles.statLabel}>
@@ -1280,53 +1308,95 @@ function MatchHistoryPage() {
                               <span style={styles.statValue}>
                                 {k} / {d} / {a}
                               </span>
+
+                              {/* ⭐ KDA 툴팁 */}
+                              {hoveredStat &&
+                                hoveredStat.key === 'kda' &&
+                                hoveredStat.matchKey === matchKey && (
+                                  <div style={styles.statInlineTooltip}>
+                                    {STAT_HELP_TEXT.kda}
+                                  </div>
+                                )}
                             </div>
 
                             {/* KD */}
                             <div
                               style={styles.statBlock}
-                              onMouseEnter={() => setHoveredStat('kd')}
+                              onMouseEnter={() =>
+                                setHoveredStat({ key: 'kd', matchKey })
+                              }
                               onMouseLeave={() => setHoveredStat(null)}
                             >
                               <span style={styles.statLabel}>K/D</span>
                               <span
                                 style={{
                                   ...styles.statValue,
-                                  color: kd >= 1 ? '#4CAF50' : '#F44336',
+                                  color:
+                                    kd >= 1 ? '#4CAF50' : '#F44336',
                                 }}
                               >
                                 {kd}
                               </span>
+
+                              {hoveredStat &&
+                                hoveredStat.key === 'kd' &&
+                                hoveredStat.matchKey === matchKey && (
+                                  <div style={styles.statInlineTooltip}>
+                                    {STAT_HELP_TEXT.kd}
+                                  </div>
+                                )}
                             </div>
 
                             {/* ACS */}
                             <div
                               style={styles.statBlock}
-                              onMouseEnter={() => setHoveredStat('acs')}
+                              onMouseEnter={() =>
+                                setHoveredStat({ key: 'acs', matchKey })
+                              }
                               onMouseLeave={() => setHoveredStat(null)}
                             >
                               <span style={styles.statLabel}>ACS</span>
                               <span style={styles.statValue}>
                                 {match.acs != null ? match.acs : '-'}
                               </span>
+
+                              {hoveredStat &&
+                                hoveredStat.key === 'acs' &&
+                                hoveredStat.matchKey === matchKey && (
+                                  <div style={styles.statInlineTooltip}>
+                                    {STAT_HELP_TEXT.acs}
+                                  </div>
+                                )}
                             </div>
 
                             {/* ADR */}
                             <div
                               style={styles.statBlock}
-                              onMouseEnter={() => setHoveredStat('adr')}
+                              onMouseEnter={() =>
+                                setHoveredStat({ key: 'adr', matchKey })
+                              }
                               onMouseLeave={() => setHoveredStat(null)}
                             >
                               <span style={styles.statLabel}>ADR</span>
                               <span style={styles.statValue}>
                                 {match.adr != null ? match.adr : '-'}
                               </span>
+
+                              {hoveredStat &&
+                                hoveredStat.key === 'adr' &&
+                                hoveredStat.matchKey === matchKey && (
+                                  <div style={styles.statInlineTooltip}>
+                                    {STAT_HELP_TEXT.adr}
+                                  </div>
+                                )}
                             </div>
 
                             {/* HS% */}
                             <div
                               style={styles.statBlock}
-                              onMouseEnter={() => setHoveredStat('hs')}
+                              onMouseEnter={() =>
+                                setHoveredStat({ key: 'hs', matchKey })
+                              }
                               onMouseLeave={() => setHoveredStat(null)}
                             >
                               <span style={styles.statLabel}>HS%</span>
@@ -1335,6 +1405,14 @@ function MatchHistoryPage() {
                                   ? `${match.hsPercent}%`
                                   : '-'}
                               </span>
+
+                              {hoveredStat &&
+                                hoveredStat.key === 'hs' &&
+                                hoveredStat.matchKey === matchKey && (
+                                  <div style={styles.statInlineTooltip}>
+                                    {STAT_HELP_TEXT.hs}
+                                  </div>
+                                )}
                             </div>
                           </div>
                         </div>
@@ -1353,7 +1431,7 @@ function MatchHistoryPage() {
                       cursor: hasMore ? 'pointer' : 'default',
                     }}
                     disabled={!hasMore || loadingMore}
-                    onClick={loadMoreMatches}
+                    onClick={handleLoadMoreClick}
                   >
                     {loadingMore
                       ? '불러오는 중...'
@@ -1724,16 +1802,6 @@ const styles = {
     outline: 'none',
   },
 
-  statTooltipBar: {
-    marginBottom: '8px',
-    padding: '8px 12px',
-    borderRadius: '8px',
-    backgroundColor: '#181818',
-    border: '1px solid #333',
-    fontSize: '12px',
-    color: '#ddd',
-  },
-
   matchList: {
     display: 'flex',
     flexDirection: 'column',
@@ -1840,6 +1908,7 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'flex-end',
     minWidth: '60px',
+    position: 'relative', // ⭐ 툴팁 위치 기준
   },
   statLabel: {
     fontSize: '11px',
@@ -1848,6 +1917,22 @@ const styles = {
   statValue: {
     fontSize: '13px',
     color: '#fff',
+  },
+
+  // ⭐ 각 스탯 바로 아래에 뜨는 툴팁
+  statInlineTooltip: {
+    position: 'absolute',
+    bottom: '-42px',
+    right: 0,
+    whiteSpace: 'nowrap',
+    backgroundColor: '#222',
+    borderRadius: '8px',
+    border: '1px solid #444',
+    padding: '6px 8px',
+    fontSize: '11px',
+    color: '#ddd',
+    boxShadow: '0 4px 10px rgba(0,0,0,0.6)',
+    zIndex: 10,
   },
 
   loadMoreWrapper: {
