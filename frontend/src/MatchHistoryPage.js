@@ -1814,7 +1814,7 @@ const styles = {
     backgroundColor: '#181818',
     color: '#eee',
     borderRadius: '999px',
-    border: '1px solid '#444',
+    border: '1px solid #444',
     padding: '4px 10px',
     fontSize: '13px',
     outline: 'none',
