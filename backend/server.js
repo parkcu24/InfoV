@@ -20,7 +20,6 @@ const searchRouter = require('./routes/search');
 const authRouter = require('./routes/auth');
 
 const prisma = require('./lib/prisma');
-const cookieParser = require('cookie-parser');   // ⬅ 추가
 
 // ✅ CORS 설정
 const allowedOrigins = [
