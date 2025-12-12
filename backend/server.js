@@ -3,6 +3,8 @@ console.log('✅✅✅ server.js 코드 실행됨');
 
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
+
 require('dotenv').config();
 
 const app = express();
@@ -68,6 +70,11 @@ app.use('/api/search', searchRouter);
 app.use('/api/auth', cors(corsOptions), authRouter);
 
 app.use(cookieParser()); // ⬅ 추가: 쿠키 파싱
+
+app.use(cors({
+  origin: 'https://infov.vercel.app', // 또는 FRONTEND_URL
+  credentials: true,                  // ★ 쿠키 허용
+}));
 
 // 🟢 서버 시작 (0.0.0.0 바인딩: WSL/도커/배포 호환)
 app.listen(PORT, '0.0.0.0', () => {

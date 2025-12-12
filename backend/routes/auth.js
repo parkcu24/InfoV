@@ -208,12 +208,17 @@ async function requireAuth(req, res, next) {
 // 1️⃣ Riot 로그인 페이지로 이동
 // --------------------------------------------------
 router.get('/login', (req, res) => {
-  const authorizeUrl = `https://auth.riotgames.com/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(
-    REDIRECT_URI
-  )}&response_type=code&scope=openid+offline_access`;
+  const redirectUri = encodeURIComponent(REDIRECT_URI);
+  const clientId = CLIENT_ID;
 
-  console.log('🧭 [RSO DEBUG] 로그인 요청:', authorizeUrl);
-  res.redirect(authorizeUrl);
+  const authUrl =
+    `https://auth.riotgames.com/oauth/authorize` +
+    `?client_id=${clientId}` +
+    `&redirect_uri=${redirectUri}` +
+    `&response_type=code` +
+    `&scope=openid offline_access`;
+
+  return res.redirect(authUrl);
 });
 
 // --------------------------------------------------
@@ -225,55 +230,49 @@ router.get('/login', (req, res) => {
 // --------------------------------------------------
 router.get('/callback', async (req, res) => {
   const { code } = req.query;
+
   if (!code) {
     console.error('❌ RSO 코드 없음');
-    return res.redirect(FRONTEND_URL + '/?login=failed');
+    return res.redirect(`${FRONTEND_URL}/?login=failed`);
   }
 
   try {
-    console.log('🧾 [RSO DEBUG] 콜백 code:', code);
-
-    const tokenResponse = await axios.post(
-      'https://auth.riotgames.com/token',
-      null,
+    // 1) 인증 서버로 token 교환
+    const tokenRes = await axios.post(
+      'https://auth.riotgames.com/oauth/token',
       {
-        params: {
-          grant_type: 'authorization_code',
-          code,
-          redirect_uri: REDIRECT_URI,
-          client_id: CLIENT_ID,
-          client_secret: CLIENT_SECRET,
-        },
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      }
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: REDIRECT_URI,
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+      },
+      { headers: { 'Content-Type': 'application/json' } }
     );
 
-    const { access_token } = tokenResponse.data;
-    console.log('✅ [RSO DEBUG] Access Token 획득 완료');
+    const { access_token } = tokenRes.data;
+    console.log('✅ [RSO DEBUG] access_token 발급 성공');
 
-    // 🔹 access_token으로 Riot ID 조회
-    const { gameName, tagLine, puuid, country } =
-      await getRiotIdentityFromToken(access_token);
-
-    if (!puuid) {
-      console.error('❌ [RSO DEBUG] PUUID 없음');
-      return res.redirect(FRONTEND_URL + '/?login=failed');
+    // 2) 유저 정보 불러오기 (userinfo + accounts/me)
+    const identity = await getRiotIdentityFromToken(access_token);
+    if (!identity.puuid) {
+      throw new Error('RSO에서 puuid를 가져오지 못했습니다.');
     }
 
-    const region = resolveHenrikRegion(country, null);
+    const region = resolveHenrikRegion(identity.country, null);
 
-    // 🔹 User upsert
+    // 3) DB 유저 upsert
     const user = await prisma.user.upsert({
-      where: { riotPuuid: puuid },
-      update: {
-        gameName: gameName || 'Unknown',
-        tagLine: tagLine || 'NA1',
+      where: { puuid: identity.puuid },
+      create: {
+        puuid: identity.puuid,
+        gameName: identity.gameName,
+        tagLine: identity.tagLine,
         region,
       },
-      create: {
-        riotPuuid: puuid,
-        gameName: gameName || 'Unknown',
-        tagLine: tagLine || 'NA1',
+      update: {
+        gameName: identity.gameName,
+        tagLine: identity.tagLine,
         region,
       },
     });
@@ -285,7 +284,7 @@ router.get('/callback', async (req, res) => {
       region: user.region,
     });
 
-    // 🔹 Session 생성
+    // 4) 세션 생성
     const sessionId = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7일
 
@@ -297,22 +296,22 @@ router.get('/callback', async (req, res) => {
       },
     });
 
-    // 🔹 세션 쿠키 발급
+    // 5) 세션 쿠키 발급 (크로스 도메인 허용: SameSite=None)
     res.cookie('infov_session', sessionId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       expires: expiresAt,
     });
 
     console.log('✅ [AUTH] 세션 쿠키 발급 완료');
 
-    // access_token은 여기서 끝 → 저장하지 않음
-    // ✅ 로그인 후 바로 전적 페이지로 이동
-    return res.redirect(FRONTEND_URL + '/matches');
+    // 이제 access_token은 사용 끝 → 저장하지 않고 버림
+    // 프론트는 쿠키만 가지고 자동 로그인 상태 유지
+    return res.redirect(`${FRONTEND_URL}/matches`);
   } catch (err) {
     console.error('❌ [RSO DEBUG] OAuth 에러:', err.response?.data || err.message);
-    return res.redirect(FRONTEND_URL + '/?login=failed');
+    return res.redirect(`${FRONTEND_URL}/?login=failed`);
   }
 });
 
@@ -322,16 +321,11 @@ router.get('/callback', async (req, res) => {
 // --------------------------------------------------
 router.get('/profile', requireAuth, async (req, res) => {
   const user = req.user;
-
-  const profile = {
+  return res.json({
+    puuid: user.puuid,
     gameName: user.gameName,
     tagLine: user.tagLine,
-    puuid: user.riotPuuid,
-    region: user.region,
-  };
-
-  console.log('✅ [AUTH] /profile 응답:', profile);
-  res.json(profile);
+  });
 });
 
 // --------------------------------------------------
@@ -343,13 +337,16 @@ router.post('/logout', async (req, res) => {
   if (sessionId) {
     await prisma.session.delete({ where: { id: sessionId } }).catch(() => {});
   }
-  res.clearCookie('infov_session');
+  res.clearCookie('infov_session', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  });
   res.json({ ok: true });
 });
 
 // --------------------------------------------------
 // 5️⃣ Henrik 요약 스탯 (/api/auth/stats)
-//     - 세션 기반 유저 → Henrik API 사용
 // --------------------------------------------------
 router.get('/stats', requireAuth, async (req, res) => {
   const user = req.user;
@@ -525,8 +522,6 @@ router.get('/stats', requireAuth, async (req, res) => {
 
 // --------------------------------------------------
 // 6️⃣ 최근 경기 정보 반환 (/api/auth/matches)
-//     - 세션 유저 기준으로 Henrik v4 /matches 호출
-//     - (기존 코드 구조 유지, access_token 의존 제거)
 // --------------------------------------------------
 router.get('/matches', requireAuth, async (req, res) => {
   const user = req.user;
@@ -592,7 +587,7 @@ router.get('/matches', requireAuth, async (req, res) => {
       `(start=${start}, size=${size})`
     );
 
-    // ⬇⬇⬇ 아래 부분은 네가 쓰던 매핑 로직 그대로 유지
+    // ⬇⬇⬇ 아래는 기존 매핑 로직
     const mapped = rawMatches.map((m, idx) => {
       const meta = m.metadata || {};
 
