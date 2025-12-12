@@ -208,17 +208,12 @@ async function requireAuth(req, res, next) {
 // 1️⃣ Riot 로그인 페이지로 이동
 // --------------------------------------------------
 router.get('/login', (req, res) => {
-  const redirectUri = encodeURIComponent(process.env.RIOT_REDIRECT_URI);
-  const clientId = process.env.RIOT_CLIENT_ID;
+  const authorizeUrl = `https://auth.riotgames.com/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(
+    REDIRECT_URI
+  )}&response_type=code&scope=openid+offline_access`;
 
-  const authUrl =
-    `https://auth.riotgames.com/oauth/authorize` +
-    `?client_id=${clientId}` +
-    `&redirect_uri=${redirectUri}` +
-    `&response_type=code` +
-    `&scope=openid offline_access`;
-
-  return res.redirect(authUrl);
+  console.log('🧭 [RSO DEBUG] 로그인 요청:', authorizeUrl);
+  res.redirect(authorizeUrl);
 });
 
 // --------------------------------------------------
@@ -230,73 +225,58 @@ router.get('/login', (req, res) => {
 // --------------------------------------------------
 router.get('/callback', async (req, res) => {
   const { code } = req.query;
-
   if (!code) {
     console.error('❌ RSO 코드 없음');
-    return res.redirect(process.env.FRONTEND_URL + '/?login=failed');
+    return res.redirect(FRONTEND_URL + '/?login=failed');
   }
 
   try {
-    // 1) 인증 서버로 token 교환
-    const tokenRes = await axios.post(
-      'https://auth.riotgames.com/oauth/token',
+    console.log('🧾 [RSO DEBUG] 콜백 code:', code);
+
+    const tokenResponse = await axios.post(
+      'https://auth.riotgames.com/token',
+      null,
       {
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: process.env.RIOT_REDIRECT_URI,
-        client_id: process.env.RIOT_CLIENT_ID,
-        client_secret: process.env.RIOT_CLIENT_SECRET,
-      },
-      { headers: { 'Content-Type': 'application/json' } }
+        params: {
+          grant_type: 'authorization_code',
+          code,
+          redirect_uri: REDIRECT_URI,
+          client_id: CLIENT_ID,
+          client_secret: CLIENT_SECRET,
+        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      }
     );
 
-    const { access_token, id_token } = tokenRes.data;
+    const { access_token } = tokenResponse.data;
+    console.log('✅ [RSO DEBUG] Access Token 획득 완료');
 
-    // 2) 유저 정보 불러오기
-    const profileRes = await axios.get(
-      'https://asia.api.riotgames.com/riot/account/v1/accounts/me',
-      { headers: { Authorization: `Bearer ${access_token}` } }
-    );
+    // 🔹 access_token으로 Riot ID 조회
+    const { gameName, tagLine, puuid, country } =
+      await getRiotIdentityFromToken(access_token);
 
-    const profile = profileRes.data;
+    if (!puuid) {
+      console.error('❌ [RSO DEBUG] PUUID 없음');
+      return res.redirect(FRONTEND_URL + '/?login=failed');
+    }
 
-    // 3) DB 유저 upsert
+    const region = resolveHenrikRegion(country, null);
+
+    // 🔹 User upsert
     const user = await prisma.user.upsert({
-      where: { puuid: profile.puuid },
-      create: {
-        puuid: profile.puuid,
-        gameName: profile.gameName,
-        tagLine: profile.tagLine,
-      },
+      where: { riotPuuid: puuid },
       update: {
-        gameName: profile.gameName,
-        tagLine: profile.tagLine,
+        gameName: gameName || 'Unknown',
+        tagLine: tagLine || 'NA1',
+        region,
+      },
+      create: {
+        riotPuuid: puuid,
+        gameName: gameName || 'Unknown',
+        tagLine: tagLine || 'NA1',
+        region,
       },
     });
-
-    // 4) 세션 쿠키 발급
-    res.cookie('session', JSON.stringify({
-      puuid: user.puuid,
-      gameName: user.gameName,
-      tagLine: user.tagLine,
-      access_token,
-    }), {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      maxAge: 1000 * 60 * 60 * 24 * 7, // 7일
-    });
-
-    console.log('✅ 로그인 성공, 쿠키 생성 완료');
-
-    // 5) 프론트 전적 페이지로 이동
-    return res.redirect(process.env.FRONTEND_URL + '/matches');
-
-  } catch (err) {
-    console.error('❌ RSO OAuth 처리 오류:', err.response?.data || err);
-    return res.redirect(process.env.FRONTEND_URL + '/?login=failed');
-  }
-});
 
     console.log('✅ [AUTH] User upsert 완료:', {
       id: user.id,
@@ -327,35 +307,32 @@ router.get('/callback', async (req, res) => {
 
     console.log('✅ [AUTH] 세션 쿠키 발급 완료');
 
-    // 이제 access_token은 사용 끝 → 저장하지 않고 버림
-    // 프론트는 쿠키만 가지고 자동 로그인 상태 유지
-    res.redirect(FRONTEND_URL); // 필요하면 /callback-success 같은 경로로 수정 가능
+    // access_token은 여기서 끝 → 저장하지 않음
+    // ✅ 로그인 후 바로 전적 페이지로 이동
+    return res.redirect(FRONTEND_URL + '/matches');
   } catch (err) {
     console.error('❌ [RSO DEBUG] OAuth 에러:', err.response?.data || err.message);
-    res.status(500).send('OAuth 처리 중 오류가 발생했습니다.');
+    return res.redirect(FRONTEND_URL + '/?login=failed');
   }
 });
 
 // --------------------------------------------------
 // 3️⃣ 프로필 정보 반환 (/api/auth/profile)
-//     - Authorization 헤더 대신 "세션 쿠키" 사용
+//     - 세션 쿠키 기반
 // --------------------------------------------------
-router.get('/profile', async (req, res) => {
-  try {
-    const session = req.cookies.session;
-    if (!session) return res.status(401).json({ error: 'Not logged in' });
+router.get('/profile', requireAuth, async (req, res) => {
+  const user = req.user;
 
-    const data = JSON.parse(session);
-    return res.json({
-      puuid: data.puuid,
-      gameName: data.gameName,
-      tagLine: data.tagLine,
-    });
-  } catch (err) {
-    return res.status(500).json({ error: 'Profile error' });
-  }
+  const profile = {
+    gameName: user.gameName,
+    tagLine: user.tagLine,
+    puuid: user.riotPuuid,
+    region: user.region,
+  };
+
+  console.log('✅ [AUTH] /profile 응답:', profile);
+  res.json(profile);
 });
-
 
 // --------------------------------------------------
 // 4️⃣ 로그아웃 (/api/auth/logout)
@@ -1033,7 +1010,7 @@ router.get('/matches', requireAuth, async (req, res) => {
 
         kills,
         deaths,
-        assists, 
+        assists,
         kd,
         acs: acsSelf,
         adr: adrSelf,
