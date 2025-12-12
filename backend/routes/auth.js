@@ -208,18 +208,17 @@ async function requireAuth(req, res, next) {
 // 1️⃣ Riot 로그인 페이지로 이동
 // --------------------------------------------------
 router.get('/login', (req, res) => {
-  const redirectUri = encodeURIComponent(REDIRECT_URI);
-  const clientId = CLIENT_ID;
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID,
+    redirect_uri: REDIRECT_URI,
+    response_type: 'code',
+    scope: 'openid offline_access',
+  });
 
-  const authUrl =
-    `https://auth.riotgames.com/oauth/authorize` +
-    `?client_id=${clientId}` +
-    `&redirect_uri=${redirectUri}` +
-    `&response_type=code` +
-    `&scope=openid offline_access`;
-
+  const authUrl = `https://auth.riotgames.com/oauth/authorize?${params.toString()}`;
   return res.redirect(authUrl);
 });
+
 
 // --------------------------------------------------
 // 2️⃣ Riot 로그인 콜백
