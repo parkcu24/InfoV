@@ -20,6 +20,7 @@ const actsRouter = require('./routes/acts');
 const rotationRouter = require('./routes/rotation');
 const searchRouter = require('./routes/search');
 const authRouter = require('./routes/auth');
+const publicRouter = require('./routes/public'); // ✅ 추가
 
 // ✅ CORS 설정
 const allowedOrigins = [
@@ -69,6 +70,7 @@ app.use('/api/search', searchRouter);
 
 // ✅ authRouter에 cors를 "또" 붙일 필요 없음 (위에서 이미 전역 적용)
 app.use('/api/auth', authRouter);
+app.use('/api/public', publicRouter); // ✅ 추가 (auth 아래/위 상관없음)
 
 // 에러 핸들러 (CORS 오류 등 보기 좋게)
 app.use((err, req, res, next) => {

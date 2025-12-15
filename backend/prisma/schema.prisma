@@ -13,18 +13,23 @@ datasource db {
 
 model User {
   id        Int      @id @default(autoincrement())
-  puuid     String?  @unique   // ← 일단 ? 붙이기
+  puuid     String?  @unique
   gameName  String?
   tagLine   String?
   region    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // ✅ 공개 검색(로그인 없이 보여줄) 캐시
+  cachedProfile Json?
+  cachedMatches Json?
+  cacheUpdatedAt DateTime?
+
   sessions  Session[]
 }
 
 model Session {
-  id        String   @id           // uuid/nanoid 같은 랜덤 문자열
+  id        String   @id
   user      User     @relation(fields: [userId], references: [id])
   userId    Int
   createdAt DateTime @default(now())
