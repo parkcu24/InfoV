@@ -12,14 +12,13 @@ datasource db {
 // ---------- 여기부터 우리 모델 ----------
 
 model User {
-  id        Int       @id @default(autoincrement())
-  riotPuuid String    @unique
-  gameName  String
-  tagLine   String
-  region    String
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id        Int      @id @default(autoincrement())
+  puuid     String?  @unique   // ← 일단 ? 붙이기
+  gameName  String?
+  tagLine   String?
+  region    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   sessions  Session[]
 }
