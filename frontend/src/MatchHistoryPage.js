@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // Render 백엔드 주소
-const API_BASE_URL = 'https://infov.onrender.com';
+const API_BASE_URL = '';
 
 // 🔢 티어 이름 → 번호 매핑 (아이언1=3 ... 레디언트=27)
 const TIER_NAME_MAP = {
@@ -188,7 +188,7 @@ function MatchHistoryPage() {
 
   // ✅ Riot OAuth 로그인으로 보내는 함수 (중요!)
   const handleLoginRedirect = () => {
-    window.location.href = `${API_BASE_URL}/api/auth/login`;
+    window.location.href = '/api/auth/login';
   };
 
   const [profile, setProfile] = useState(null);
@@ -552,7 +552,7 @@ function MatchHistoryPage() {
   // 🔐 로그아웃: 세션 삭제 + 프론트 정리
   const handleLogout = async () => {
     try {
-      await fetch(`${API_BASE_URL}/api/auth/logout`, {
+      await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
       });
