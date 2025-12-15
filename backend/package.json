@@ -4,8 +4,9 @@
   "description": "InfoV Backend Server",
   "main": "server.js",
   "scripts": {
-    "start": "npx prisma migrate deploy && node server.js",
-    "dev": "nodemon server.js"
+    "build": "prisma generate",
+    "postinstall": "prisma generate",
+    "start": "prisma migrate deploy && prisma generate && node server.js"
   },
   "keywords": [],
   "author": "",
