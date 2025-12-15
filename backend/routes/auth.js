@@ -32,7 +32,9 @@ function resolveHenrikRegion(country, fallbackRegion) {
     return 'latam';
 
   if (
-    ['FR', 'DE', 'ES', 'IT', 'GB', 'UK', 'NL', 'SE', 'NO', 'FI', 'PL', 'CZ'].includes(c)
+    ['FR', 'DE', 'ES', 'IT', 'GB', 'UK', 'NL', 'SE', 'NO', 'FI', 'PL', 'CZ'].includes(
+      c
+    )
   )
     return 'eu';
 
@@ -64,16 +66,11 @@ async function getRiotIdentityFromToken(accessToken) {
     console.log('🌍 [RSO DEBUG] account-v1 /accounts/me 호출 시도');
     const accountRes = await axios.get(
       'https://asia.api.riotgames.com/riot/account/v1/accounts/me',
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }
+      { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
     const acc = accountRes.data;
-    console.log(
-      '✅ [RSO DEBUG] account-v1 /accounts/me 응답:',
-      JSON.stringify(acc, null, 2)
-    );
+    console.log('✅ [RSO DEBUG] account-v1 /accounts/me 응답:', JSON.stringify(acc, null, 2));
 
     if (acc.gameName) gameName = acc.gameName;
     if (acc.tagLine) tagLine = acc.tagLine;
@@ -181,7 +178,6 @@ async function getUserFromSession(req) {
 
   if (!session) return null;
   if (session.expiresAt < new Date()) {
-    // 만료된 세션 정리
     await prisma.session.delete({ where: { id: sessionId } }).catch(() => {});
     return null;
   }
@@ -189,13 +185,10 @@ async function getUserFromSession(req) {
   return session.user;
 }
 
-// 미들웨어: 로그인 필수
 async function requireAuth(req, res, next) {
   try {
     const user = await getUserFromSession(req);
-    if (!user) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
+    if (!user) return res.status(401).json({ error: 'Not authenticated' });
     req.user = user;
     next();
   } catch (e) {
@@ -208,14 +201,17 @@ async function requireAuth(req, res, next) {
 // 1️⃣ Riot 로그인 페이지로 이동
 // --------------------------------------------------
 router.get('/login', (req, res) => {
+  const state = crypto.randomBytes(16).toString('hex');
+
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
     redirect_uri: REDIRECT_URI,
     response_type: 'code',
     scope: 'openid offline_access',
+    state,
   });
 
-  const authUrl = `https://auth.riotgames.com/oauth/authorize?${params.toString()}`;
+  const authUrl = `https://auth.riotgames.com/authorize?${params.toString()}`;
   return res.redirect(authUrl);
 });
 
@@ -236,27 +232,26 @@ router.get('/callback', async (req, res) => {
   }
 
   try {
-    // 1) 인증 서버로 token 교환
+    // 1) token 교환 (폼 인코딩이 가장 호환 좋음)
+    const body = new URLSearchParams();
+    body.append('grant_type', 'authorization_code');
+    body.append('code', code);
+    body.append('redirect_uri', REDIRECT_URI);
+    body.append('client_id', CLIENT_ID);
+    body.append('client_secret', CLIENT_SECRET);
+
     const tokenRes = await axios.post(
-      'https://auth.riotgames.com/oauth/token',
-      {
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: REDIRECT_URI,
-        client_id: CLIENT_ID,
-        client_secret: CLIENT_SECRET,
-      },
-      { headers: { 'Content-Type': 'application/json' } }
+      'https://auth.riotgames.com/token',
+      body.toString(),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
     );
 
     const { access_token } = tokenRes.data;
     console.log('✅ [RSO DEBUG] access_token 발급 성공');
 
-    // 2) 유저 정보 불러오기 (userinfo + accounts/me)
+    // 2) 유저 정보 불러오기
     const identity = await getRiotIdentityFromToken(access_token);
-    if (!identity.puuid) {
-      throw new Error('RSO에서 puuid를 가져오지 못했습니다.');
-    }
+    if (!identity.puuid) throw new Error('RSO에서 puuid를 가져오지 못했습니다.');
 
     const region = resolveHenrikRegion(identity.country, null);
 
@@ -285,34 +280,32 @@ router.get('/callback', async (req, res) => {
 
     // 4) 세션 생성
     const sessionId = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7일
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     await prisma.session.create({
-      data: {
-        id: sessionId,
-        userId: user.id,
-        expiresAt,
-      },
+      data: { id: sessionId, userId: user.id, expiresAt },
     });
 
-    // 5) 세션 쿠키 발급 (크로스 도메인 허용: SameSite=None)
+    // 5) 쿠키 발급 (Vercel↔Render 크로스사이트 안정 세팅)
+    const isProd = process.env.NODE_ENV === 'production';
+
     res.cookie('infov_session', sessionId, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: true,         // ✅ prod/로컬 상관없이 Render+https면 true가 더 안전
+      sameSite: 'none',     // ✅ 크로스사이트 쿠키 전송 필수
       expires: expiresAt,
+      path: '/',
     });
 
     console.log('✅ [AUTH] 세션 쿠키 발급 완료');
 
-    // 이제 access_token은 사용 끝 → 저장하지 않고 버림
-    // 프론트는 쿠키만 가지고 자동 로그인 상태 유지
     return res.redirect(`${FRONTEND_URL}/matches`);
   } catch (err) {
     console.error('❌ [RSO DEBUG] OAuth 에러:', err.response?.data || err.message);
     return res.redirect(`${FRONTEND_URL}/?login=failed`);
   }
 });
+
 
 // --------------------------------------------------
 // 3️⃣ 프로필 정보 반환 (/api/auth/profile)
@@ -336,14 +329,16 @@ router.post('/logout', async (req, res) => {
   if (sessionId) {
     await prisma.session.delete({ where: { id: sessionId } }).catch(() => {});
   }
+
   res.clearCookie('infov_session', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: true,
+    sameSite: 'none',
+    path: '/',
   });
+
   res.json({ ok: true });
 });
-
 // --------------------------------------------------
 // 5️⃣ Henrik 요약 스탯 (/api/auth/stats)
 // --------------------------------------------------
@@ -361,7 +356,6 @@ router.get('/stats', requireAuth, async (req, res) => {
   });
 
   try {
-    // 1) Henrik account v2
     const accountUrl = `https://api.henrikdev.xyz/valorant/v2/account/${encodeURIComponent(
       gameName
     )}/${encodeURIComponent(tagLine)}`;
@@ -373,14 +367,10 @@ router.get('/stats', requireAuth, async (req, res) => {
     });
 
     const acc = accountRes.data?.data;
-    console.log(
-      '✅ [Henrik DEBUG] account v2 응답:',
-      JSON.stringify(acc, null, 2)
-    );
+    console.log('✅ [Henrik DEBUG] account v2 응답:', JSON.stringify(acc, null, 2));
 
     const region = resolveHenrikRegion(null, acc?.region || regionFromUser);
 
-    // 2) MMR v3
     const mmrUrl = `https://api.henrikdev.xyz/valorant/v3/mmr/${region}/pc/${encodeURIComponent(
       acc.name
     )}/${encodeURIComponent(acc.tag)}`;
@@ -392,14 +382,8 @@ router.get('/stats', requireAuth, async (req, res) => {
     });
 
     const mmrData = mmrRes.data?.data || {};
-    console.log(
-      '✅ [Henrik DEBUG] mmr v3 data:',
-      JSON.stringify(mmrData, null, 2)
-    );
+    console.log('✅ [Henrik DEBUG] mmr v3 data:', JSON.stringify(mmrData, null, 2));
 
-    // ---------------------------
-    // 시즌 배열 준비
-    // ---------------------------
     let seasonal = [];
 
     if (Array.isArray(mmrData.seasonal)) {
@@ -414,7 +398,6 @@ router.get('/stats', requireAuth, async (req, res) => {
     const seasonalDesc = [...seasonal].reverse();
     const latest = seasonalDesc[0];
 
-    // 최신 시즌 승률 계산
     let wins = null;
     let losses = null;
     let winRate = null;
@@ -428,7 +411,6 @@ router.get('/stats', requireAuth, async (req, res) => {
       }
     }
 
-    // 시즌별 최고 티어 찾기
     const seasonHistory = seasonalDesc
       .map((s) => {
         let seasonName =
@@ -485,8 +467,7 @@ router.get('/stats', requireAuth, async (req, res) => {
       })
       .filter(Boolean);
 
-    const playerCardUrl =
-      acc?.card?.wide || acc?.card?.large || acc?.card?.small || null;
+    const playerCardUrl = acc?.card?.wide || acc?.card?.large || acc?.card?.small || null;
 
     const summary = {
       accountLevel: acc.account_level ?? null,
@@ -506,9 +487,7 @@ router.get('/stats', requireAuth, async (req, res) => {
     console.error(err.response?.data || err.message);
 
     const status =
-      err.response?.status &&
-      err.response.status >= 400 &&
-      err.response.status < 600
+      err.response?.status && err.response.status >= 400 && err.response.status < 600
         ? err.response.status
         : 500;
 
