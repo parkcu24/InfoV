@@ -5,7 +5,7 @@
       "src": "frontend/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "frontend/build"
+        "distDir": "build"
       }
     }
   ],
@@ -13,22 +13,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://infov.onrender.com/api/:path*"
-    }
-  ],
-  "headers": [
+    },
     {
-      "source": "/manifest.json",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Origin, X-Requested-With, Content-Type, Accept"
-        }
-      ]
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
-  ],
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/$1" }
   ]
 }

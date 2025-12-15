@@ -3,7 +3,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // Render 백엔드 주소
-const API_BASE_URL = '';
+const API_BASE_URL =
+  process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5050';
 
 // 🔢 티어 이름 → 번호 매핑 (아이언1=3 ... 레디언트=27)
 const TIER_NAME_MAP = {
