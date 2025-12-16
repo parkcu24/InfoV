@@ -187,7 +187,7 @@ function TierChart({ data }) {
 function MatchHistoryPage() {
   const navigate = useNavigate();
 
-  // ✅ Riot OAuth 로그인으로 보내는 함수 (중요!)
+  // ✅ Riot OAuth 로그인으로 보내는 함수
   const handleLoginRedirect = () => {
     window.location.href = '/api/auth/login';
   };
@@ -199,6 +199,11 @@ function MatchHistoryPage() {
   const [error, setError] = useState('');
   const [hasToken, setHasToken] = useState(false); // 세션 유무 표현용
   const [queueFilter, setQueueFilter] = useState('all');
+
+  // ✅ (추가) 다른 계정 검색 UX 상태
+  const [searchRegion, setSearchRegion] = useState('kr');
+  const [searchRiotId, setSearchRiotId] = useState('');
+  const [searching, setSearching] = useState(false);
 
   // 🔥 클릭된 경기(스코어보드 모달용)
   const [selectedMatch, setSelectedMatch] = useState(null);
@@ -216,8 +221,8 @@ function MatchHistoryPage() {
   const fortuneStopTimeoutRef = useRef(null);
 
   // 📌 백엔드 페이지네이션: start, size 기반
-  const [pageStart, setPageStart] = useState(0); // 지금까지 불러온 총 개수
-  const [hasMore, setHasMore] = useState(true); // 더 불러올 수 있는지
+  const [pageStart, setPageStart] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
   // 📘 어떤 스탯 위에 마우스 올라가 있는지
@@ -238,19 +243,36 @@ function MatchHistoryPage() {
     other: 10,
   });
 
+  // ✅ (추가) 전적 페이지 우측 상단 "다른 계정 검색" 핸들러
+  const handleOtherAccountSearch = (e) => {
+    e.preventDefault();
+    if (searching) return;
+
+    const [gameName, tagLine] = String(searchRiotId || '').split('#');
+    if (!gameName || !tagLine) {
+      alert('아이디 형식을 확인해주세요. 예: CU24#KR');
+      return;
+    }
+
+    setSearching(true);
+    // 캐시 기반 공개 검색 페이지로 이동(네가 HomePage에서 쓰던 흐름 그대로)
+    navigate(
+      `/search-result?name=${encodeURIComponent(gameName)}&tag=${encodeURIComponent(
+        tagLine
+      )}&region=${encodeURIComponent(searchRegion)}`
+    );
+    setSearching(false);
+  };
+
   const getAgentImageSrc = (agent) => {
     const defaultSrc = '/agents/default.png';
-
     if (!agent) return defaultSrc;
 
     let agentName = agent;
     if (typeof agent === 'object') {
       agentName = agent.displayName || agent.name || agent.id || '';
     }
-
-    if (typeof agentName !== 'string' || agentName.length === 0) {
-      return defaultSrc;
-    }
+    if (typeof agentName !== 'string' || agentName.length === 0) return defaultSrc;
 
     const normalized = agentName
       .toLowerCase()
@@ -268,15 +290,13 @@ function MatchHistoryPage() {
     if (!num && tierName) {
       num = tierNameToNumber(tierName);
     }
-
     if (!num) return null;
+
     return `/tiers/${num}.png`;
   };
 
   const getPlayerCardSrc = () => {
-    if (summary && summary.playerCardUrl) {
-      return summary.playerCardUrl;
-    }
+    if (summary && summary.playerCardUrl) return summary.playerCardUrl;
     return '/playercards/default.png';
   };
 
@@ -293,8 +313,7 @@ function MatchHistoryPage() {
     if (s.includes('escalation')) return 'escalation';
     if (s.includes('snowball') || s.includes('sheep')) return 'snowball';
     if (s.includes('custom')) return 'custom';
-    if (s.includes('brawl') || s.includes('mayhem') || s.includes('swiftpush'))
-      return 'brawl';
+    if (s.includes('brawl') || s.includes('mayhem') || s.includes('swiftpush')) return 'brawl';
 
     return 'other';
   };
@@ -329,10 +348,7 @@ function MatchHistoryPage() {
 
   const getFilteredMatches = () => {
     if (queueFilter === 'all') return matches;
-    return matches.filter((m) => {
-      const key = normalizeQueueKey(m.queue || m.mode);
-      return key === queueFilter;
-    });
+    return matches.filter((m) => normalizeQueueKey(m.queue || m.mode) === queueFilter);
   };
 
   // 🔥 첫 로딩: 세션 쿠키 기반으로 프로필 / 스탯 / 전적 불러오기
@@ -344,11 +360,10 @@ function MatchHistoryPage() {
 
         // 1) 프로필
         const profileRes = await fetch(`${API_BASE_URL}/api/auth/profile`, {
-          credentials: 'include', // ⭐ 쿠키 포함
+          credentials: 'include',
         });
 
         if (profileRes.status === 401) {
-          // 세션 없음 → 로그인 필요
           setHasToken(false);
           setProfile(null);
           setSummary(null);
@@ -358,9 +373,7 @@ function MatchHistoryPage() {
         }
 
         if (!profileRes.ok) {
-          throw new Error(
-            `프로필 정보를 불러오지 못했습니다. (status ${profileRes.status})`
-          );
+          throw new Error(`프로필 정보를 불러오지 못했습니다. (status ${profileRes.status})`);
         }
 
         const profileData = await profileRes.json();
@@ -372,7 +385,6 @@ function MatchHistoryPage() {
           const statsRes = await fetch(`${API_BASE_URL}/api/auth/stats`, {
             credentials: 'include',
           });
-
           if (statsRes.ok) {
             const statsData = await statsRes.json();
             setSummary(statsData);
@@ -382,23 +394,16 @@ function MatchHistoryPage() {
         }
 
         // 3) 전적 처음 10판
-        const matchesRes = await fetch(
-          `${API_BASE_URL}/api/auth/matches?start=0&size=10`,
-          {
-            credentials: 'include',
-          }
-        );
+        const matchesRes = await fetch(`${API_BASE_URL}/api/auth/matches?start=0&size=10`, {
+          credentials: 'include',
+        });
 
         if (!matchesRes.ok) {
-          throw new Error(
-            `전적 정보를 불러오지 못했습니다. (status ${matchesRes.status})`
-          );
+          throw new Error(`전적 정보를 불러오지 못했습니다. (status ${matchesRes.status})`);
         }
 
         const matchesData = await matchesRes.json();
-        const list = Array.isArray(matchesData)
-          ? matchesData
-          : matchesData.matches || [];
+        const list = Array.isArray(matchesData) ? matchesData : matchesData.matches || [];
 
         setMatches(list);
         setPageStart(list.length);
@@ -420,24 +425,15 @@ function MatchHistoryPage() {
 
     setIsFortuneRolling(true);
 
-    if (fortuneIntervalRef.current) {
-      clearInterval(fortuneIntervalRef.current);
-      fortuneIntervalRef.current = null;
-    }
-    if (fortuneStopTimeoutRef.current) {
-      clearTimeout(fortuneStopTimeoutRef.current);
-      fortuneStopTimeoutRef.current = null;
-    }
+    if (fortuneIntervalRef.current) clearInterval(fortuneIntervalRef.current);
+    if (fortuneStopTimeoutRef.current) clearTimeout(fortuneStopTimeoutRef.current);
 
     fortuneIntervalRef.current = setInterval(() => {
       setFortuneIndex((prev) => (prev + 1) % FORTUNES.length);
     }, 50);
 
     fortuneStopTimeoutRef.current = setTimeout(() => {
-      if (fortuneIntervalRef.current) {
-        clearInterval(fortuneIntervalRef.current);
-        fortuneIntervalRef.current = null;
-      }
+      if (fortuneIntervalRef.current) clearInterval(fortuneIntervalRef.current);
       setIsFortuneRolling(false);
 
       const finalIndex = Math.floor(Math.random() * FORTUNES.length);
@@ -451,18 +447,10 @@ function MatchHistoryPage() {
 
     if (latestFortuneText) {
       const idx = FORTUNES.indexOf(latestFortuneText);
-      if (idx >= 0) {
-        setFortuneIndex(idx);
-      }
+      if (idx >= 0) setFortuneIndex(idx);
       setIsFortuneRolling(false);
-      if (fortuneIntervalRef.current) {
-        clearInterval(fortuneIntervalRef.current);
-        fortuneIntervalRef.current = null;
-      }
-      if (fortuneStopTimeoutRef.current) {
-        clearTimeout(fortuneStopTimeoutRef.current);
-        fortuneStopTimeoutRef.current = null;
-      }
+      if (fortuneIntervalRef.current) clearInterval(fortuneIntervalRef.current);
+      if (fortuneStopTimeoutRef.current) clearTimeout(fortuneStopTimeoutRef.current);
       return;
     }
 
@@ -471,30 +459,20 @@ function MatchHistoryPage() {
   };
 
   const closeFortuneOverlay = () => {
-    if (fortuneIntervalRef.current) {
-      clearInterval(fortuneIntervalRef.current);
-      fortuneIntervalRef.current = null;
-    }
-    if (fortuneStopTimeoutRef.current) {
-      clearTimeout(fortuneStopTimeoutRef.current);
-      fortuneStopTimeoutRef.current = null;
-    }
+    if (fortuneIntervalRef.current) clearInterval(fortuneIntervalRef.current);
+    if (fortuneStopTimeoutRef.current) clearTimeout(fortuneStopTimeoutRef.current);
     setIsFortuneRolling(false);
     setShowFortuneOverlay(false);
   };
 
   useEffect(() => {
     return () => {
-      if (fortuneIntervalRef.current) {
-        clearInterval(fortuneIntervalRef.current);
-      }
-      if (fortuneStopTimeoutRef.current) {
-        clearTimeout(fortuneStopTimeoutRef.current);
-      }
+      if (fortuneIntervalRef.current) clearInterval(fortuneIntervalRef.current);
+      if (fortuneStopTimeoutRef.current) clearTimeout(fortuneStopTimeoutRef.current);
     };
   }, []);
 
-  // 🔥 전적 더 가져오기: 쿠키 기반
+  // 🔥 전적 더 가져오기
   const fetchMoreMatches = async () => {
     if (!hasMore || loadingMore) return;
 
@@ -504,9 +482,7 @@ function MatchHistoryPage() {
       const pageSize = 10;
       const res = await fetch(
         `${API_BASE_URL}/api/auth/matches?start=${pageStart}&size=${pageSize}`,
-        {
-          credentials: 'include',
-        }
+        { credentials: 'include' }
       );
 
       if (res.status === 401) {
@@ -516,10 +492,7 @@ function MatchHistoryPage() {
       }
 
       if (!res.ok) {
-        console.error('추가 전적 fetch 실패, status:', res.status);
-        throw new Error(
-          `추가 전적을 불러오지 못했습니다. (status ${res.status})`
-        );
+        throw new Error(`추가 전적을 불러오지 못했습니다. (status ${res.status})`);
       }
 
       const data = await res.json();
@@ -530,10 +503,7 @@ function MatchHistoryPage() {
       setHasMore(newList.length === pageSize);
     } catch (err) {
       console.error('추가 전적 불러오기 오류:', err);
-      setError(
-        err.message ||
-          '추가 전적을 불러오지 못했습니다. (백엔드 CORS 설정 또는 Render 로그를 확인해 주세요)'
-      );
+      setError(err.message || '추가 전적을 불러오지 못했습니다.');
     } finally {
       setLoadingMore(false);
     }
@@ -541,26 +511,18 @@ function MatchHistoryPage() {
 
   const handleLoadMoreClick = async () => {
     const key = queueFilter || 'all';
-
     await fetchMoreMatches();
-
-    setVisibleCounts((prev) => ({
-      ...prev,
-      [key]: (prev[key] || 10) + 10,
-    }));
+    setVisibleCounts((prev) => ({ ...prev, [key]: (prev[key] || 10) + 10 }));
   };
 
-  // 🔐 로그아웃: 세션 삭제 + 프론트 정리
+  // 🔐 로그아웃
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     } catch (e) {
       console.error('로그아웃 요청 실패:', e);
     } finally {
-      localStorage.removeItem('riot_access_token'); // 예전 잔여값 정리용
+      localStorage.removeItem('riot_access_token');
       setProfile(null);
       setSummary(null);
       setMatches([]);
@@ -606,12 +568,9 @@ function MatchHistoryPage() {
     return name;
   };
 
-  const getQueueName = (match) => {
-    return getQueueDisplayName(match);
-  };
+  const getQueueName = (match) => getQueueDisplayName(match);
 
   const filteredMatches = getFilteredMatches();
-
   const currentKey = queueFilter || 'all';
   const visibleCount = visibleCounts[currentKey] || 10;
   const visibleMatches = filteredMatches.slice(0, visibleCount);
@@ -672,33 +631,20 @@ function MatchHistoryPage() {
           }
         }
 
-        return {
-          season: seasonLabel,
-          tier: s.tier,
-          value,
-        };
+        return { season: seasonLabel, tier: s.tier, value };
       })
       .filter(Boolean);
   }
 
-  const handleMatchClick = (match) => {
-    setSelectedMatch(match);
-  };
-
-  const handleCloseModal = () => {
-    setSelectedMatch(null);
-  };
+  const handleMatchClick = (match) => setSelectedMatch(match);
+  const handleCloseModal = () => setSelectedMatch(null);
 
   const getModalTeams = (match) => {
-    if (!match || !Array.isArray(match.players)) {
-      return { allies: [], enemies: [] };
-    }
+    if (!match || !Array.isArray(match.players)) return { allies: [], enemies: [] };
     const myTeam = match.myTeam || 'blue';
     const enemyTeam = match.enemyTeam || (myTeam === 'blue' ? 'red' : 'blue');
-
     const allies = match.players.filter((p) => p.team === myTeam);
     const enemies = match.players.filter((p) => p.team === enemyTeam);
-
     return { allies, enemies, myTeam, enemyTeam };
   };
 
@@ -709,27 +655,19 @@ function MatchHistoryPage() {
 
     return (
       <div style={styles.modalOverlay} onClick={handleCloseModal}>
-        <div
-          style={styles.modalContent}
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
           <div style={styles.modalHeader}>
             <div>
               <div style={styles.modalTitleRow}>
-                <span style={styles.modalMapName}>
-                  {getMapName(selectedMatch)}
-                </span>
-                <span style={styles.modalQueueName}>
-                  · {getQueueName(selectedMatch)}
-                </span>
+                <span style={styles.modalMapName}>{getMapName(selectedMatch)}</span>
+                <span style={styles.modalQueueName}>· {getQueueName(selectedMatch)}</span>
               </div>
               <div style={styles.modalSubText}>{selectedMatch.timeAgo}</div>
             </div>
 
             <div style={styles.modalScoreBox}>
               <span style={styles.modalScoreText}>
-                {selectedMatch.teamScore ?? '-'} :{' '}
-                {selectedMatch.enemyScore ?? '-'}
+                {selectedMatch.teamScore ?? '-'} : {selectedMatch.enemyScore ?? '-'}
               </span>
               {selectedMatch.win != null && (
                 <span
@@ -741,10 +679,7 @@ function MatchHistoryPage() {
                   {selectedMatch.win ? 'WIN' : 'LOSS'}
                 </span>
               )}
-              <button
-                style={styles.modalCloseButton}
-                onClick={handleCloseModal}
-              >
+              <button style={styles.modalCloseButton} onClick={handleCloseModal}>
                 ✕
               </button>
             </div>
@@ -766,6 +701,7 @@ function MatchHistoryPage() {
                 <span style={styles.thStat}>HS%</span>
                 <span style={styles.thStat}>KAST</span>
               </div>
+
               {allies.map((p, idx) => {
                 const k = p.kills ?? 0;
                 const d = p.deaths ?? 0;
@@ -778,27 +714,19 @@ function MatchHistoryPage() {
                     key={`${p.puuid || p.name || 'ally'}-${idx}`}
                     style={{
                       ...styles.tableRow,
-                      backgroundColor: isSelf
-                        ? 'rgba(76, 175, 80, 0.12)'
-                        : 'transparent',
+                      backgroundColor: isSelf ? 'rgba(76, 175, 80, 0.12)' : 'transparent',
                     }}
                   >
                     <span style={styles.tdPlayer}>
                       <span style={styles.playerNameText}>{p.name}</span>
-                      {p.tag && (
-                        <span style={styles.playerTagText}>#{p.tag}</span>
-                      )}
+                      {p.tag && <span style={styles.playerTagText}>#{p.tag}</span>}
                     </span>
 
                     <span style={styles.tdTier}>
                       {p.tierNumber || p.tierName ? (
                         <img
                           src={getTierImageSrc(p.tierNumber, p.tierName)}
-                          alt={
-                            p.tierName
-                              ? toKoreanTierName(p.tierName)
-                              : '티어'
-                          }
+                          alt={p.tierName ? toKoreanTierName(p.tierName) : '티어'}
                           style={styles.tierIcon}
                           onError={(e) => {
                             e.currentTarget.style.display = 'none';
@@ -811,9 +739,7 @@ function MatchHistoryPage() {
 
                     <span style={styles.tdAgent}>
                       <img
-                        src={
-                          p.agentIcon || getAgentImageSrc(p.agent || null)
-                        }
+                        src={p.agentIcon || getAgentImageSrc(p.agent || null)}
                         alt={p.agent || 'agent'}
                         style={styles.modalAgentImg}
                         onError={(e) => {
@@ -827,26 +753,16 @@ function MatchHistoryPage() {
                       />
                       <span style={styles.agentNameText}>{p.agent}</span>
                     </span>
+
                     <span style={styles.tdStat}>
                       {k} / {d} / {a}
                     </span>
-                    <span
-                      style={{
-                        ...styles.tdStat,
-                        color: kd >= 1 ? '#4CAF50' : '#F44336',
-                      }}
-                    >
+                    <span style={{ ...styles.tdStat, color: kd >= 1 ? '#4CAF50' : '#F44336' }}>
                       {kd}
                     </span>
-                    <span style={styles.tdStat}>
-                      {p.acs != null ? p.acs : '-'}
-                    </span>
-                    <span style={styles.tdStat}>
-                      {p.hsPercent != null ? `${p.hsPercent}%` : '-'}
-                    </span>
-                    <span style={styles.tdStat}>
-                      {p.kast != null ? `${p.kast}%` : '-'}
-                    </span>
+                    <span style={styles.tdStat}>{p.acs != null ? p.acs : '-'}</span>
+                    <span style={styles.tdStat}>{p.hsPercent != null ? `${p.hsPercent}%` : '-'}</span>
+                    <span style={styles.tdStat}>{p.kast != null ? `${p.kast}%` : '-'}</span>
                   </div>
                 );
               })}
@@ -867,6 +783,7 @@ function MatchHistoryPage() {
                 <span style={styles.thStat}>HS%</span>
                 <span style={styles.thStat}>KAST</span>
               </div>
+
               {enemies.map((p, idx) => {
                 const k = p.kills ?? 0;
                 const d = p.deaths ?? 0;
@@ -874,26 +791,17 @@ function MatchHistoryPage() {
                 const kd = d > 0 ? (k / d).toFixed(2) : k;
 
                 return (
-                  <div
-                    key={`${p.puuid || p.name || 'enemy'}-${idx}`}
-                    style={styles.tableRow}
-                  >
+                  <div key={`${p.puuid || p.name || 'enemy'}-${idx}`} style={styles.tableRow}>
                     <span style={styles.tdPlayer}>
                       <span style={styles.playerNameText}>{p.name}</span>
-                      {p.tag && (
-                        <span style={styles.playerTagText}>#{p.tag}</span>
-                      )}
+                      {p.tag && <span style={styles.playerTagText}>#{p.tag}</span>}
                     </span>
 
                     <span style={styles.tdTier}>
                       {p.tierNumber || p.tierName ? (
                         <img
                           src={getTierImageSrc(p.tierNumber, p.tierName)}
-                          alt={
-                            p.tierName
-                              ? toKoreanTierName(p.tierName)
-                              : '티어'
-                          }
+                          alt={p.tierName ? toKoreanTierName(p.tierName) : '티어'}
                           style={styles.tierIcon}
                           onError={(e) => {
                             e.currentTarget.style.display = 'none';
@@ -906,9 +814,7 @@ function MatchHistoryPage() {
 
                     <span style={styles.tdAgent}>
                       <img
-                        src={
-                          p.agentIcon || getAgentImageSrc(p.agent || null)
-                        }
+                        src={p.agentIcon || getAgentImageSrc(p.agent || null)}
                         alt={p.agent || 'agent'}
                         style={styles.modalAgentImg}
                         onError={(e) => {
@@ -922,26 +828,16 @@ function MatchHistoryPage() {
                       />
                       <span style={styles.agentNameText}>{p.agent}</span>
                     </span>
+
                     <span style={styles.tdStat}>
                       {k} / {d} / {a}
                     </span>
-                    <span
-                      style={{
-                        ...styles.tdStat,
-                        color: kd >= 1 ? '#4CAF50' : '#F44336',
-                      }}
-                    >
+                    <span style={{ ...styles.tdStat, color: kd >= 1 ? '#4CAF50' : '#F44336' }}>
                       {kd}
                     </span>
-                    <span style={styles.tdStat}>
-                      {p.acs != null ? p.acs : '-'}
-                    </span>
-                    <span style={styles.tdStat}>
-                      {p.hsPercent != null ? `${p.hsPercent}%` : '-'}
-                    </span>
-                    <span style={styles.tdStat}>
-                      {p.kast != null ? `${p.kast}%` : '-'}
-                    </span>
+                    <span style={styles.tdStat}>{p.acs != null ? p.acs : '-'}</span>
+                    <span style={styles.tdStat}>{p.hsPercent != null ? `${p.hsPercent}%` : '-'}</span>
+                    <span style={styles.tdStat}>{p.kast != null ? `${p.kast}%` : '-'}</span>
                   </div>
                 );
               })}
@@ -966,35 +862,22 @@ function MatchHistoryPage() {
         </div>
 
         <div style={styles.center}>
-          <span style={styles.navItem} onClick={() => navigate('/agents')}>
-            요원
-          </span>
-          <span style={styles.navItem} onClick={() => navigate('/maps')}>
-            맵 로테이션
-          </span>
-          <span style={styles.navItem} onClick={() => navigate('/skins')}>
-            스킨
-          </span>
-          <span style={styles.navItem} onClick={() => navigate('/rank')}>
-            랭킹
-          </span>
-          <span style={styles.navItem} onClick={() => navigate('/esports')}>
-            E-Sports
-          </span>
+          <span style={styles.navItem} onClick={() => navigate('/agents')}>요원</span>
+          <span style={styles.navItem} onClick={() => navigate('/maps')}>맵 로테이션</span>
+          <span style={styles.navItem} onClick={() => navigate('/skins')}>스킨</span>
+          <span style={styles.navItem} onClick={() => navigate('/rank')}>랭킹</span>
+          <span style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
         </div>
 
         <div style={styles.right}>
           {profile ? (
             <div style={styles.profileBoxTopRight}>
-              <span style={styles.profileNameTopRight}>
-                {getDisplayName(profile)}
-              </span>
+              <span style={styles.profileNameTopRight}>{getDisplayName(profile)}</span>
               <button style={styles.logoutButton} onClick={handleLogout}>
                 로그아웃
               </button>
             </div>
           ) : (
-            // ✅ 여기서도 OAuth로 직접 이동
             <button style={styles.loginButton} onClick={handleLoginRedirect}>
               로그인
             </button>
@@ -1010,11 +893,7 @@ function MatchHistoryPage() {
           <div style={styles.errorBox}>
             <p style={styles.errorText}>{error}</p>
             {!hasToken && (
-              // ✅ 에러박스 버튼도 OAuth로 직접 이동
-              <button
-                style={styles.primaryButton}
-                onClick={handleLoginRedirect}
-              >
+              <button style={styles.primaryButton} onClick={handleLoginRedirect}>
                 로그인 하러 가기
               </button>
             )}
@@ -1026,7 +905,7 @@ function MatchHistoryPage() {
             {/* 상단 프로필 카드 */}
             {profile && (
               <div style={styles.profileCard}>
-                {/* 왼쪽: 플레이어 카드 동그라미 + 레벨 */}
+                {/* 왼쪽 */}
                 <div style={styles.profileLeft}>
                   <div style={styles.avatarWrapper}>
                     <img
@@ -1034,9 +913,7 @@ function MatchHistoryPage() {
                       alt="Player Card"
                       style={styles.playerCardImage}
                       onError={(e) => {
-                        if (e.currentTarget.dataset.errorHandled === '1') {
-                          return;
-                        }
+                        if (e.currentTarget.dataset.errorHandled === '1') return;
                         e.currentTarget.dataset.errorHandled = '1';
                         e.currentTarget.src = '/playercards/default.png';
                       }}
@@ -1046,40 +923,33 @@ function MatchHistoryPage() {
                   <div style={styles.levelBadgeWrapper}>
                     <div style={styles.levelBadge}>
                       <span style={styles.levelLabel}>LEVEL</span>
-                      <span style={styles.levelValue}>
-                        {summary?.accountLevel ?? '-'}
-                      </span>
+                      <span style={styles.levelValue}>{summary?.accountLevel ?? '-'}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* 오른쪽: 닉네임/티어/평균스탯/버튼 */}
+                {/* 오른쪽 */}
                 <div style={styles.profileRight}>
                   <div style={styles.nameCard}>
                     <div style={styles.nameRow}>
-                      <span style={styles.nicknameText}>
-                        {profile.gameName}
-                      </span>
-                      {profile.tagLine && (
-                        <span style={styles.tagText}>#{profile.tagLine}</span>
-                      )}
+                      <span style={styles.nicknameText}>{profile.gameName}</span>
+                      {profile.tagLine && <span style={styles.tagText}>#{profile.tagLine}</span>}
                     </div>
+
                     {summary && (
                       <>
                         <div style={styles.tierRow}>
                           <span style={styles.tierText}>
-                            {summary.currentTier
-                              ? toKoreanTierName(summary.currentTier)
-                              : '티어 정보 없음'}
+                            {summary.currentTier ? toKoreanTierName(summary.currentTier) : '티어 정보 없음'}
                           </span>
+
                           {typeof summary.rr === 'number' && (
                             <span style={styles.rrText}>{summary.rr} RR</span>
                           )}
 
                           {typeof summary.winRate === 'number' && (
                             <span style={styles.winrateText}>
-                              · 시즌 전적 {summary.wins ?? '-'}승{' '}
-                              {summary.losses ?? '-'}패 ({summary.winRate}%)
+                              · 시즌 전적 {summary.wins ?? '-'}승 {summary.losses ?? '-'}패 ({summary.winRate}%)
                             </span>
                           )}
                         </div>
@@ -1087,33 +957,21 @@ function MatchHistoryPage() {
                         {avgStats && (
                           <div style={styles.overallStatsRow}>
                             <div style={styles.overallStatItem}>
-                              <span style={styles.overallStatLabel}>
-                                평균 HS
-                              </span>
+                              <span style={styles.overallStatLabel}>평균 HS</span>
                               <span style={styles.overallStatValue}>
-                                {avgStats.avgHs != null
-                                  ? `${avgStats.avgHs.toFixed(1)}%`
-                                  : '-'}
+                                {avgStats.avgHs != null ? `${avgStats.avgHs.toFixed(1)}%` : '-'}
                               </span>
                             </div>
                             <div style={styles.overallStatItem}>
-                              <span style={styles.overallStatLabel}>
-                                평균 K/D
-                              </span>
+                              <span style={styles.overallStatLabel}>평균 K/D</span>
                               <span style={styles.overallStatValue}>
-                                {avgStats.avgKd != null
-                                  ? avgStats.avgKd.toFixed(2)
-                                  : '-'}
+                                {avgStats.avgKd != null ? avgStats.avgKd.toFixed(2) : '-'}
                               </span>
                             </div>
                             <div style={styles.overallStatItem}>
-                              <span style={styles.overallStatLabel}>
-                                평균 ACS
-                              </span>
+                              <span style={styles.overallStatLabel}>평균 ACS</span>
                               <span style={styles.overallStatValue}>
-                                {avgStats.avgAcs != null
-                                  ? Math.round(avgStats.avgAcs)
-                                  : '-'}
+                                {avgStats.avgAcs != null ? Math.round(avgStats.avgAcs) : '-'}
                               </span>
                             </div>
                           </div>
@@ -1123,18 +981,12 @@ function MatchHistoryPage() {
                           <button
                             type="button"
                             style={styles.tierDetailButton}
-                            onClick={() =>
-                              setShowTierChart((prev) => !prev)
-                            }
+                            onClick={() => setShowTierChart((prev) => !prev)}
                           >
                             티어 자세히 보기 {showTierChart ? '▲' : '▼'}
                           </button>
 
-                          <button
-                            type="button"
-                            style={styles.fortuneButton}
-                            onClick={openFortuneOverlay}
-                          >
+                          <button type="button" style={styles.fortuneButton} onClick={openFortuneOverlay}>
                             오늘의 발로란트 운세 보기!
                           </button>
                         </div>
@@ -1147,9 +999,7 @@ function MatchHistoryPage() {
                       {tierChartData.length > 0 ? (
                         <TierChart data={tierChartData} />
                       ) : (
-                        <div style={styles.tierChartEmptyText}>
-                          티어 기록이 부족합니다.
-                        </div>
+                        <div style={styles.tierChartEmptyText}>티어 기록이 부족합니다.</div>
                       )}
                     </div>
                   )}
@@ -1157,11 +1007,54 @@ function MatchHistoryPage() {
               </div>
             )}
 
+            {/* ✅ (추가) 전적 섹션 우측 상단: 다른 계정 검색 + 로그인하여 최근전적 불러오기 */}
+            <div style={styles.matchesToolsRow}>
+              <form style={styles.otherSearchBox} onSubmit={handleOtherAccountSearch}>
+                <select
+                  style={styles.otherSearchSelect}
+                  value={searchRegion}
+                  onChange={(e) => setSearchRegion(e.target.value)}
+                  aria-label="region"
+                >
+                  <option value="kr">KR</option>
+                  <option value="ap">AP</option>
+                  <option value="na">NA</option>
+                  <option value="eu">EU</option>
+                  <option value="br">BR</option>
+                  <option value="latam">LATAM</option>
+                </select>
+
+                <input
+                  style={styles.otherSearchInput}
+                  value={searchRiotId}
+                  onChange={(e) => setSearchRiotId(e.target.value)}
+                  placeholder="다른 계정 검색 (예: CU24#KR)"
+                  aria-label="Riot ID search"
+                />
+
+                <button
+                  type="submit"
+                  style={styles.otherSearchButton}
+                  disabled={searching}
+                >
+                  {searching ? '검색 중...' : '검색'}
+                </button>
+              </form>
+
+              {!hasToken && (
+                <button
+                  type="button"
+                  style={styles.fetchRecentByLoginButton}
+                  onClick={handleLoginRedirect}
+                >
+                  로그인하여 최근전적 불러오기
+                </button>
+              )}
+            </div>
+
             {/* 🧿 오늘의 발로란트 운세 인라인 표시 */}
             <div style={styles.fortuneInlineBox}>
-              <span style={styles.fortuneInlineLabel}>
-                오늘의 발로란트 운세 ! :{' '}
-              </span>
+              <span style={styles.fortuneInlineLabel}>오늘의 발로란트 운세 ! : </span>
               <span style={styles.fortuneInlineText}>
                 {latestFortuneText
                   ? latestFortuneText
@@ -1231,8 +1124,7 @@ function MatchHistoryPage() {
                         : false;
 
                     const matchKey =
-                      match.matchId ||
-                      `${match.map}-${match.queue}-${match.timeAgo}`;
+                      match.matchId || `${match.map}-${match.queue}-${match.timeAgo}`;
 
                     return (
                       <div
@@ -1249,13 +1141,7 @@ function MatchHistoryPage() {
                       >
                         {/* 왼쪽 */}
                         <div style={styles.matchLeft}>
-                          <div
-                            style={
-                              isWin
-                                ? styles.resultFlagWin
-                                : styles.resultFlagLose
-                            }
-                          >
+                          <div style={isWin ? styles.resultFlagWin : styles.resultFlagLose}>
                             {isWin ? '승리' : '패배'}
                           </div>
 
@@ -1276,12 +1162,8 @@ function MatchHistoryPage() {
                           />
 
                           <div style={styles.matchLeftText}>
-                            <div style={styles.mapName}>
-                              {getMapName(match)}
-                            </div>
-                            <div style={styles.queueText}>
-                              {getQueueName(match)}
-                            </div>
+                            <div style={styles.mapName}>{getMapName(match)}</div>
+                            <div style={styles.queueText}>{getQueueName(match)}</div>
 
                             <div style={styles.scoreBox}>
                               <span
@@ -1298,139 +1180,103 @@ function MatchHistoryPage() {
 
                         {/* 오른쪽 */}
                         <div style={styles.matchRight}>
-                          {/* 날짜 + 0일 전 */}
                           <div style={styles.matchMetaBox}>
                             {match.gameDate && (
-                              <div style={styles.matchDateText}>
-                                {match.gameDate}
-                              </div>
+                              <div style={styles.matchDateText}>{match.gameDate}</div>
                             )}
                             {match.timeAgo && (
-                              <div style={styles.matchTimeAgoText}>
-                                {match.timeAgo}
-                              </div>
+                              <div style={styles.matchTimeAgoText}>{match.timeAgo}</div>
                             )}
                           </div>
 
-                          {/* 한 줄: KDA / KD / ACS / HS / KAST */}
                           <div style={styles.statsRow}>
                             {/* KDA */}
                             <div
                               style={styles.statBlock}
-                              onMouseEnter={() =>
-                                setHoveredStat({ key: 'kda', matchKey })
-                              }
+                              onMouseEnter={() => setHoveredStat({ key: 'kda', matchKey })}
                               onMouseLeave={() => setHoveredStat(null)}
                             >
                               <span style={styles.statLabel}>K / D / A</span>
                               <span style={styles.statValue}>
                                 {k} / {d} / {a}
                               </span>
-
                               {hoveredStat &&
                                 hoveredStat.key === 'kda' &&
                                 hoveredStat.matchKey === matchKey && (
-                                  <div style={styles.statInlineTooltip}>
-                                    {STAT_HELP_TEXT.kda}
-                                  </div>
+                                  <div style={styles.statInlineTooltip}>{STAT_HELP_TEXT.kda}</div>
                                 )}
                             </div>
 
                             {/* KD */}
                             <div
                               style={styles.statBlock}
-                              onMouseEnter={() =>
-                                setHoveredStat({ key: 'kd', matchKey })
-                              }
+                              onMouseEnter={() => setHoveredStat({ key: 'kd', matchKey })}
                               onMouseLeave={() => setHoveredStat(null)}
                             >
                               <span style={styles.statLabel}>K/D</span>
                               <span
                                 style={{
                                   ...styles.statValue,
-                                  color:
-                                    kd >= 1 ? '#4CAF50' : '#F44336',
+                                  color: kd >= 1 ? '#4CAF50' : '#F44336',
                                 }}
                               >
                                 {kd}
                               </span>
-
                               {hoveredStat &&
                                 hoveredStat.key === 'kd' &&
                                 hoveredStat.matchKey === matchKey && (
-                                  <div style={styles.statInlineTooltip}>
-                                    {STAT_HELP_TEXT.kd}
-                                  </div>
+                                  <div style={styles.statInlineTooltip}>{STAT_HELP_TEXT.kd}</div>
                                 )}
                             </div>
 
                             {/* ACS */}
                             <div
                               style={styles.statBlock}
-                              onMouseEnter={() =>
-                                setHoveredStat({ key: 'acs', matchKey })
-                              }
+                              onMouseEnter={() => setHoveredStat({ key: 'acs', matchKey })}
                               onMouseLeave={() => setHoveredStat(null)}
                             >
                               <span style={styles.statLabel}>ACS</span>
                               <span style={styles.statValue}>
                                 {match.acs != null ? match.acs : '-'}
                               </span>
-
                               {hoveredStat &&
                                 hoveredStat.key === 'acs' &&
                                 hoveredStat.matchKey === matchKey && (
-                                  <div style={styles.statInlineTooltip}>
-                                    {STAT_HELP_TEXT.acs}
-                                  </div>
+                                  <div style={styles.statInlineTooltip}>{STAT_HELP_TEXT.acs}</div>
                                 )}
                             </div>
 
                             {/* HS% */}
                             <div
                               style={styles.statBlock}
-                              onMouseEnter={() =>
-                                setHoveredStat({ key: 'hs', matchKey })
-                              }
+                              onMouseEnter={() => setHoveredStat({ key: 'hs', matchKey })}
                               onMouseLeave={() => setHoveredStat(null)}
                             >
                               <span style={styles.statLabel}>HS%</span>
                               <span style={styles.statValue}>
-                                {match.hsPercent != null
-                                  ? `${match.hsPercent}%`
-                                  : '-'}
+                                {match.hsPercent != null ? `${match.hsPercent}%` : '-'}
                               </span>
-
                               {hoveredStat &&
                                 hoveredStat.key === 'hs' &&
                                 hoveredStat.matchKey === matchKey && (
-                                  <div style={styles.statInlineTooltip}>
-                                    {STAT_HELP_TEXT.hs}
-                                  </div>
+                                  <div style={styles.statInlineTooltip}>{STAT_HELP_TEXT.hs}</div>
                                 )}
                             </div>
 
                             {/* KAST */}
                             <div
                               style={styles.statBlock}
-                              onMouseEnter={() =>
-                                setHoveredStat({ key: 'kast', matchKey })
-                              }
+                              onMouseEnter={() => setHoveredStat({ key: 'kast', matchKey })}
                               onMouseLeave={() => setHoveredStat(null)}
                             >
                               <span style={styles.statLabel}>KAST</span>
                               <span style={styles.statValue}>
-                                {match.kast != null
-                                  ? `${match.kast}%`
-                                  : '-'}
+                                {match.kast != null ? `${match.kast}%` : '-'}
                               </span>
-
                               {hoveredStat &&
                                 hoveredStat.key === 'kast' &&
                                 hoveredStat.matchKey === matchKey && (
-                                  <div style={styles.statInlineTooltip}>
-                                    {STAT_HELP_TEXT.kast}
-                                  </div>
+                                  <div style={styles.statInlineTooltip}>{STAT_HELP_TEXT.kast}</div>
                                 )}
                             </div>
                           </div>
@@ -1452,11 +1298,7 @@ function MatchHistoryPage() {
                     disabled={!hasMore || loadingMore}
                     onClick={handleLoadMoreClick}
                   >
-                    {loadingMore
-                      ? '불러오는 중...'
-                      : hasMore
-                      ? '전적 더 보기 (+10)'
-                      : '더 볼 전적이 없습니다'}
+                    {loadingMore ? '불러오는 중...' : hasMore ? '전적 더 보기 (+10)' : '더 볼 전적이 없습니다'}
                   </button>
                   <div style={styles.loadMoreSubText}>
                     현재 계정 전체 기준 {matches.length}판까지 불러왔습니다.
@@ -1473,10 +1315,7 @@ function MatchHistoryPage() {
       {showFortuneOverlay && (
         <div style={styles.fortuneOverlay}>
           <div style={styles.fortuneCard}>
-            <button
-              style={styles.fortuneCloseButton}
-              onClick={closeFortuneOverlay}
-            >
+            <button style={styles.fortuneCloseButton} onClick={closeFortuneOverlay}>
               ✕
             </button>
 
@@ -1500,11 +1339,7 @@ function MatchHistoryPage() {
               </div>
             </div>
 
-            {!isFortuneRolling && (
-              <div style={styles.fortuneResultText}>
-                {FORTUNES[fortuneIndex]}
-              </div>
-            )}
+            {!isFortuneRolling && <div style={styles.fortuneResultText}>{FORTUNES[fortuneIndex]}</div>}
           </div>
         </div>
       )}
@@ -1538,40 +1373,14 @@ const styles = {
     zIndex: 1000,
   },
   left: { flex: 1 },
-  center: {
-    flex: 1,
-    display: 'flex',
-    justifyContent: 'center',
-    gap: '30px',
-  },
-  right: {
-    flex: 1,
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '12px',
-    alignItems: 'center',
-  },
-  logoImage: {
-    height: '200px',
-    marginTop: '-8px',
-    cursor: 'pointer',
-  },
-  navItem: {
-    fontSize: '18px',
-    color: '#DDD',
-    cursor: 'pointer',
-  },
+  center: { flex: 1, display: 'flex', justifyContent: 'center', gap: '30px' },
+  right: { flex: 1, display: 'flex', justifyContent: 'flex-end', gap: '12px', alignItems: 'center' },
+  logoImage: { height: '200px', marginTop: '-8px', cursor: 'pointer' },
+  navItem: { fontSize: '18px', color: '#DDD', cursor: 'pointer' },
 
-  content: {
-    padding: '100px 40px',
-    maxWidth: '1200px',
-    margin: '0 auto',
-  },
+  content: { padding: '100px 40px', maxWidth: '1200px', margin: '0 auto' },
 
-  message: {
-    textAlign: 'center',
-    color: '#bbb',
-  },
+  message: { textAlign: 'center', color: '#bbb' },
   errorBox: {
     backgroundColor: '#2b1b1b',
     padding: '20px',
@@ -1592,14 +1401,70 @@ const styles = {
     cursor: 'pointer',
   },
 
-  profileBoxTopRight: {
+  profileBoxTopRight: { display: 'flex', alignItems: 'center', gap: '8px' },
+  profileNameTopRight: { fontSize: '14px', color: '#eee' },
+
+  // ✅ (추가) 전적 섹션 우측 상단 툴바
+  matchesToolsRow: {
+    marginTop: '6px',
+    marginBottom: '12px',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: '10px',
+    flexWrap: 'wrap',
+  },
+  otherSearchBox: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
+    padding: '8px 10px',
+    borderRadius: '12px',
+    border: '1px solid #2b2b2b',
+    backgroundColor: '#151515',
   },
-  profileNameTopRight: {
-    fontSize: '14px',
+  otherSearchSelect: {
+    height: '34px',
+    borderRadius: '10px',
+    border: '1px solid #333',
+    backgroundColor: '#111',
     color: '#eee',
+    padding: '0 10px',
+    outline: 'none',
+    fontSize: '12px',
+  },
+  otherSearchInput: {
+    width: '260px',
+    maxWidth: '60vw',
+    height: '34px',
+    borderRadius: '10px',
+    border: '1px solid #333',
+    backgroundColor: '#111',
+    color: '#eee',
+    padding: '0 10px',
+    outline: 'none',
+    fontSize: '12px',
+  },
+  otherSearchButton: {
+    height: '34px',
+    borderRadius: '10px',
+    border: '1px solid #444',
+    backgroundColor: '#1f1f1f',
+    color: '#eee',
+    padding: '0 14px',
+    cursor: 'pointer',
+    fontSize: '12px',
+  },
+  fetchRecentByLoginButton: {
+    height: '34px',
+    borderRadius: '999px',
+    border: '1px solid #457B9D',
+    backgroundColor: 'rgba(69,123,157,0.18)',
+    color: '#d8ecff',
+    padding: '0 14px',
+    cursor: 'pointer',
+    fontSize: '12px',
+    whiteSpace: 'nowrap',
   },
 
   profileCard: {
@@ -1627,11 +1492,7 @@ const styles = {
     overflow: 'hidden',
     boxShadow: '0 0 12px rgba(0,0,0,0.8)',
   },
-  playerCardImage: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
-  },
+  playerCardImage: { width: '100%', height: '100%', objectFit: 'cover' },
   profileImageRing: {
     position: 'absolute',
     inset: 0,
@@ -1639,102 +1500,35 @@ const styles = {
     boxShadow: '0 0 0 3px rgba(255,255,255,0.08)',
     pointerEvents: 'none',
   },
-  levelBadgeWrapper: {
-    marginTop: '4px',
-  },
+  levelBadgeWrapper: { marginTop: '4px' },
   levelBadge: {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
     padding: '4px 10px',
     borderRadius: '999px',
-    background:
-      'linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))',
+    background: 'linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))',
     border: '1px solid rgba(255,255,255,0.12)',
   },
-  levelLabel: {
-    fontSize: '11px',
-    letterSpacing: '0.05em',
-    color: '#aaa',
-  },
-  levelValue: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#fff',
-  },
+  levelLabel: { fontSize: '11px', letterSpacing: '0.05em', color: '#aaa' },
+  levelValue: { fontSize: '14px', fontWeight: '600', color: '#fff' },
 
-  profileRight: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-    minWidth: 0,
-  },
-  nameCard: {
-    backgroundColor: '#151515',
-    borderRadius: '12px',
-    padding: '12px 14px',
-    border: '1px solid #303030',
-  },
-  nameRow: {
-    display: 'flex',
-    alignItems: 'baseline',
-    gap: '6px',
-    marginBottom: '4px',
-  },
-  nicknameText: {
-    fontSize: '20px',
-    fontWeight: '700',
-    color: '#fff',
-  },
-  tagText: {
-    fontSize: '14px',
-    color: '#888',
-  },
-  tierRow: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '8px',
-    alignItems: 'center',
-    fontSize: '13px',
-    marginBottom: '6px',
-  },
-  tierText: {
-    color: '#f5f5f5',
-  },
-  rrText: {
-    color: '#d0d0ff',
-  },
-  winrateText: {
-    color: '#9fd39f',
-  },
+  profileRight: { flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', minWidth: 0 },
+  nameCard: { backgroundColor: '#151515', borderRadius: '12px', padding: '12px 14px', border: '1px solid #303030' },
+  nameRow: { display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '4px' },
+  nicknameText: { fontSize: '20px', fontWeight: '700', color: '#fff' },
+  tagText: { fontSize: '14px', color: '#888' },
+  tierRow: { display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', fontSize: '13px', marginBottom: '6px' },
+  tierText: { color: '#f5f5f5' },
+  rrText: { color: '#d0d0ff' },
+  winrateText: { color: '#9fd39f' },
 
-  overallStatsRow: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '12px',
-    marginTop: '6px',
-  },
-  overallStatItem: {
-    display: 'flex',
-    alignItems: 'baseline',
-    gap: '4px',
-    fontSize: '12px',
-  },
-  overallStatLabel: {
-    color: '#aaaaaa',
-  },
-  overallStatValue: {
-    color: '#ffffff',
-    fontWeight: 600,
-  },
+  overallStatsRow: { display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '6px' },
+  overallStatItem: { display: 'flex', alignItems: 'baseline', gap: '4px', fontSize: '12px' },
+  overallStatLabel: { color: '#aaaaaa' },
+  overallStatValue: { color: '#ffffff', fontWeight: 600 },
 
-  tierButtonRow: {
-    marginTop: '8px',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '8px',
-  },
+  tierButtonRow: { marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '8px' },
   tierDetailButton: {
     padding: '4px 10px',
     borderRadius: '999px',
@@ -1755,20 +1549,9 @@ const styles = {
     cursor: 'pointer',
   },
 
-  tierChartCard: {
-    marginTop: '10px',
-    padding: '12px',
-    borderRadius: '12px',
-    backgroundColor: '#151515',
-    border: '1px solid #303030',
-  },
-  tierChartEmptyText: {
-    fontSize: '12px',
-    color: '#999',
-  },
-  tierChartSvg: {
-    display: 'block',
-  },
+  tierChartCard: { marginTop: '10px', padding: '12px', borderRadius: '12px', backgroundColor: '#151515', border: '1px solid #303030' },
+  tierChartEmptyText: { fontSize: '12px', color: '#999' },
+  tierChartSvg: { display: 'block' },
 
   fortuneInlineBox: {
     marginTop: '4px',
@@ -1781,36 +1564,13 @@ const styles = {
     flexWrap: 'wrap',
     gap: '4px',
   },
-  fortuneInlineLabel: {
-    fontSize: '14px',
-    fontWeight: 600,
-    color: '#ffeb3b',
-  },
-  fortuneInlineText: {
-    fontSize: '14px',
-    color: '#eee',
-  },
+  fortuneInlineLabel: { fontSize: '14px', fontWeight: 600, color: '#ffeb3b' },
+  fortuneInlineText: { fontSize: '14px', color: '#eee' },
 
-  matchesHeaderRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: '8px',
-    marginBottom: '8px',
-  },
-  sectionTitle: {
-    fontSize: '20px',
-    margin: 0,
-  },
-  filterWrapper: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  filterLabel: {
-    fontSize: '14px',
-    color: '#aaa',
-  },
+  matchesHeaderRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', marginBottom: '8px' },
+  sectionTitle: { fontSize: '20px', margin: 0 },
+  filterWrapper: { display: 'flex', alignItems: 'center', gap: '8px' },
+  filterLabel: { fontSize: '14px', color: '#aaa' },
   filterSelect: {
     backgroundColor: '#181818',
     color: '#eee',
@@ -1821,11 +1581,7 @@ const styles = {
     outline: 'none',
   },
 
-  matchList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-  },
+  matchList: { display: 'flex', flexDirection: 'column', gap: '12px' },
   matchRowCard: {
     display: 'flex',
     justifyContent: 'flex-start',
@@ -1835,111 +1591,26 @@ const styles = {
     border: '1px solid #303030',
     alignItems: 'center',
   },
-  matchLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    flex: 1,
-    minWidth: 0,
-  },
+  matchLeft: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 },
+  resultFlagWin: { fontSize: '14px', fontWeight: 700, color: '#90caf9', minWidth: '42px', textAlign: 'center' },
+  resultFlagLose: { fontSize: '14px', fontWeight: 700, color: '#ef9a9a', minWidth: '42px', textAlign: 'center' },
+  matchLeftDivider: { width: '1px', height: '60%', backgroundColor: '#444', borderRadius: '999px', alignSelf: 'center' },
+  agentImage: { width: '48px', height: '48px', borderRadius: '4px', objectFit: 'cover' },
+  matchLeftText: { display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 },
+  mapName: { fontSize: '16px', fontWeight: '600' },
+  queueText: { fontSize: '12px', color: '#999' },
+  scoreBox: { marginTop: '2px' },
+  scoreText: { fontSize: '14px', fontWeight: '600' },
 
-  resultFlagWin: {
-    fontSize: '14px',
-    fontWeight: 700,
-    color: '#90caf9',
-    minWidth: '42px',
-    textAlign: 'center',
-  },
-  resultFlagLose: {
-    fontSize: '14px',
-    fontWeight: 700,
-    color: '#ef9a9a',
-    minWidth: '42px',
-    textAlign: 'center',
-  },
+  matchRight: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', minWidth: '260px', marginLeft: '48px' },
+  matchMetaBox: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' },
+  matchDateText: { fontSize: '11px', color: '#bbb' },
+  matchTimeAgoText: { fontSize: '11px', color: '#888' },
 
-  matchLeftDivider: {
-    width: '1px',
-    height: '60%',
-    backgroundColor: '#444',
-    borderRadius: '999px',
-    alignSelf: 'center',
-  },
-
-  agentImage: {
-    width: '48px',
-    height: '48px',
-    borderRadius: '4px',
-    objectFit: 'cover',
-  },
-  matchLeftText: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-    minWidth: 0,
-  },
-  mapName: {
-    fontSize: '16px',
-    fontWeight: '600',
-  },
-  queueText: {
-    fontSize: '12px',
-    color: '#999',
-  },
-  scoreBox: {
-    marginTop: '2px',
-  },
-  scoreText: {
-    fontSize: '14px',
-    fontWeight: '600',
-  },
-
-  matchRight: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    gap: '4px',
-    minWidth: '260px',
-    marginLeft: '48px',
-  },
-  matchMetaBox: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    gap: '2px',
-  },
-  matchDateText: {
-    fontSize: '11px',
-    color: '#bbb',
-  },
-  matchTimeAgoText: {
-    fontSize: '11px',
-    color: '#888',
-  },
-
-  statsRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '14px',
-    alignSelf: 'flex-end',
-    marginRight: '28px',
-    marginTop: '4px',
-  },
-  statBlock: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    minWidth: '60px',
-    position: 'relative',
-  },
-  statLabel: {
-    fontSize: '11px',
-    color: '#777',
-  },
-  statValue: {
-    fontSize: '13px',
-    color: '#fff',
-  },
+  statsRow: { display: 'flex', alignItems: 'center', gap: '14px', alignSelf: 'flex-end', marginRight: '28px', marginTop: '4px' },
+  statBlock: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: '60px', position: 'relative' },
+  statLabel: { fontSize: '11px', color: '#777' },
+  statValue: { fontSize: '13px', color: '#fff' },
 
   statInlineTooltip: {
     position: 'absolute',
@@ -1956,137 +1627,32 @@ const styles = {
     zIndex: 10,
   },
 
-  loadMoreWrapper: {
-    marginTop: '10px',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '4px',
-  },
-  loadMoreButton: {
-    padding: '6px 20px',
-    borderRadius: '999px',
-    border: '1px solid #4f4f4f',
-    backgroundColor: '#1f1f1f',
-    color: '#eee',
-    fontSize: '13px',
-    cursor: 'pointer',
-  },
-  loadMoreSubText: {
-    fontSize: '11px',
-    color: '#888',
-  },
+  loadMoreWrapper: { marginTop: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' },
+  loadMoreButton: { padding: '6px 20px', borderRadius: '999px', border: '1px solid #4f4f4f', backgroundColor: '#1f1f1f', color: '#eee', fontSize: '13px', cursor: 'pointer' },
+  loadMoreSubText: { fontSize: '11px', color: '#888' },
 
-  loginButton: {
-    padding: '6px 12px',
-    backgroundColor: 'transparent',
-    borderRadius: '999px',
-    border: '1px solid #555',
-    color: '#eee',
-    cursor: 'pointer',
-  },
-  logoutButton: {
-    padding: '6px 12px',
-    backgroundColor: 'transparent',
-    borderRadius: '999px',
-    border: '1px solid #555',
-    color: '#eee',
-    cursor: 'pointer',
-  },
+  loginButton: { padding: '6px 12px', backgroundColor: 'transparent', borderRadius: '999px', border: '1px solid #555', color: '#eee', cursor: 'pointer' },
+  logoutButton: { padding: '6px 12px', backgroundColor: 'transparent', borderRadius: '999px', border: '1px solid #555', color: '#eee', cursor: 'pointer' },
 
-  modalOverlay: {
-    position: 'fixed',
-    inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 2000,
-  },
-  modalContent: {
-    width: '92%',
-    maxWidth: '1300px',
-    maxHeight: '82vh',
-    backgroundColor: '#161616',
-    borderRadius: '16px',
-    border: '1px solid #333',
-    padding: '18px 20px',
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-  },
-  modalHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '12px',
-  },
-  modalTitleRow: {
-    display: 'flex',
-    alignItems: 'baseline',
-    gap: '6px',
-  },
-  modalMapName: {
-    fontSize: '18px',
-    fontWeight: 700,
-  },
-  modalQueueName: {
-    fontSize: '14px',
-    color: '#aaa',
-  },
-  modalSubText: {
-    marginTop: '4px',
-    fontSize: '12px',
-    color: '#888',
-  },
-  modalScoreBox: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  modalScoreText: {
-    fontSize: '18px',
-    fontWeight: 700,
-  },
-  modalResultBadge: {
-    fontSize: '12px',
-    padding: '4px 8px',
-    borderRadius: '999px',
-    color: '#fff',
-  },
-  modalCloseButton: {
-    marginLeft: '8px',
-    background: 'transparent',
-    border: 'none',
-    color: '#ccc',
-    fontSize: '18px',
-    cursor: 'pointer',
-  },
+  modalOverlay: { position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 },
+  modalContent: { width: '92%', maxWidth: '1300px', maxHeight: '82vh', backgroundColor: '#161616', borderRadius: '16px', border: '1px solid #333', padding: '18px 20px', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' },
+  modalTitleRow: { display: 'flex', alignItems: 'baseline', gap: '6px' },
+  modalMapName: { fontSize: '18px', fontWeight: 700 },
+  modalQueueName: { fontSize: '14px', color: '#aaa' },
+  modalSubText: { marginTop: '4px', fontSize: '12px', color: '#888' },
+  modalScoreBox: { display: 'flex', alignItems: 'center', gap: '8px' },
+  modalScoreText: { fontSize: '18px', fontWeight: 700 },
+  modalResultBadge: { fontSize: '12px', padding: '4px 8px', borderRadius: '999px', color: '#fff' },
+  modalCloseButton: { marginLeft: '8px', background: 'transparent', border: 'none', color: '#ccc', fontSize: '18px', cursor: 'pointer' },
 
-  scoreboardWrapper: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '16px',
-    overflow: 'auto',
-    paddingTop: '4px',
-  },
-  teamColumn: {
-    backgroundColor: '#151515',
-    borderRadius: '12px',
-    border: '1px solid #303030',
-    padding: '10px',
-  },
-  teamHeader: {
-    marginBottom: '6px',
-  },
-  teamTitle: {
-    fontSize: '14px',
-    fontWeight: 600,
-  },
+  scoreboardWrapper: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', overflow: 'auto', paddingTop: '4px' },
+  teamColumn: { backgroundColor: '#151515', borderRadius: '12px', border: '1px solid #303030', padding: '10px' },
+  teamHeader: { marginBottom: '6px' },
+  teamTitle: { fontSize: '14px', fontWeight: 600 },
   tableHeaderRow: {
     display: 'grid',
-    gridTemplateColumns:
-      '2fr 0.7fr 1.4fr 1.2fr 0.8fr 0.9fr 0.9fr 0.9fr',
+    gridTemplateColumns: '2fr 0.7fr 1.4fr 1.2fr 0.8fr 0.9fr 0.9fr 0.9fr',
     fontSize: '11px',
     color: '#999',
     borderBottom: '1px solid #333',
@@ -2100,62 +1666,22 @@ const styles = {
 
   tableRow: {
     display: 'grid',
-    gridTemplateColumns:
-      '2fr 0.7fr 1.4fr 1.2fr 0.8fr 0.9fr 0.9fr 0.9fr',
+    gridTemplateColumns: '2fr 0.7fr 1.4fr 1.2fr 0.8fr 0.9fr 0.9fr 0.9fr',
     fontSize: '12px',
     padding: '4px 0',
     alignItems: 'center',
   },
-  tdPlayer: {
-    textAlign: 'left',
-    display: 'flex',
-    alignItems: 'baseline',
-    gap: '4px',
-  },
-  tdTier: {
-    textAlign: 'center',
-  },
-  tdAgent: {
-    textAlign: 'left',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-  },
-  tdStat: {
-    textAlign: 'right',
-  },
-  tierIcon: {
-    width: 26,
-    height: 26,
-    objectFit: 'contain',
-  },
-  playerNameText: {
-    fontWeight: 500,
-  },
-  playerTagText: {
-    fontSize: '10px',
-    color: '#888',
-  },
-  modalAgentImg: {
-    width: '22px',
-    height: '22px',
-    borderRadius: '3px',
-    objectFit: 'cover',
-  },
-  agentNameText: {
-    fontSize: '11px',
-    color: '#ddd',
-  },
+  tdPlayer: { textAlign: 'left', display: 'flex', alignItems: 'baseline', gap: '4px' },
+  tdTier: { textAlign: 'center' },
+  tdAgent: { textAlign: 'left', display: 'flex', alignItems: 'center', gap: '4px' },
+  tdStat: { textAlign: 'right' },
+  tierIcon: { width: 26, height: 26, objectFit: 'contain' },
+  playerNameText: { fontWeight: 500 },
+  playerTagText: { fontSize: '10px', color: '#888' },
+  modalAgentImg: { width: '22px', height: '22px', borderRadius: '3px', objectFit: 'cover' },
+  agentNameText: { fontSize: '11px', color: '#ddd' },
 
-  fortuneOverlay: {
-    position: 'fixed',
-    inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 2500,
-  },
+  fortuneOverlay: { position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2500 },
   fortuneCard: {
     position: 'relative',
     width: '480px',
@@ -2170,34 +1696,17 @@ const styles = {
     alignItems: 'center',
     gap: '12px',
   },
-  fortuneCloseButton: {
-    position: 'absolute',
-    top: '10px',
-    right: '12px',
-    background: 'transparent',
-    border: 'none',
-    color: '#aaa',
-    fontSize: '18px',
-    cursor: 'pointer',
-  },
-  fortuneTitle: {
-    fontSize: '18px',
-    margin: '4px 0 8px',
-    fontWeight: 700,
-  },
+  fortuneCloseButton: { position: 'absolute', top: '10px', right: '12px', background: 'transparent', border: 'none', color: '#aaa', fontSize: '18px', cursor: 'pointer' },
+  fortuneTitle: { fontSize: '18px', margin: '4px 0 8px', fontWeight: 700 },
   fortuneWindow: {
     width: '100%',
     height: '40px',
     overflow: 'hidden',
     borderRadius: '10px',
     border: '1px solid #444',
-    background:
-      'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))',
+    background: 'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))',
   },
-  fortuneInner: {
-    display: 'flex',
-    flexDirection: 'column',
-  },
+  fortuneInner: { display: 'flex', flexDirection: 'column' },
   fortuneRow: {
     height: '40px',
     display: 'flex',
