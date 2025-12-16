@@ -143,12 +143,7 @@ function TierChart({ data }) {
 
   return (
     <svg width={width} height={height} style={styles.tierChartSvg}>
-      <polyline
-        points={polyPoints}
-        fill="none"
-        stroke="#4CAF50"
-        strokeWidth="2"
-      />
+      <polyline points={polyPoints} fill="none" stroke="#4CAF50" strokeWidth="2" />
       {points.map((p, idx) => {
         const item = data[idx];
         const seasonLabel =
@@ -159,22 +154,10 @@ function TierChart({ data }) {
         return (
           <g key={idx}>
             <circle cx={p.x} cy={p.y} r="3" fill="#ffffff" />
-            <text
-              x={p.x}
-              y={p.y - 8}
-              textAnchor="middle"
-              fontSize="9"
-              fill="#ffffff"
-            >
+            <text x={p.x} y={p.y - 8} textAnchor="middle" fontSize="9" fill="#ffffff">
               {tierLabel}
             </text>
-            <text
-              x={p.x}
-              y={height - 5}
-              textAnchor="middle"
-              fontSize="9"
-              fill="#999999"
-            >
+            <text x={p.x} y={height - 5} textAnchor="middle" fontSize="9" fill="#999999">
               {seasonLabel}
             </text>
           </g>
@@ -192,6 +175,10 @@ function MatchHistoryPage() {
     window.location.href = '/api/auth/login';
   };
 
+  // ✅ (추가) 상단바 우측 검색창 상태 (MapRotationPage 스타일)
+  const [riotId, setRiotId] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+
   const [profile, setProfile] = useState(null);
   const [matches, setMatches] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -199,11 +186,6 @@ function MatchHistoryPage() {
   const [error, setError] = useState('');
   const [hasToken, setHasToken] = useState(false); // 세션 유무 표현용
   const [queueFilter, setQueueFilter] = useState('all');
-
-  // ✅ (변경) 상단 우측 검색창 상태 (두번째 사진 스타일)
-  const [navSearchRiotId, setNavSearchRiotId] = useState('');
-  const [navSearching, setNavSearching] = useState(false);
-  const NAV_SEARCH_DEFAULT_REGION = 'kr';
 
   // 🔥 클릭된 경기(스코어보드 모달용)
   const [selectedMatch, setSelectedMatch] = useState(null);
@@ -243,24 +225,28 @@ function MatchHistoryPage() {
     other: 10,
   });
 
-  // ✅ (추가) 상단 우측 “다른 계정 검색” 핸들러 (두번째 사진처럼)
-  const handleNavAccountSearch = (e) => {
+  // ✅ 상단바 검색 핸들러 (MapRotationPage 느낌 그대로)
+  const handleTopSearch = async (e) => {
     e.preventDefault();
-    if (navSearching) return;
+    if (isSearching) return;
 
-    const [gameName, tagLine] = String(navSearchRiotId || '').split('#');
+    const [gameName, tagLine] = String(riotId || '').split('#');
     if (!gameName || !tagLine) {
       alert('아이디 형식을 확인해주세요. 예: CU24#KR');
       return;
     }
 
-    setNavSearching(true);
-    navigate(
-      `/search-result?name=${encodeURIComponent(gameName)}&tag=${encodeURIComponent(
-        tagLine
-      )}&region=${encodeURIComponent(NAV_SEARCH_DEFAULT_REGION)}`
-    );
-    setNavSearching(false);
+    try {
+      setIsSearching(true);
+      // 기존 SearchResult 페이지 흐름 유지 (region이 필요하면 kr 기본값으로)
+      navigate(
+        `/search-result?name=${encodeURIComponent(gameName)}&tag=${encodeURIComponent(
+          tagLine
+        )}&region=kr`
+      );
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const getAgentImageSrc = (agent) => {
@@ -487,6 +473,9 @@ function MatchHistoryPage() {
       if (res.status === 401) {
         setError('세션이 만료되었습니다. 다시 로그인해 주세요.');
         setHasToken(false);
+        setProfile(null);
+        setSummary(null);
+        setMatches([]);
         return;
       }
 
@@ -512,6 +501,12 @@ function MatchHistoryPage() {
     const key = queueFilter || 'all';
     await fetchMoreMatches();
     setVisibleCounts((prev) => ({ ...prev, [key]: (prev[key] || 10) + 10 }));
+  };
+
+  const getDisplayName = (p) => {
+    if (!p) return '';
+    if (p.gameName && p.tagLine) return `${p.gameName}#${p.tagLine}`;
+    return p.gameName || '';
   };
 
   const getMapName = (match) => {
@@ -846,25 +841,24 @@ function MatchHistoryPage() {
           <span style={styles.navItem} onClick={() => navigate('/esports')}>E-Sports</span>
         </div>
 
-        {/* ✅ (변경) 우측 상단: 두번째 사진 검색창 + 빨간 검색 버튼 */}
-        <div style={styles.right}>
-          <form style={styles.navSearchBox} onSubmit={handleNavAccountSearch}>
-            <input
-              style={styles.navSearchInput}
-              value={navSearchRiotId}
-              onChange={(e) => setNavSearchRiotId(e.target.value)}
-              placeholder="예: CU24#KR"
-              aria-label="Riot ID search"
-            />
-            <button
-              type="submit"
-              style={styles.navSearchButton}
-              disabled={navSearching}
-            >
-              {navSearching ? '검색중' : '검색'}
-            </button>
-          </form>
-        </div>
+        {/* ✅ 우측 상단 검색 UI (MapRotationPage 스타일 그대로) */}
+        <form style={styles.right} onSubmit={handleTopSearch}>
+          <input
+            type="text"
+            placeholder="예: CU24#KR"
+            value={riotId}
+            onChange={(e) => setRiotId(e.target.value)}
+            style={styles.topSearchInput}
+            aria-label="Riot ID"
+          />
+          <button
+            type="submit"
+            style={styles.searchButton}
+            disabled={isSearching}
+          >
+            {isSearching ? '검색 중...' : '검색'}
+          </button>
+        </form>
       </nav>
 
       {/* 본문 */}
@@ -936,24 +930,24 @@ function MatchHistoryPage() {
                           )}
                         </div>
 
-                        {matches?.length > 0 && (
+                        {avgStats && (
                           <div style={styles.overallStatsRow}>
                             <div style={styles.overallStatItem}>
                               <span style={styles.overallStatLabel}>평균 HS</span>
                               <span style={styles.overallStatValue}>
-                                {avgStats?.avgHs != null ? `${avgStats.avgHs.toFixed(1)}%` : '-'}
+                                {avgStats.avgHs != null ? `${avgStats.avgHs.toFixed(1)}%` : '-'}
                               </span>
                             </div>
                             <div style={styles.overallStatItem}>
                               <span style={styles.overallStatLabel}>평균 K/D</span>
                               <span style={styles.overallStatValue}>
-                                {avgStats?.avgKd != null ? avgStats.avgKd.toFixed(2) : '-'}
+                                {avgStats.avgKd != null ? avgStats.avgKd.toFixed(2) : '-'}
                               </span>
                             </div>
                             <div style={styles.overallStatItem}>
                               <span style={styles.overallStatLabel}>평균 ACS</span>
                               <span style={styles.overallStatValue}>
-                                {avgStats?.avgAcs != null ? Math.round(avgStats.avgAcs) : '-'}
+                                {avgStats.avgAcs != null ? Math.round(avgStats.avgAcs) : '-'}
                               </span>
                             </div>
                           </div>
@@ -999,9 +993,9 @@ function MatchHistoryPage() {
               </span>
             </div>
 
-            {/* ✅ (변경) 운세 아래에 “로그인하여 최근 전적 불러오기” 버튼 */}
+            {/* ✅ 로그인 버튼: 운세 박스 아래로 이동 + 세션 없을 때 보이도록 */}
             {!hasToken && (
-              <div style={styles.loginFetchRow}>
+              <div style={styles.loginCtaRow}>
                 <button
                   type="button"
                   style={styles.fetchRecentByLoginButton}
@@ -1289,7 +1283,9 @@ function MatchHistoryPage() {
               </div>
             </div>
 
-            {!isFortuneRolling && <div style={styles.fortuneResultText}>{FORTUNES[fortuneIndex]}</div>}
+            {!isFortuneRolling && (
+              <div style={styles.fortuneResultText}>{FORTUNES[fortuneIndex]}</div>
+            )}
           </div>
         </div>
       )}
@@ -1321,46 +1317,46 @@ const styles = {
     width: '100%',
     height: '72px',
     zIndex: 1000,
+    overflow: 'visible',
   },
-  left: { flex: 1 },
-  center: { flex: 1, display: 'flex', justifyContent: 'center', gap: '30px' },
+  left: { flex: '1 1 auto', display: 'flex', alignItems: 'center' },
+  center: { flex: '1 1 auto', display: 'flex', justifyContent: 'center', gap: '30px' },
 
-  // ✅ 우측 상단: 검색창 + 빨간 검색 버튼
-  right: { flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' },
-  navSearchBox: {
+  // ✅ MapRotationPage와 동일한 “우측 상단 검색 UI” 느낌
+  right: {
+    flex: 1.5,
     display: 'flex',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    gap: '10px',
-  },
-  navSearchInput: {
-    width: '260px',
-    maxWidth: '40vw',
-    height: '40px',
-    borderRadius: '10px',
-    border: '1px solid #3a3a3a',
-    backgroundColor: '#151515',
-    color: '#eee',
-    padding: '0 14px',
-    outline: 'none',
-    fontSize: '13px',
-  },
-  navSearchButton: {
-    height: '40px',
-    padding: '0 18px',
-    borderRadius: '10px',
-    border: 'none',
-    backgroundColor: '#ff4d4f',
-    color: '#fff',
-    fontSize: '13px',
-    fontWeight: 700,
-    cursor: 'pointer',
+    gap: '8px',
+    paddingRight: '50px',
   },
 
   logoImage: { height: '200px', marginTop: '-8px', cursor: 'pointer' },
   navItem: { fontSize: '18px', color: '#DDD', cursor: 'pointer' },
 
-  content: { padding: '100px 40px', maxWidth: '1200px', margin: '0 auto' },
+  topSearchInput: {
+    height: '34px',
+    fontSize: '14px',
+    padding: '0 10px',
+    borderRadius: '6px',
+    border: '1px solid #555',
+    backgroundColor: '#1e1e1e',
+    color: '#fff',
+    width: '220px',
+  },
+  searchButton: {
+    padding: '6px 12px',
+    fontSize: '14px',
+    backgroundColor: '#E63946',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    minWidth: '64px',
+  },
 
+  content: { padding: '100px 40px', maxWidth: '1200px', margin: '0 auto' },
   message: { textAlign: 'center', color: '#bbb' },
   errorBox: {
     backgroundColor: '#2b1b1b',
@@ -1370,7 +1366,6 @@ const styles = {
     textAlign: 'center',
   },
   errorText: { color: '#ff8888' },
-
   primaryButton: {
     marginTop: '10px',
     padding: '8px 16px',
@@ -1382,12 +1377,12 @@ const styles = {
     cursor: 'pointer',
   },
 
-  // ✅ 운세 아래 로그인 버튼 줄
-  loginFetchRow: {
+  // ✅ 운세 아래 로그인 CTA 영역
+  loginCtaRow: {
+    marginTop: '8px',
+    marginBottom: '12px',
     display: 'flex',
     justifyContent: 'flex-end',
-    marginTop: '-2px',
-    marginBottom: '12px',
   },
   fetchRecentByLoginButton: {
     height: '34px',
@@ -1489,7 +1484,7 @@ const styles = {
 
   fortuneInlineBox: {
     marginTop: '4px',
-    marginBottom: '12px',
+    marginBottom: '4px',
     padding: '8px 12px',
     borderRadius: '10px',
     border: '1px solid #2e2e2e',
