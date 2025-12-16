@@ -503,12 +503,6 @@ function MatchHistoryPage() {
     setVisibleCounts((prev) => ({ ...prev, [key]: (prev[key] || 10) + 10 }));
   };
 
-  const getDisplayName = (p) => {
-    if (!p) return '';
-    if (p.gameName && p.tagLine) return `${p.gameName}#${p.tagLine}`;
-    return p.gameName || '';
-  };
-
   const getMapName = (match) => {
     const m = match.map;
     let name = 'Unknown Map';
